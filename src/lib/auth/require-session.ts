@@ -7,7 +7,7 @@ import { hasLinkedEmployee } from "@/lib/auth/attendance-access";
 export async function requireSession(): Promise<Session> {
   const session = await auth();
   if (!session?.user) {
-    redirect("/login");
+    redirect("/");
   }
   return session;
 }

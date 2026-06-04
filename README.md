@@ -113,7 +113,7 @@ On Vercel, `AUTH_URL` can often be omitted in production because Auth.js uses `t
 **Employee onboarding:**
 
 1. Admin creates the employee record (code + email must match the person’s Google account).
-2. Employee signs in with Google at `/login`.
+2. Employee signs in with Google at `/`.
 3. If the account is not yet linked to a record, they are sent to **`/register`** to enter their employee code. The code must match an active record whose email equals their Google email.
 4. If they already signed in before the admin created the record, email match on the next login auto-links them (no code step). Otherwise they use `/register` once.
 5. Linked employees use **`/dashboard`** for check-in, breaks, and check-out. Unlinked employees cannot access attendance APIs until registration completes.
@@ -195,8 +195,7 @@ Server startup validates required auth and office env via [`src/instrumentation.
 
 | Path | Who | Purpose |
 |------|-----|---------|
-| `/` | Public | Landing; redirects signed-in users |
-| `/login` | Public | Google sign-in |
+| `/` | Public | Landing page, Google sign-in; redirects signed-in users |
 | `/register` | Signed-in employee | Link account with employee code |
 | `/dashboard` | Linked employee | Check-in, breaks, check-out |
 | `/admin/employees` | Admin | Employee CRUD |
@@ -217,7 +216,7 @@ src/
     auth/           # Navigation, register/link employee, domain checks
     admin/          # Employees, attendance, reports
   instrumentation.ts # Validates required env on server start
-  proxy.ts          # Auth guard: /login, /register, /dashboard, /admin, APIs
+  proxy.ts          # Auth guard: /, /register, /dashboard, /admin, APIs
   components/       # UI (admin, attendance, auth, shadcn)
 vercel.json         # Cron schedule for auto-absent
 ```

@@ -13,15 +13,15 @@ export default auth((req) => {
 
   const isAdminRoute = pathname.startsWith("/admin") || pathname.startsWith("/api/admin");
 
-  if (pathname === "/login" && isLoggedIn && user) {
+  if (pathname === "/" && isLoggedIn && user) {
     return NextResponse.redirect(new URL(getPostAuthRedirect(user), req.nextUrl.origin));
   }
 
   if (pathname === "/register") {
     if (!isLoggedIn) {
-      const loginUrl = new URL("/login", req.nextUrl.origin);
-      loginUrl.searchParams.set("callbackUrl", "/register");
-      return NextResponse.redirect(loginUrl);
+      const signInUrl = new URL("/", req.nextUrl.origin);
+      signInUrl.searchParams.set("callbackUrl", "/register");
+      return NextResponse.redirect(signInUrl);
     }
     if (user && !needsEmployeeRegistration(user)) {
       return NextResponse.redirect(new URL(getPostAuthRedirect(user), req.nextUrl.origin));
@@ -38,9 +38,9 @@ export default auth((req) => {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const loginUrl = new URL("/login", req.nextUrl.origin);
-    loginUrl.searchParams.set("callbackUrl", pathname);
-    return NextResponse.redirect(loginUrl);
+    const signInUrl = new URL("/", req.nextUrl.origin);
+    signInUrl.searchParams.set("callbackUrl", pathname);
+    return NextResponse.redirect(signInUrl);
   }
 
   if (user && needsEmployeeRegistration(user)) {
@@ -67,7 +67,7 @@ export default auth((req) => {
 
 export const config = {
   matcher: [
-    "/login",
+    "/",
     "/register",
     "/dashboard/:path*",
     "/admin",

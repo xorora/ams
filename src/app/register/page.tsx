@@ -11,7 +11,7 @@ import {
 export default async function RegisterPage() {
   const session = await auth();
   if (!session?.user) {
-    redirect("/login?callbackUrl=/register");
+    redirect("/?callbackUrl=/register");
   }
 
   if (!needsEmployeeRegistration(session.user)) {
@@ -24,7 +24,7 @@ export default async function RegisterPage() {
 
   const email = session.user.email;
   if (!email) {
-    redirect("/login");
+    redirect("/");
   }
 
   return (

@@ -58,7 +58,7 @@ export function isNavItemActive(pathname: string, item: NavItem): boolean {
 }
 
 /** Routes that render without the app sidebar chrome. */
-export const PUBLIC_PATH_PREFIXES = ["/login", "/register"] as const;
+export const PUBLIC_PATH_PREFIXES = ["/register"] as const;
 
 export function isPublicPath(pathname: string): boolean {
   if (pathname === "/") {
