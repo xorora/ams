@@ -17,6 +17,11 @@ export default auth((req) => {
     return NextResponse.redirect(new URL(home, req.nextUrl.origin));
   }
 
+  if (pathname === "/admin" && isLoggedIn) {
+    const home = getDefaultAuthenticatedPath(req.auth?.user?.role ?? "employee");
+    return NextResponse.redirect(new URL(home, req.nextUrl.origin));
+  }
+
   if ((isProtectedPage || isAdminRoute || isAttendanceApi) && !isLoggedIn) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -40,6 +45,7 @@ export const config = {
   matcher: [
     "/login",
     "/dashboard/:path*",
+    "/admin",
     "/admin/:path*",
     "/api/admin/:path*",
     "/api/attendance/:path*",

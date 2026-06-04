@@ -1,8 +1,46 @@
 import { AttendanceManager } from "@/components/admin/attendance-manager";
+import { type AttendanceStatus, listAttendance } from "@/lib/admin/attendance-service";
+import { listEmployees } from "@/lib/admin/employees-service";
+import { serializeAttendance, serializeEmployee } from "@/lib/admin/serialize";
 import { requireAdminSession } from "@/lib/auth/require-session";
 
-export default async function AdminAttendancePage() {
+type PageProps = {
+  searchParams: Promise<{
+    from?: string;
+    to?: string;
+    employeeId?: string;
+    status?: string;
+  }>;
+};
+
+export default async function AdminAttendancePage({ searchParams }: PageProps) {
   await requireAdminSession();
+  const params = await searchParams;
+
+  const statusParam = params.status ?? "";
+  const filters = {
+    from: params.from ?? "",
+    to: params.to ?? "",
+    employeeId: params.employeeId ?? "",
+    status: (statusParam === "present" || statusParam === "absent" || statusParam === "leave"
+      ? statusParam
+      : "") as "" | AttendanceStatus,
+  };
+
+  const employeesResult = await listEmployees();
+  const activeEmployees = employeesResult.ok
+    ? employeesResult.data.filter((e) => e.isActive).map(serializeEmployee)
+    : [];
+
+  const attendanceResult = await listAttendance({
+    from: filters.from || undefined,
+    to: filters.to || undefined,
+    employeeId: filters.employeeId || undefined,
+    status: filters.status || undefined,
+  });
+
+  const items = attendanceResult.data.items.map(serializeAttendance);
+  const total = attendanceResult.data.total;
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-8">
@@ -14,7 +52,12 @@ export default async function AdminAttendancePage() {
         </p>
       </div>
 
-      <AttendanceManager />
+      <AttendanceManager
+        employees={activeEmployees}
+        items={items}
+        total={total}
+        filters={filters}
+      />
     </div>
   );
 }

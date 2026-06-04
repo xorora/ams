@@ -1,9 +1,20 @@
 import { EmployeeDashboard } from "@/components/attendance/employee-dashboard";
+import { type SerializedTodayStatus, serializeTodayStatus } from "@/lib/attendance/serialize";
+import { getTodayStatus } from "@/lib/attendance/service";
 import { requireSession } from "@/lib/auth/require-session";
 
 export default async function DashboardPage() {
   const session = await requireSession();
-  const isEmployee = session.user.role === "employee" && session.user.employeeId;
+  const employeeId = session.user.employeeId;
+  const isEmployee = session.user.role === "employee" && employeeId;
+
+  let initialStatus: SerializedTodayStatus | null = null;
+  const loadError: string | null = null;
+
+  if (isEmployee && employeeId) {
+    const result = await getTodayStatus(employeeId);
+    initialStatus = serializeTodayStatus(result.data);
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 p-8">
@@ -19,7 +30,7 @@ export default async function DashboardPage() {
       </div>
 
       {isEmployee ? (
-        <EmployeeDashboard />
+        <EmployeeDashboard initialStatus={initialStatus} loadError={loadError} />
       ) : (
         <div className="rounded-xl border bg-muted/40 p-5 text-sm">
           {session.user.role === "admin" ? (

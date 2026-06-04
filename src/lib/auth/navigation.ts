@@ -13,7 +13,7 @@ export type NavItem = {
 };
 
 export function getDefaultAuthenticatedPath(role: Session["user"]["role"]): string {
-  return role === "admin" ? "/admin" : "/dashboard";
+  return role === "admin" ? "/admin/employees" : "/dashboard";
 }
 
 export function getNavItemsForUser(user: Session["user"]): NavItem[] {
@@ -23,13 +23,6 @@ export function getNavItemsForUser(user: Session["user"]): NavItem[] {
 
   if (user.role === "admin") {
     items.push(
-      {
-        href: "/admin",
-        label: "Overview",
-        icon: LayoutDashboard,
-        exact: true,
-        adminOnly: true,
-      },
       { href: "/admin/employees", label: "Employees", icon: Users, adminOnly: true },
       {
         href: "/admin/attendance",

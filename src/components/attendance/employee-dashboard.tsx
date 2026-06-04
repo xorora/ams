@@ -1,37 +1,22 @@
 "use client";
 
 import { formatInTimeZone } from "date-fns-tz";
-import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { EmployeeAttendanceActions } from "@/components/attendance/employee-attendance-actions";
+import { EmployeeClockCard } from "@/components/attendance/employee-clock-card";
+import { EmployeeEarlyCheckoutAlert } from "@/components/attendance/employee-early-checkout-alert";
+import { EmployeeStatusCard } from "@/components/attendance/employee-status-card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  checkInAction,
+  checkOutAction,
+  endBreakAction,
+  loadTodayStatusAction,
+  startBreakAction,
+} from "@/lib/attendance/actions";
 import { BUSINESS_TIMEZONE } from "@/lib/attendance/constants";
 import type { SerializedTodayStatus } from "@/lib/attendance/serialize";
-import type { WorkState } from "@/lib/attendance/status";
-
-type ActionResponse = {
-  message: string;
-  status: SerializedTodayStatus;
-};
-
-type ApiError = {
-  error: string;
-  code?: string;
-};
-
-const STATE_LABELS: Record<WorkState, string> = {
-  not_checked_in: "Not checked in",
-  checked_in: "Checked in",
-  on_break: "On break",
-  checked_out: "Checked out",
-};
-
-function formatDuration(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
 
 function getCurrentPosition(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
@@ -63,48 +48,39 @@ function geolocationErrorMessage(error: GeolocationPositionError | Error): strin
   return error.message;
 }
 
-export function EmployeeDashboard() {
-  const [status, setStatus] = useState<SerializedTodayStatus | null>(null);
+type EmployeeDashboardProps = {
+  initialStatus: SerializedTodayStatus | null;
+  loadError: string | null;
+};
+
+export function EmployeeDashboard({ initialStatus, loadError }: EmployeeDashboardProps) {
+  const router = useRouter();
+  const [, startTransition] = useTransition();
+  const [status, setStatus] = useState<SerializedTodayStatus | null>(initialStatus);
   const [pktClock, setPktClock] = useState("");
-  const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(
-    null,
+    loadError ? { type: "error", text: loadError } : null,
   );
   const [showEarlyConfirm, setShowEarlyConfirm] = useState(false);
 
-  const refresh = useCallback(async () => {
-    const res = await fetch("/api/attendance/today");
-    if (!res.ok) {
-      const err = (await res.json()) as ApiError;
-      throw new Error(err.error ?? "Failed to load attendance status");
-    }
-    const data = (await res.json()) as SerializedTodayStatus;
-    setStatus(data);
-  }, []);
+  useEffect(() => {
+    setStatus(initialStatus);
+  }, [initialStatus]);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        await refresh();
-      } catch (e) {
-        if (!cancelled) {
-          setFeedback({
-            type: "error",
-            text: e instanceof Error ? e.message : "Failed to load status",
-          });
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [refresh]);
+    if (loadError) {
+      setFeedback({ type: "error", text: loadError });
+    }
+  }, [loadError]);
+
+  const refresh = useCallback(async () => {
+    const result = await loadTodayStatusAction();
+    if (!result.ok) {
+      throw new Error(result.error);
+    }
+    setStatus(result.data);
+  }, []);
 
   useEffect(() => {
     const tick = () => {
@@ -125,32 +101,37 @@ export function EmployeeDashboard() {
     return () => window.clearInterval(id);
   }, [status, refresh]);
 
-  const runAction = async (path: string, extraBody?: Record<string, unknown>): Promise<boolean> => {
+  const runAction = async (
+    action: (
+      coords: { lat: number; lng: number },
+      options?: { confirmEarlyLeave?: boolean },
+    ) => Promise<
+      | { ok: true; data: { message: string; status: SerializedTodayStatus } }
+      | { ok: false; error: string; code?: string }
+    >,
+    options?: { confirmEarlyLeave?: boolean },
+  ): Promise<boolean> => {
     setActing(true);
     setFeedback(null);
     try {
       const position = await getCurrentPosition();
-      const res = await fetch(path, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-          ...extraBody,
-        }),
-      });
-      const data = (await res.json()) as ActionResponse & ApiError;
-      if (!res.ok) {
-        if (data.code === "EARLY_LEAVE_CONFIRM_REQUIRED") {
+      const coords = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+      };
+      const result = await action(coords, options);
+      if (!result.ok) {
+        if (result.code === "EARLY_LEAVE_CONFIRM_REQUIRED") {
           setShowEarlyConfirm(true);
-          setFeedback({ type: "error", text: data.error });
+          setFeedback({ type: "error", text: result.error });
           return false;
         }
-        throw new Error(data.error ?? "Action failed");
+        throw new Error(result.error);
       }
-      setStatus(data.status);
+      setStatus(result.data.status);
       setShowEarlyConfirm(false);
-      setFeedback({ type: "success", text: data.message });
+      setFeedback({ type: "success", text: result.data.message });
+      startTransition(() => router.refresh());
       return true;
     } catch (e) {
       const text =
@@ -164,10 +145,6 @@ export function EmployeeDashboard() {
     }
   };
 
-  if (loading) {
-    return <p className="text-muted-foreground text-sm">Loading attendance…</p>;
-  }
-
   if (!status) {
     return (
       <p className="text-destructive text-sm">
@@ -176,63 +153,10 @@ export function EmployeeDashboard() {
     );
   }
 
-  const stateBadgeVariant =
-    status.state === "on_break"
-      ? "outline"
-      : status.state === "checked_in"
-        ? "default"
-        : "secondary";
-
   return (
     <div className="flex flex-col gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-            Pakistan Standard Time
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="-mt-2">
-          <p className="font-mono text-2xl font-semibold tabular-nums">{pktClock}</p>
-          <p className="mt-2 text-muted-foreground text-sm">
-            Shift date: <span className="font-medium text-foreground">{status.shiftDate}</span>
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="flex items-center justify-between gap-4 pt-4">
-          <div>
-            <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-              Status
-            </p>
-            <p className="mt-1 text-xl font-semibold">{STATE_LABELS[status.state]}</p>
-          </div>
-          <Badge variant={stateBadgeVariant}>{status.state.replaceAll("_", " ")}</Badge>
-        </CardContent>
-        <CardContent className="pt-0">
-          {status.attendanceDay?.checkInAt && (
-            <p className="mt-3 text-muted-foreground text-sm">
-              Check-in:{" "}
-              {formatInTimeZone(status.attendanceDay.checkInAt, BUSINESS_TIMEZONE, "HH:mm")}
-              {status.attendanceDay.isLate ? " (late)" : ""}
-            </p>
-          )}
-          {status.attendanceDay?.checkOutAt && (
-            <p className="text-muted-foreground text-sm">
-              Check-out:{" "}
-              {formatInTimeZone(status.attendanceDay.checkOutAt, BUSINESS_TIMEZONE, "HH:mm")}
-              {status.attendanceDay.isEarlyLeave ? " (early)" : ""}
-            </p>
-          )}
-
-          {status.state !== "checked_out" && (
-            <p className="text-muted-foreground text-sm">
-              Break used: {formatDuration(status.totalBreakSeconds)} / 60:00 · Remaining:{" "}
-              {formatDuration(status.breakRemainingSeconds)}
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      <EmployeeClockCard pktClock={pktClock} shiftDate={status.shiftDate} />
+      <EmployeeStatusCard status={status} />
 
       {status.warnings.length > 0 && (
         <Alert className="border-amber-200 bg-amber-50 text-amber-950">
@@ -254,57 +178,26 @@ export function EmployeeDashboard() {
       )}
 
       {showEarlyConfirm && (
-        <Alert className="border-amber-300 bg-amber-50 text-amber-950">
-          <AlertTitle>Early check-out</AlertTitle>
-          <AlertDescription>
-            You are checking out before 03:00 PKT. This will be recorded as early leave.
-          </AlertDescription>
-          <div className="mt-4 flex flex-wrap gap-2 px-4 pb-4">
-            <Button
-              variant="destructive"
-              disabled={acting}
-              onClick={() =>
-                void runAction("/api/attendance/check-out", { confirmEarlyLeave: true })
-              }
-            >
-              Confirm check-out
-            </Button>
-            <Button variant="outline" disabled={acting} onClick={() => setShowEarlyConfirm(false)}>
-              Cancel
-            </Button>
-          </div>
-        </Alert>
+        <EmployeeEarlyCheckoutAlert
+          acting={acting}
+          onConfirm={() =>
+            void runAction((coords, opts) => checkOutAction(coords, opts), {
+              confirmEarlyLeave: true,
+            })
+          }
+          onCancel={() => setShowEarlyConfirm(false)}
+        />
       )}
 
-      <div className="grid gap-2 sm:grid-cols-2">
-        <Button
-          disabled={acting || !status.actions.canCheckIn}
-          onClick={() => void runAction("/api/attendance/check-in")}
-        >
-          Check in
-        </Button>
-        <Button
-          variant="secondary"
-          disabled={acting || !status.actions.canStartBreak}
-          onClick={() => void runAction("/api/attendance/break/start")}
-        >
-          Start break
-        </Button>
-        <Button
-          variant="secondary"
-          disabled={acting || !status.actions.canEndBreak}
-          onClick={() => void runAction("/api/attendance/break/end")}
-        >
-          End break
-        </Button>
-        <Button
-          variant="outline"
-          disabled={acting || !status.actions.canCheckOut || showEarlyConfirm}
-          onClick={() => void runAction("/api/attendance/check-out")}
-        >
-          Check out
-        </Button>
-      </div>
+      <EmployeeAttendanceActions
+        status={status}
+        acting={acting}
+        showEarlyConfirm={showEarlyConfirm}
+        onCheckIn={() => void runAction((coords) => checkInAction(coords))}
+        onStartBreak={() => void runAction((coords) => startBreakAction(coords))}
+        onEndBreak={() => void runAction((coords) => endBreakAction(coords))}
+        onCheckOut={() => void runAction((coords, opts) => checkOutAction(coords, opts))}
+      />
 
       <p className="text-muted-foreground text-xs">
         Actions require your location and you must be within the office geofence. Expected shift:

@@ -1,8 +1,24 @@
 import { EmployeesManager } from "@/components/admin/employees-manager";
+import { listEmployees } from "@/lib/admin/employees-service";
+import { serializeEmployee } from "@/lib/admin/serialize";
 import { requireAdminSession } from "@/lib/auth/require-session";
 
-export default async function AdminEmployeesPage() {
+type PageProps = {
+  searchParams: Promise<{ search?: string; includeInactive?: string }>;
+};
+
+export default async function AdminEmployeesPage({ searchParams }: PageProps) {
   await requireAdminSession();
+  const params = await searchParams;
+  const search = params.search ?? "";
+  const includeInactive = params.includeInactive === "true";
+
+  const result = await listEmployees({
+    includeInactive,
+    search: search.trim() || undefined,
+  });
+
+  const employees = result.data.map(serializeEmployee);
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-8">
@@ -14,7 +30,7 @@ export default async function AdminEmployeesPage() {
         </p>
       </div>
 
-      <EmployeesManager />
+      <EmployeesManager employees={employees} search={search} includeInactive={includeInactive} />
     </div>
   );
 }
