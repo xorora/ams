@@ -2,6 +2,15 @@
 
 Employee attendance for night-shift teams (expected check-in **18:00**, check-out **03:00** next morning, **Asia/Karachi**). Built with Next.js, Neon PostgreSQL, and Auth.js (Google Workspace SSO).
 
+## Features
+
+- **Google Workspace SSO** — domain-restricted sign-in (`GOOGLE_WORKSPACE_HD`)
+- **Employee dashboard** — geofenced check-in/out, break tracking (1 h max per shift), live shift status
+- **Admin** — manage employees (code, email, department), view/edit attendance, Excel reports
+- **Employee linking** — admins pre-create records; employees confirm with an **employee code** at `/register` (auto-linked when email already matches)
+- **Cron** — marks absent when no check-in for the completed shift date
+- **Deactivation safety** — admins can close an open shift when deactivating an employee who is still checked in or on break
+
 ## Stack
 
 | Layer | Choice |
@@ -99,7 +108,15 @@ On Vercel, `AUTH_URL` can often be omitted in production because Auth.js uses `t
 
 5. Inspect data (optional): `bun run db:studio`.
 
-**Admin workflow:** Create `employees` rows in the admin UI (or DB) with corporate emails before users sign in. On first Google login, the app links `users.email` → `employees.email` and assigns role from the employee record.
+**Admin workflow:** In **Admin → Employees**, create each person with a unique **employee code**, full name, and **Workspace email** before they use attendance. Share the code with HR so new hires can link their account after Google sign-in.
+
+**Employee onboarding:**
+
+1. Admin creates the employee record (code + email must match the person’s Google account).
+2. Employee signs in with Google at `/login`.
+3. If the account is not yet linked to a record, they are sent to **`/register`** to enter their employee code. The code must match an active record whose email equals their Google email.
+4. If they already signed in before the admin created the record, email match on the next login auto-links them (no code step). Otherwise they use `/register` once.
+5. Linked employees use **`/dashboard`** for check-in, breaks, and check-out. Unlinked employees cannot access attendance APIs until registration completes.
 
 ---
 
@@ -174,6 +191,20 @@ Server startup validates required auth and office env via [`src/instrumentation.
 | `bun run db:generate` | Generate migration files |
 | `bun run db:studio` | Drizzle Studio |
 
+## Routes
+
+| Path | Who | Purpose |
+|------|-----|---------|
+| `/` | Public | Landing; redirects signed-in users |
+| `/login` | Public | Google sign-in |
+| `/register` | Signed-in employee | Link account with employee code |
+| `/dashboard` | Linked employee | Check-in, breaks, check-out |
+| `/admin/employees` | Admin | Employee CRUD |
+| `/admin/attendance` | Admin | Shift records |
+| `/admin/reports` | Admin | Summary and per-employee Excel export |
+
+Attendance APIs live under `/api/attendance/*`; admin APIs under `/api/admin/*`.
+
 ## Project layout
 
 ```
@@ -181,10 +212,13 @@ src/
   app/              # App Router pages and API routes
   auth.ts           # Auth.js configuration
   db/               # Drizzle schema and client
-  lib/              # Attendance rules, geofence, admin reports
+  lib/
+    attendance/     # Shift rules, status, geofence, close-open-shift
+    auth/           # Navigation, register/link employee, domain checks
+    admin/          # Employees, attendance, reports
   instrumentation.ts # Validates required env on server start
-  proxy.ts          # Protects /dashboard, /admin
-  components/ui/    # shadcn/ui (button, input, table, card, …)
+  proxy.ts          # Auth guard: /login, /register, /dashboard, /admin, APIs
+  components/       # UI (admin, attendance, auth, shadcn)
 vercel.json         # Cron schedule for auto-absent
 ```
 

@@ -155,6 +155,15 @@ export function EmployeeDashboard({ initialStatus, loadError }: EmployeeDashboar
 
   return (
     <div className="flex flex-col gap-6">
+      {status.employeeInactive && (
+        <Alert variant="destructive">
+          <AlertTitle>Account deactivated</AlertTitle>
+          <AlertDescription>
+            Your employee record has been deactivated. Contact HR if you believe this is a mistake.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <EmployeeClockCard pktClock={pktClock} shiftDate={status.shiftDate} />
       <EmployeeStatusCard status={status} />
 
@@ -177,7 +186,7 @@ export function EmployeeDashboard({ initialStatus, loadError }: EmployeeDashboar
         </Alert>
       )}
 
-      {showEarlyConfirm && (
+      {showEarlyConfirm && !status.employeeInactive && (
         <EmployeeEarlyCheckoutAlert
           acting={acting}
           onConfirm={() =>
@@ -189,20 +198,24 @@ export function EmployeeDashboard({ initialStatus, loadError }: EmployeeDashboar
         />
       )}
 
-      <EmployeeAttendanceActions
-        status={status}
-        acting={acting}
-        showEarlyConfirm={showEarlyConfirm}
-        onCheckIn={() => void runAction((coords) => checkInAction(coords))}
-        onStartBreak={() => void runAction((coords) => startBreakAction(coords))}
-        onEndBreak={() => void runAction((coords) => endBreakAction(coords))}
-        onCheckOut={() => void runAction((coords, opts) => checkOutAction(coords, opts))}
-      />
+      {!status.employeeInactive && (
+        <EmployeeAttendanceActions
+          status={status}
+          acting={acting}
+          showEarlyConfirm={showEarlyConfirm}
+          onCheckIn={() => void runAction((coords) => checkInAction(coords))}
+          onStartBreak={() => void runAction((coords) => startBreakAction(coords))}
+          onEndBreak={() => void runAction((coords) => endBreakAction(coords))}
+          onCheckOut={() => void runAction((coords, opts) => checkOutAction(coords, opts))}
+        />
+      )}
 
-      <p className="text-muted-foreground text-xs">
-        Actions require your location and you must be within the office geofence. Expected shift:
-        check-in by 18:30 PKT, check-out at 03:00 PKT.
-      </p>
+      {!status.employeeInactive && (
+        <p className="text-muted-foreground text-xs">
+          Actions require your location and you must be within the office geofence. Expected shift:
+          check-in by 18:30 PKT, check-out at 03:00 PKT.
+        </p>
+      )}
     </div>
   );
 }

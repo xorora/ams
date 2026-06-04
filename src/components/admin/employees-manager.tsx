@@ -14,6 +14,7 @@ import { EmployeeTable } from "@/components/employee/employee-table";
 import {
   createEmployeeAction,
   deactivateEmployeeAction,
+  getEmployeeDeactivationPreviewAction,
   reactivateEmployeeAction,
   updateEmployeeAction,
 } from "@/lib/admin/actions";
@@ -121,16 +122,35 @@ export function EmployeesManager({ employees, search, includeInactive }: Employe
   }
 
   async function handleDeactivate(id: string, name: string) {
-    if (!window.confirm(`Deactivate ${name}? They will no longer be able to check in.`)) {
-      return;
-    }
     setFeedback(null);
     try {
-      const result = await deactivateEmployeeAction(id);
+      const preview = await getEmployeeDeactivationPreviewAction(id);
+      if (!preview.ok) {
+        throw new Error(preview.error);
+      }
+
+      const { hasOpenShift, openShiftState } = preview.data;
+      const stateLabel = openShiftState === "on_break" ? "on break" : "checked in";
+      const message = hasOpenShift
+        ? `${name} is still ${stateLabel} for today's shift. Close their shift now and deactivate them? They will no longer be able to check in.`
+        : `Deactivate ${name}? They will no longer be able to check in.`;
+
+      if (!window.confirm(message)) {
+        return;
+      }
+
+      const result = await deactivateEmployeeAction(id, {
+        closeOpenShift: hasOpenShift,
+      });
       if (!result.ok) {
         throw new Error(result.error);
       }
-      setFeedback({ type: "success", text: "Employee deactivated." });
+      setFeedback({
+        type: "success",
+        text: hasOpenShift
+          ? "Employee deactivated and open shift closed."
+          : "Employee deactivated.",
+      });
       startTransition(() => router.refresh());
     } catch (error) {
       setFeedback({

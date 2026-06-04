@@ -1,0 +1,71 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { SignOutButton } from "@/components/layout/sign-out-button";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { registerEmployeeAction } from "@/lib/auth/register-actions";
+
+type RegisterFormProps = {
+  email: string;
+  name: string | null | undefined;
+};
+
+export function RegisterForm({ email, name }: RegisterFormProps) {
+  const [employeeCode, setEmployeeCode] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    setError(null);
+
+    startTransition(async () => {
+      const result = await registerEmployeeAction(employeeCode);
+      if (!result.ok) {
+        setError(result.error);
+      }
+    });
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex w-full max-w-sm flex-col gap-4">
+      {name ? (
+        <p className="text-muted-foreground text-sm">
+          Signed in as <span className="font-medium text-foreground">{name}</span>
+        </p>
+      ) : null}
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="register-email">Company email</Label>
+        <Input id="register-email" type="email" value={email} readOnly disabled />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="register-employee-code">Employee code</Label>
+        <Input
+          id="register-employee-code"
+          required
+          autoComplete="off"
+          placeholder="e.g. EMP-001"
+          value={employeeCode}
+          onChange={(e) => setEmployeeCode(e.target.value)}
+          disabled={isPending}
+        />
+        <p className="text-muted-foreground text-xs">
+          Enter the code your administrator assigned when they added you to the employee directory.
+        </p>
+      </div>
+      {error ? (
+        <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-destructive text-sm">
+          {error}
+        </p>
+      ) : null}
+      <Button type="submit" disabled={isPending}>
+        {isPending ? "Linking…" : "Continue"}
+      </Button>
+      <div className="flex justify-center pt-2">
+        <SignOutButton />
+      </div>
+    </form>
+  );
+}

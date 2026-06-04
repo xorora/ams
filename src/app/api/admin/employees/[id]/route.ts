@@ -56,14 +56,25 @@ export async function PATCH(request: Request, context: RouteContext) {
   return NextResponse.json({ employee: serializeEmployee(result.data) });
 }
 
-export async function DELETE(_request: Request, context: RouteContext) {
+export async function DELETE(request: Request, context: RouteContext) {
   const authResult = await requireApiAdminSession();
   if (authResult.response) {
     return authResult.response;
   }
 
   const { id } = await context.params;
-  const result = await deactivateEmployee(id);
+
+  let closeOpenShift = false;
+  try {
+    const body = await request.json();
+    if (body && typeof body === "object" && "closeOpenShift" in body) {
+      closeOpenShift = Boolean((body as { closeOpenShift?: boolean }).closeOpenShift);
+    }
+  } catch {
+    // DELETE may have no body; default closeOpenShift to false.
+  }
+
+  const result = await deactivateEmployee(id, { closeOpenShift });
   if (!result.ok) {
     return adminErrorResponse(result);
   }

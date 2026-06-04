@@ -1,6 +1,6 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { attendanceDays, breakSessions } from "@/db/schema";
+import { attendanceDays, breakSessions, employees } from "@/db/schema";
 import type { Coordinates } from "./coords";
 import { requireActiveEmployee, requireWithinGeofence } from "./employee-access";
 import {
@@ -95,7 +95,31 @@ export async function getTodayStatus(
   const now = new Date();
   const shiftDate = getShiftDate(now);
   const { day, sessions } = await loadShiftAttendance(employeeId, shiftDate);
-  return { ok: true, data: buildTodayStatus(day, sessions, now) };
+  const status = buildTodayStatus(day, sessions, now);
+
+  const [employee] = await db
+    .select({ isActive: employees.isActive })
+    .from(employees)
+    .where(eq(employees.id, employeeId))
+    .limit(1);
+
+  if (employee && !employee.isActive) {
+    return {
+      ok: true,
+      data: {
+        ...status,
+        employeeInactive: true,
+        actions: {
+          canCheckIn: false,
+          canCheckOut: false,
+          canStartBreak: false,
+          canEndBreak: false,
+        },
+      },
+    };
+  }
+
+  return { ok: true, data: status };
 }
 
 export async function checkIn(

@@ -1,6 +1,7 @@
 import { and, asc, eq, ilike, or } from "drizzle-orm";
 import { db } from "@/db";
 import { employees, users } from "@/db/schema";
+import { closeOpenShiftForEmployee, findOpenShift } from "@/lib/attendance/close-open-shift";
 import { adminFailure, type ServiceFailure, type ServiceSuccess } from "./types";
 
 export type EmployeeRecord = typeof employees.$inferSelect;
@@ -259,8 +260,59 @@ export async function updateEmployee(
   return { ok: true, data: updated };
 }
 
+export type DeactivateEmployeeOptions = {
+  closeOpenShift?: boolean;
+};
+
+export type EmployeeDeactivationPreview = {
+  hasOpenShift: boolean;
+  openShiftState: "checked_in" | "on_break" | null;
+};
+
+export async function getEmployeeDeactivationPreview(
+  id: string,
+): Promise<ServiceFailure | ServiceSuccess<EmployeeDeactivationPreview>> {
+  const current = await getEmployee(id);
+  if (!current.ok) {
+    return current;
+  }
+
+  const openShift = await findOpenShift(id);
+  return {
+    ok: true,
+    data: {
+      hasOpenShift: openShift != null,
+      openShiftState: openShift?.state ?? null,
+    },
+  };
+}
+
 export async function deactivateEmployee(
   id: string,
+  options: DeactivateEmployeeOptions = {},
 ): Promise<ServiceFailure | ServiceSuccess<EmployeeRecord>> {
+  const current = await getEmployee(id);
+  if (!current.ok) {
+    return current;
+  }
+
+  if (!current.data.isActive) {
+    return adminFailure(409, "ALREADY_INACTIVE", "Employee is already inactive.");
+  }
+
+  const openShift = await findOpenShift(id);
+  if (openShift && !options.closeOpenShift) {
+    const stateLabel = openShift.state === "on_break" ? "on break" : "checked in";
+    return adminFailure(
+      409,
+      "OPEN_SHIFT_ACTIVE",
+      `Employee is still ${stateLabel} for shift ${openShift.shiftDate}. Confirm to close the shift and deactivate.`,
+    );
+  }
+
+  if (openShift) {
+    await closeOpenShiftForEmployee(id);
+  }
+
   return updateEmployee(id, { isActive: false });
 }

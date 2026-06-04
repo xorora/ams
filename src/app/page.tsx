@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { getDefaultAuthenticatedPath } from "@/lib/auth/navigation";
+import { getPostAuthRedirect } from "@/lib/auth/navigation";
 
 export default async function HomePage() {
   const session = await auth();
   if (session?.user) {
-    redirect(getDefaultAuthenticatedPath(session.user.role));
+    redirect(getPostAuthRedirect(session.user));
   }
 
   return (

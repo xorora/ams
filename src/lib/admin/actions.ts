@@ -15,6 +15,7 @@ import {
   type CreateEmployeeInput,
   createEmployee,
   deactivateEmployee,
+  getEmployeeDeactivationPreview,
   type UpdateEmployeeInput,
   updateEmployee,
 } from "@/lib/admin/employees-service";
@@ -27,6 +28,7 @@ function revalidateAdminAttendance() {
 
 function revalidateAdminEmployees() {
   revalidatePath("/admin/employees");
+  revalidatePath("/dashboard");
 }
 
 export async function createEmployeeAction(input: CreateEmployeeInput): Promise<ActionResult> {
@@ -53,9 +55,25 @@ export async function updateEmployeeAction(
   return actionSuccess();
 }
 
-export async function deactivateEmployeeAction(id: string): Promise<ActionResult> {
+export async function getEmployeeDeactivationPreviewAction(
+  id: string,
+): Promise<
+  ActionResult<{ hasOpenShift: boolean; openShiftState: "checked_in" | "on_break" | null }>
+> {
   await requireAdminSession();
-  const result = await deactivateEmployee(id);
+  const result = await getEmployeeDeactivationPreview(id);
+  if (!result.ok) {
+    return actionFailure(result);
+  }
+  return actionSuccess(result.data);
+}
+
+export async function deactivateEmployeeAction(
+  id: string,
+  options?: { closeOpenShift?: boolean },
+): Promise<ActionResult> {
+  await requireAdminSession();
+  const result = await deactivateEmployee(id, options);
   if (!result.ok) {
     return actionFailure(result);
   }

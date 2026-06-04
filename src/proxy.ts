@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { getDefaultAuthenticatedPath } from "@/lib/auth/navigation";
+import { getPostAuthRedirect, needsEmployeeRegistration } from "@/lib/auth/navigation";
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
   const isLoggedIn = !!req.auth?.user;
+  const user = req.auth?.user;
 
   const isProtectedPage = pathname.startsWith("/dashboard") || pathname.startsWith("/admin");
 
@@ -12,14 +13,24 @@ export default auth((req) => {
 
   const isAdminRoute = pathname.startsWith("/admin") || pathname.startsWith("/api/admin");
 
-  if (pathname === "/login" && isLoggedIn) {
-    const home = getDefaultAuthenticatedPath(req.auth?.user?.role ?? "employee");
-    return NextResponse.redirect(new URL(home, req.nextUrl.origin));
+  if (pathname === "/login" && isLoggedIn && user) {
+    return NextResponse.redirect(new URL(getPostAuthRedirect(user), req.nextUrl.origin));
   }
 
-  if (pathname === "/admin" && isLoggedIn) {
-    const home = getDefaultAuthenticatedPath(req.auth?.user?.role ?? "employee");
-    return NextResponse.redirect(new URL(home, req.nextUrl.origin));
+  if (pathname === "/register") {
+    if (!isLoggedIn) {
+      const loginUrl = new URL("/login", req.nextUrl.origin);
+      loginUrl.searchParams.set("callbackUrl", "/register");
+      return NextResponse.redirect(loginUrl);
+    }
+    if (user && !needsEmployeeRegistration(user)) {
+      return NextResponse.redirect(new URL(getPostAuthRedirect(user), req.nextUrl.origin));
+    }
+    return;
+  }
+
+  if (pathname === "/admin" && isLoggedIn && user) {
+    return NextResponse.redirect(new URL(getPostAuthRedirect(user), req.nextUrl.origin));
   }
 
   if ((isProtectedPage || isAdminRoute || isAttendanceApi) && !isLoggedIn) {
@@ -32,7 +43,20 @@ export default auth((req) => {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (isAdminRoute && req.auth?.user?.role !== "admin") {
+  if (user && needsEmployeeRegistration(user)) {
+    const mustRegister = pathname.startsWith("/dashboard") || isAttendanceApi;
+    if (mustRegister) {
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json(
+          { error: "Forbidden", code: "REGISTRATION_REQUIRED" },
+          { status: 403 },
+        );
+      }
+      return NextResponse.redirect(new URL("/register", req.nextUrl.origin));
+    }
+  }
+
+  if (isAdminRoute && user?.role !== "admin") {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -44,6 +68,7 @@ export default auth((req) => {
 export const config = {
   matcher: [
     "/login",
+    "/register",
     "/dashboard/:path*",
     "/admin",
     "/admin/:path*",

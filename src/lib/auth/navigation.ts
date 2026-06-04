@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import { CalendarDays, FileSpreadsheet, LayoutDashboard, Users } from "lucide-react";
 import type { Session } from "next-auth";
+import { hasLinkedEmployee } from "@/lib/auth/attendance-access";
 
 export type NavItem = {
   href: string;
@@ -14,6 +15,18 @@ export type NavItem = {
 
 export function getDefaultAuthenticatedPath(role: Session["user"]["role"]): string {
   return role === "admin" ? "/admin/employees" : "/dashboard";
+}
+
+/** Employees must link an admin-created record before using attendance. */
+export function needsEmployeeRegistration(user: Session["user"]): boolean {
+  return user.role === "employee" && !hasLinkedEmployee({ user } as Session);
+}
+
+export function getPostAuthRedirect(user: Session["user"]): string {
+  if (needsEmployeeRegistration(user)) {
+    return "/register";
+  }
+  return getDefaultAuthenticatedPath(user.role);
 }
 
 export function getNavItemsForUser(user: Session["user"]): NavItem[] {
@@ -45,7 +58,7 @@ export function isNavItemActive(pathname: string, item: NavItem): boolean {
 }
 
 /** Routes that render without the app sidebar chrome. */
-export const PUBLIC_PATH_PREFIXES = ["/login"] as const;
+export const PUBLIC_PATH_PREFIXES = ["/login", "/register"] as const;
 
 export function isPublicPath(pathname: string): boolean {
   if (pathname === "/") {

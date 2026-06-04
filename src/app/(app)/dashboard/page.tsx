@@ -1,11 +1,17 @@
+import { redirect } from "next/navigation";
 import { EmployeeDashboard } from "@/components/attendance/employee-dashboard";
 import { type SerializedTodayStatus, serializeTodayStatus } from "@/lib/attendance/serialize";
 import { getTodayStatus } from "@/lib/attendance/service";
 import { hasLinkedEmployee } from "@/lib/auth/attendance-access";
+import { needsEmployeeRegistration } from "@/lib/auth/navigation";
 import { requireSession } from "@/lib/auth/require-session";
 
 export default async function DashboardPage() {
   const session = await requireSession();
+
+  if (needsEmployeeRegistration(session.user)) {
+    redirect("/register");
+  }
   const employeeId = session.user.employeeId;
   const canCheckIn = hasLinkedEmployee(session);
 

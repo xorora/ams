@@ -28,6 +28,7 @@ export type TodayStatusPayload = {
   pktNow: string;
   shiftDate: string;
   state: WorkState;
+  employeeInactive: boolean;
   attendanceDay: AttendanceDaySnapshot | null;
   breakSessions: BreakSessionInput[];
   totalBreakSeconds: number;
@@ -99,6 +100,7 @@ export function buildTodayStatus(
     pktNow: formatInTimeZone(now, BUSINESS_TIMEZONE, "yyyy-MM-dd HH:mm:ss"),
     shiftDate,
     state,
+    employeeInactive: false,
     attendanceDay: day,
     breakSessions,
     totalBreakSeconds,

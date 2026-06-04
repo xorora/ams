@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth, signIn } from "@/auth";
 import { ModeToggle } from "@/components/mode-toggle";
-import { getDefaultAuthenticatedPath } from "@/lib/auth/navigation";
+import { getPostAuthRedirect } from "@/lib/auth/navigation";
 
 const errorMessages: Record<string, string> = {
   AccessDenied:
@@ -19,7 +19,7 @@ type LoginPageProps = {
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const session = await auth();
   if (session?.user) {
-    redirect(getDefaultAuthenticatedPath(session.user.role));
+    redirect(getPostAuthRedirect(session.user));
   }
 
   const params = await searchParams;
