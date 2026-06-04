@@ -35,8 +35,8 @@ export default async function RegisterPage() {
       <div className="max-w-md text-center">
         <h1 className="text-2xl font-semibold tracking-tight">Link your account</h1>
         <p className="mt-2 text-muted-foreground text-sm">
-          Your company Google sign-in succeeded. Enter the employee code from HR to connect your
-          account to your attendance record.
+          Your company Google sign-in succeeded. Enter your employee number to finish setting up
+          attendance for your account.
         </p>
       </div>
       <RegisterForm email={email} name={session.user.name} />

@@ -52,7 +52,8 @@ export function RegisterForm({ email, name }: RegisterFormProps) {
           disabled={isPending}
         />
         <p className="text-muted-foreground text-xs">
-          Enter the code your administrator assigned when they added you to the employee directory.
+          Use your employee or badge number. If HR already added you with this email, we will link
+          automatically; otherwise we create your attendance record.
         </p>
       </div>
       {error ? (

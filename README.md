@@ -108,14 +108,14 @@ On Vercel, `AUTH_URL` can often be omitted in production because Auth.js uses `t
 
 5. Inspect data (optional): `bun run db:studio`.
 
-**Admin workflow:** In **Admin → Employees**, create each person with a unique **employee code**, full name, and **Workspace email** before they use attendance. Share the code with HR so new hires can link their account after Google sign-in.
+**Admin workflow:** In **Admin → Employees**, you can pre-create people with a unique **employee code**, full name, and **Workspace email**, or let them self-register on first sign-in (see below). Pre-creating is useful when HR needs to set department or correct the display name before the employee logs in.
 
 **Employee onboarding:**
 
-1. Admin creates the employee record (code + email must match the person’s Google account).
-2. Employee signs in with Google at `/`.
-3. If the account is not yet linked to a record, they are sent to **`/register`** to enter their employee code. The code must match an active record whose email equals their Google email.
-4. If they already signed in before the admin created the record, email match on the next login auto-links them (no code step). Otherwise they use `/register` once.
+1. Employee signs in with Google at `/`.
+2. If the account is not yet linked to a record, they are sent to **`/register`** to enter their employee code (badge / HR number).
+3. Registration links to an existing active record when the **email** or **code** matches; if neither exists, a new employee record is created from their Google profile and the code they entered.
+4. If an admin pre-created a record with the same email, the next login or registration step auto-links (no duplicate record).
 5. Linked employees use **`/dashboard`** for check-in, breaks, and check-out. Unlinked employees cannot access attendance APIs until registration completes.
 
 ---
