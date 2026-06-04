@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { NextResponse } from "next/server";
 import type { Session } from "next-auth";
 import { auth } from "@/auth";
+import { hasLinkedEmployee } from "@/lib/auth/attendance-access";
 
 export async function requireSession(): Promise<Session> {
   const session = await auth();
@@ -19,9 +20,10 @@ export async function requireAdminSession(): Promise<Session> {
   return session;
 }
 
+/** Session with a linked employee record (admins and employees). */
 export async function requireEmployeeSession(): Promise<Session> {
   const session = await requireSession();
-  if (session.user.role !== "employee" || !session.user.employeeId) {
+  if (!hasLinkedEmployee(session)) {
     redirect("/dashboard");
   }
   return session;
@@ -45,10 +47,13 @@ export async function requireApiEmployeeSession(): Promise<ApiAuthFailure | ApiA
       response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
     };
   }
-  if (session.user.role !== "employee" || !session.user.employeeId) {
+  if (!hasLinkedEmployee(session)) {
     return {
       session: null,
-      response: NextResponse.json({ error: "Forbidden", code: "EMPLOYEE_ONLY" }, { status: 403 }),
+      response: NextResponse.json(
+        { error: "Forbidden", code: "EMPLOYEE_NOT_LINKED" },
+        { status: 403 },
+      ),
     };
   }
   return { session, response: null };

@@ -1,5 +1,8 @@
+import { eq } from "drizzle-orm";
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
+import { db } from "@/db";
+import { users } from "@/db/schema";
 import { isAllowedHostedDomain, isAllowedWorkspaceEmail } from "@/lib/auth/domain";
 import { resolveUserOnSignIn } from "@/lib/auth/resolve-user";
 import { getWorkspaceDomain } from "@/lib/env";
@@ -51,6 +54,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.id = dbUser.id;
         token.role = dbUser.role;
         token.employeeId = dbUser.employeeId;
+      } else if (typeof token.id === "string") {
+        const [dbUser] = await db
+          .select({ role: users.role, employeeId: users.employeeId })
+          .from(users)
+          .where(eq(users.id, token.id))
+          .limit(1);
+
+        if (dbUser) {
+          token.role = dbUser.role;
+          token.employeeId = dbUser.employeeId;
+        }
       }
 
       return token;
