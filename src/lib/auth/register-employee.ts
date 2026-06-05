@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { employees, users } from "@/db/schema";
+import { defaultProbationValues } from "@/lib/admin/probation";
 import { adminFailure, type ServiceFailure, type ServiceSuccess } from "@/lib/admin/types";
 
 function normalizeEmail(email: string): string {
@@ -92,12 +93,17 @@ async function createAndLinkEmployee(
     );
   }
 
+  const probation = defaultProbationValues();
   const [created] = await db
     .insert(employees)
     .values({
       employeeCode,
       fullName,
       email,
+      probationEnabled: probation.probationEnabled,
+      probationCompleted: probation.probationCompleted,
+      probationStartDate: probation.probationStartDate,
+      probationPeriodMonths: probation.probationPeriodMonths,
     })
     .returning();
 

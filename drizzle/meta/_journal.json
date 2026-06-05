@@ -8,6 +8,34 @@
       "when": 1780583999650,
       "tag": "0000_nifty_sentinels",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1780669689259,
+      "tag": "0001_numerous_micromax",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780675717704,
+      "tag": "0002_military_carnage",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1780675981403,
+      "tag": "0003_pretty_firebrand",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1780676807077,
+      "tag": "0004_milky_romulus",
+      "breakpoints": true
     }
   ]
 }

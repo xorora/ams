@@ -15,10 +15,11 @@ import { getNavItemsForUser } from "@/lib/auth/navigation";
 
 type AppSidebarProps = {
   user: Session["user"];
+  canAccessLeave?: boolean;
 };
 
-export function AppSidebar({ user }: AppSidebarProps) {
-  const navItems = getNavItemsForUser(user);
+export function AppSidebar({ user, canAccessLeave = false }: AppSidebarProps) {
+  const navItems = getNavItemsForUser(user, { canAccessLeave });
   const roleLabel = user.role === "admin" ? "Admin" : "Employee";
 
   return (

@@ -7,7 +7,10 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth?.user;
   const user = req.auth?.user;
 
-  const isProtectedPage = pathname.startsWith("/dashboard") || pathname.startsWith("/admin");
+  const isProtectedPage =
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/leave") ||
+    pathname.startsWith("/admin");
 
   const isAttendanceApi = pathname.startsWith("/api/attendance");
 
@@ -44,7 +47,8 @@ export default auth((req) => {
   }
 
   if (user && needsEmployeeRegistration(user)) {
-    const mustRegister = pathname.startsWith("/dashboard") || isAttendanceApi;
+    const mustRegister =
+      pathname.startsWith("/dashboard") || pathname.startsWith("/leave") || isAttendanceApi;
     if (mustRegister) {
       if (pathname.startsWith("/api/")) {
         return NextResponse.json(
@@ -70,6 +74,8 @@ export const config = {
     "/",
     "/register",
     "/dashboard/:path*",
+    "/leave",
+    "/leave/:path*",
     "/admin",
     "/admin/:path*",
     "/api/admin/:path*",

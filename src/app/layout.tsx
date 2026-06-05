@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { auth } from "@/auth";
 import { ApplicationShell } from "@/components/layout/application-shell";
 import { ThemeProvider } from "@/components/theme-provider";
+import { canEmployeeAccessLeave } from "@/lib/leave/access";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -26,6 +27,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await auth();
+  const canAccessLeave = session?.user ? await canEmployeeAccessLeave(session.user) : false;
 
   return (
     <html
@@ -40,7 +42,9 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <ApplicationShell user={session?.user}>{children}</ApplicationShell>
+          <ApplicationShell user={session?.user} canAccessLeave={canAccessLeave}>
+            {children}
+          </ApplicationShell>
         </ThemeProvider>
       </body>
     </html>

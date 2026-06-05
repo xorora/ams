@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { CalendarDays, FileSpreadsheet, LayoutDashboard, Users } from "lucide-react";
+import { CalendarDays, CalendarOff, FileSpreadsheet, LayoutDashboard, Users } from "lucide-react";
 import type { Session } from "next-auth";
 import { hasLinkedEmployee } from "@/lib/auth/attendance-access";
 
@@ -29,10 +29,17 @@ export function getPostAuthRedirect(user: Session["user"]): string {
   return getDefaultAuthenticatedPath(user.role);
 }
 
-export function getNavItemsForUser(user: Session["user"]): NavItem[] {
+export function getNavItemsForUser(
+  user: Session["user"],
+  options?: { canAccessLeave?: boolean },
+): NavItem[] {
   const items: NavItem[] = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true },
   ];
+
+  if (options?.canAccessLeave) {
+    items.push({ href: "/leave", label: "Leave", icon: CalendarOff, exact: true });
+  }
 
   if (user.role === "admin") {
     items.push(
@@ -43,6 +50,7 @@ export function getNavItemsForUser(user: Session["user"]): NavItem[] {
         icon: CalendarDays,
         adminOnly: true,
       },
+      { href: "/admin/leave", label: "Leave requests", icon: CalendarOff, adminOnly: true },
       { href: "/admin/reports", label: "Reports", icon: FileSpreadsheet, adminOnly: true },
     );
   }

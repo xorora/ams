@@ -16,6 +16,13 @@ import {
 export const userRoleEnum = pgEnum("user_role", ["admin", "employee"]);
 export const attendanceStatusEnum = pgEnum("attendance_status", ["present", "absent", "leave"]);
 export const attendanceSourceEnum = pgEnum("attendance_source", ["auto", "manual", "system"]);
+export const leaveTypeEnum = pgEnum("leave_type", ["annual", "casual", "sick"]);
+export const leaveRequestStatusEnum = pgEnum("leave_request_status", [
+  "pending",
+  "approved",
+  "rejected",
+  "cancelled",
+]);
 
 export const employees = pgTable("employees", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -24,6 +31,10 @@ export const employees = pgTable("employees", {
   email: text("email").notNull().unique(),
   department: text("department"),
   isActive: boolean("is_active").notNull().default(true),
+  probationEnabled: boolean("probation_enabled").notNull().default(false),
+  probationCompleted: boolean("probation_completed").notNull().default(false),
+  probationStartDate: date("probation_start_date"),
+  probationPeriodMonths: integer("probation_period_months").notNull().default(3),
   userId: uuid("user_id").references((): AnyPgColumn => users.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -77,6 +88,33 @@ export const attendanceDays = pgTable(
   (table) => [
     uniqueIndex("attendance_days_employee_shift_date_idx").on(table.employeeId, table.shiftDate),
     index("attendance_days_shift_date_status_idx").on(table.shiftDate, table.status),
+  ],
+);
+
+export const leaveRequests = pgTable(
+  "leave_requests",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    employeeId: uuid("employee_id")
+      .notNull()
+      .references(() => employees.id),
+    leaveType: leaveTypeEnum("leave_type").notNull(),
+    startDate: date("start_date").notNull(),
+    endDate: date("end_date").notNull(),
+    daysCount: integer("days_count").notNull(),
+    reason: text("reason").notNull(),
+    medicalCertificateNote: text("medical_certificate_note"),
+    status: leaveRequestStatusEnum("status").notNull().default("pending"),
+    reviewedByUserId: uuid("reviewed_by_user_id").references(() => users.id),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewNotes: text("review_notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("leave_requests_employee_id_idx").on(table.employeeId),
+    index("leave_requests_status_idx").on(table.status),
+    index("leave_requests_start_date_idx").on(table.startDate),
   ],
 );
 

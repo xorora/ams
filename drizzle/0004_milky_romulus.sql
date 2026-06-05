@@ -1,0 +1,1 @@
+ALTER TABLE "employees" ADD COLUMN "probation_completed" boolean DEFAULT false NOT NULL;

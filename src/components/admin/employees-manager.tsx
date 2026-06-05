@@ -14,10 +14,13 @@ import { EmployeeTable } from "@/components/employee/employee-table";
 import {
   createEmployeeAction,
   deactivateEmployeeAction,
+  endEmployeeProbationAction,
   getEmployeeDeactivationPreviewAction,
   reactivateEmployeeAction,
+  startEmployeeProbationAction,
   updateEmployeeAction,
 } from "@/lib/admin/actions";
+import { DEFAULT_PROBATION_PERIOD_MONTHS, getTodayPkt } from "@/lib/admin/probation";
 import { employeesListQuery } from "@/lib/admin/query-params";
 import type { SerializedEmployee } from "@/lib/admin/serialize";
 
@@ -38,6 +41,7 @@ export function EmployeesManager({ employees, search, includeInactive }: Employe
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<EmployeeFormValues>(emptyEmployeeForm);
   const [saving, setSaving] = useState(false);
+  const [probationActionPending, setProbationActionPending] = useState(false);
 
   useEffect(() => {
     setSearchInput(search);
@@ -90,12 +94,37 @@ export function EmployeesManager({ employees, search, includeInactive }: Employe
     setSaving(true);
     setFeedback(null);
     try {
-      const payload = {
-        employeeCode: form.employeeCode,
-        fullName: form.fullName,
-        email: form.email,
-        department: form.department || null,
-      };
+      const periodMonths = Number.parseInt(form.probationPeriodMonths, 10);
+      if (
+        form.probationEnabled &&
+        (!Number.isFinite(periodMonths) || periodMonths < 1 || periodMonths > 24)
+      ) {
+        throw new Error("Probation period must be between 1 and 24 months.");
+      }
+
+      const payload = form.probationCompleted
+        ? {
+            employeeCode: form.employeeCode,
+            fullName: form.fullName,
+            email: form.email,
+            department: form.department || null,
+            probationCompleted: true,
+            probationEnabled: false,
+            probationStartDate: null,
+            probationPeriodMonths: DEFAULT_PROBATION_PERIOD_MONTHS,
+          }
+        : {
+            employeeCode: form.employeeCode,
+            fullName: form.fullName,
+            email: form.email,
+            department: form.department || null,
+            probationCompleted: false,
+            probationEnabled: form.probationEnabled,
+            probationStartDate: form.probationEnabled ? form.probationStartDate : null,
+            probationPeriodMonths: form.probationEnabled
+              ? periodMonths
+              : DEFAULT_PROBATION_PERIOD_MONTHS,
+          };
 
       const result = editingId
         ? await updateEmployeeAction(editingId, payload)
@@ -160,6 +189,102 @@ export function EmployeesManager({ employees, search, includeInactive }: Employe
     }
   }
 
+  async function handleStartProbation(id: string, name: string): Promise<boolean> {
+    setFeedback(null);
+    if (
+      !window.confirm(
+        `Start a ${DEFAULT_PROBATION_PERIOD_MONTHS}-month probation period for ${name}?`,
+      )
+    ) {
+      return false;
+    }
+
+    setProbationActionPending(true);
+    try {
+      const result = await startEmployeeProbationAction(id);
+      if (!result.ok) {
+        throw new Error(result.error);
+      }
+      setFeedback({ type: "success", text: "Probation started." });
+      startTransition(() => router.refresh());
+      return true;
+    } catch (error) {
+      setFeedback({
+        type: "error",
+        text: error instanceof Error ? error.message : "Start probation failed",
+      });
+      return false;
+    } finally {
+      setProbationActionPending(false);
+    }
+  }
+
+  async function handleEndProbation(id: string, name: string): Promise<boolean> {
+    setFeedback(null);
+    if (!window.confirm(`End probation for ${name}?`)) {
+      return false;
+    }
+
+    setProbationActionPending(true);
+    try {
+      const result = await endEmployeeProbationAction(id);
+      if (!result.ok) {
+        throw new Error(result.error);
+      }
+      setFeedback({ type: "success", text: "Probation ended." });
+      startTransition(() => router.refresh());
+      return true;
+    } catch (error) {
+      setFeedback({
+        type: "error",
+        text: error instanceof Error ? error.message : "End probation failed",
+      });
+      return false;
+    } finally {
+      setProbationActionPending(false);
+    }
+  }
+
+  async function handleSheetStartProbation() {
+    if (!editingId) {
+      return;
+    }
+    const employee = employees.find((item) => item.id === editingId);
+    if (!employee) {
+      return;
+    }
+    const started = await handleStartProbation(editingId, employee.fullName);
+    if (!started) {
+      return;
+    }
+    setForm((current) => ({
+      ...current,
+      probationEnabled: true,
+      probationCompleted: false,
+      probationStartDate: getTodayPkt(),
+      probationPeriodMonths: String(DEFAULT_PROBATION_PERIOD_MONTHS),
+    }));
+  }
+
+  async function handleSheetEndProbation() {
+    if (!editingId) {
+      return;
+    }
+    const employee = employees.find((item) => item.id === editingId);
+    if (!employee) {
+      return;
+    }
+    const ended = await handleEndProbation(editingId, employee.fullName);
+    if (!ended) {
+      return;
+    }
+    setForm((current) => ({
+      ...current,
+      probationEnabled: false,
+      probationCompleted: true,
+    }));
+  }
+
   async function handleReactivate(id: string) {
     setFeedback(null);
     try {
@@ -205,6 +330,9 @@ export function EmployeesManager({ employees, search, includeInactive }: Employe
         saving={saving}
         onSubmit={handleSubmit}
         onCancel={closeForm}
+        onStartProbation={editingId ? handleSheetStartProbation : undefined}
+        onEndProbation={editingId ? handleSheetEndProbation : undefined}
+        probationActionPending={probationActionPending}
       />
 
       <EmployeeTable
@@ -213,6 +341,8 @@ export function EmployeesManager({ employees, search, includeInactive }: Employe
         onEdit={openEdit}
         onDeactivate={handleDeactivate}
         onReactivate={handleReactivate}
+        onStartProbation={handleStartProbation}
+        onEndProbation={handleEndProbation}
       />
     </div>
   );

@@ -15,7 +15,9 @@ import {
   type CreateEmployeeInput,
   createEmployee,
   deactivateEmployee,
+  endEmployeeProbation,
   getEmployeeDeactivationPreview,
+  startEmployeeProbation,
   type UpdateEmployeeInput,
   updateEmployee,
 } from "@/lib/admin/employees-service";
@@ -84,6 +86,29 @@ export async function deactivateEmployeeAction(
 
 export async function reactivateEmployeeAction(id: string): Promise<ActionResult> {
   return updateEmployeeAction(id, { isActive: true });
+}
+
+export async function startEmployeeProbationAction(
+  id: string,
+  options?: { periodMonths?: number },
+): Promise<ActionResult> {
+  await requireAdminSession();
+  const result = await startEmployeeProbation(id, options);
+  if (!result.ok) {
+    return actionFailure(result);
+  }
+  revalidateAdminEmployees();
+  return actionSuccess();
+}
+
+export async function endEmployeeProbationAction(id: string): Promise<ActionResult> {
+  await requireAdminSession();
+  const result = await endEmployeeProbation(id);
+  if (!result.ok) {
+    return actionFailure(result);
+  }
+  revalidateAdminEmployees();
+  return actionSuccess();
 }
 
 export async function createAttendanceAction(input: CreateAttendanceInput): Promise<ActionResult> {

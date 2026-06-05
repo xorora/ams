@@ -1,0 +1,1 @@
+ALTER TABLE "employees" ALTER COLUMN "probation_enabled" SET DEFAULT false;

@@ -1,6 +1,11 @@
 import { and, asc, eq, ilike, or } from "drizzle-orm";
 import { db } from "@/db";
 import { employees, users } from "@/db/schema";
+import {
+  DEFAULT_PROBATION_PERIOD_MONTHS,
+  defaultProbationValues,
+  getTodayPkt,
+} from "@/lib/admin/probation";
 import { closeOpenShiftForEmployee, findOpenShift } from "@/lib/attendance/close-open-shift";
 import { adminFailure, type ServiceFailure, type ServiceSuccess } from "./types";
 
@@ -11,6 +16,10 @@ export type CreateEmployeeInput = {
   fullName: string;
   email: string;
   department?: string | null;
+  probationEnabled?: boolean;
+  probationCompleted?: boolean;
+  probationStartDate?: string | null;
+  probationPeriodMonths?: number;
 };
 
 export type UpdateEmployeeInput = {
@@ -19,6 +28,10 @@ export type UpdateEmployeeInput = {
   email?: string;
   department?: string | null;
   isActive?: boolean;
+  probationEnabled?: boolean;
+  probationCompleted?: boolean;
+  probationStartDate?: string | null;
+  probationPeriodMonths?: number;
 };
 
 export type ListEmployeesFilters = {
@@ -27,6 +40,79 @@ export type ListEmployeesFilters = {
 };
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const MIN_PROBATION_MONTHS = 1;
+const MAX_PROBATION_MONTHS = 24;
+
+function validateProbationPeriodMonths(months: number): ServiceFailure | ServiceSuccess<number> {
+  if (!Number.isInteger(months) || months < MIN_PROBATION_MONTHS || months > MAX_PROBATION_MONTHS) {
+    return adminFailure(
+      400,
+      "INVALID_PROBATION_PERIOD",
+      `Probation period must be between ${MIN_PROBATION_MONTHS} and ${MAX_PROBATION_MONTHS} months.`,
+    );
+  }
+  return { ok: true, data: months };
+}
+
+function validateProbationStartDate(
+  startDate: string | null | undefined,
+  probationEnabled: boolean,
+): ServiceFailure | ServiceSuccess<string | null> {
+  if (!probationEnabled) {
+    return { ok: true, data: null };
+  }
+
+  const value = startDate?.trim() || getTodayPkt();
+  if (!DATE_PATTERN.test(value)) {
+    return adminFailure(400, "INVALID_PROBATION_START", "Probation start date must be YYYY-MM-DD.");
+  }
+
+  return { ok: true, data: value };
+}
+
+function resolveCreateProbation(input: CreateEmployeeInput):
+  | ServiceFailure
+  | ServiceSuccess<{
+      probationEnabled: boolean;
+      probationCompleted: boolean;
+      probationStartDate: string | null;
+      probationPeriodMonths: number;
+    }> {
+  if (input.probationCompleted) {
+    return {
+      ok: true,
+      data: {
+        probationEnabled: false,
+        probationCompleted: true,
+        probationStartDate: null,
+        probationPeriodMonths: DEFAULT_PROBATION_PERIOD_MONTHS,
+      },
+    };
+  }
+
+  const probationEnabled = input.probationEnabled ?? false;
+  const startValidated = validateProbationStartDate(input.probationStartDate, probationEnabled);
+  if (!startValidated.ok) {
+    return startValidated;
+  }
+
+  const months = input.probationPeriodMonths ?? DEFAULT_PROBATION_PERIOD_MONTHS;
+  const monthsValidated = validateProbationPeriodMonths(months);
+  if (!monthsValidated.ok) {
+    return monthsValidated;
+  }
+
+  return {
+    ok: true,
+    data: {
+      probationEnabled,
+      probationCompleted: false,
+      probationStartDate: startValidated.data,
+      probationPeriodMonths: monthsValidated.data,
+    },
+  };
+}
 
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
@@ -156,6 +242,11 @@ export async function createEmployee(
     return adminFailure(409, "DUPLICATE_EMAIL", "Email is already assigned to another employee.");
   }
 
+  const probation = resolveCreateProbation(input);
+  if (!probation.ok) {
+    return probation;
+  }
+
   const [created] = await db
     .insert(employees)
     .values({
@@ -163,6 +254,10 @@ export async function createEmployee(
       fullName: data.fullName,
       email: data.email,
       department: data.department,
+      probationEnabled: probation.data.probationEnabled,
+      probationCompleted: probation.data.probationCompleted,
+      probationStartDate: probation.data.probationStartDate,
+      probationPeriodMonths: probation.data.probationPeriodMonths,
     })
     .returning();
 
@@ -217,6 +312,60 @@ export async function updateEmployee(
 
   if (input.isActive !== undefined) {
     updates.isActive = input.isActive;
+  }
+
+  if (input.probationCompleted === true) {
+    updates.probationCompleted = true;
+    updates.probationEnabled = false;
+    updates.probationStartDate = null;
+  } else if (
+    input.probationCompleted === false ||
+    input.probationEnabled !== undefined ||
+    input.probationStartDate !== undefined ||
+    input.probationPeriodMonths !== undefined
+  ) {
+    const nextProbationCompleted =
+      input.probationCompleted !== undefined
+        ? input.probationCompleted
+        : employee.probationCompleted;
+    const nextProbationEnabled =
+      input.probationEnabled !== undefined ? input.probationEnabled : employee.probationEnabled;
+
+    if (input.probationCompleted === false) {
+      updates.probationCompleted = false;
+    }
+
+    if (input.probationEnabled !== undefined) {
+      updates.probationEnabled = input.probationEnabled;
+      if (!input.probationEnabled) {
+        updates.probationStartDate = null;
+      } else if (!employee.probationStartDate && input.probationStartDate === undefined) {
+        updates.probationStartDate = getTodayPkt();
+      }
+    }
+
+    if (!nextProbationCompleted) {
+      if (input.probationStartDate !== undefined || input.probationEnabled === true) {
+        const startValidated = validateProbationStartDate(
+          input.probationStartDate ?? employee.probationStartDate,
+          nextProbationEnabled,
+        );
+        if (!startValidated.ok) {
+          return startValidated;
+        }
+        if (nextProbationEnabled) {
+          updates.probationStartDate = startValidated.data;
+        }
+      }
+
+      if (input.probationPeriodMonths !== undefined) {
+        const monthsValidated = validateProbationPeriodMonths(input.probationPeriodMonths);
+        if (!monthsValidated.ok) {
+          return monthsValidated;
+        }
+        updates.probationPeriodMonths = monthsValidated.data;
+      }
+    }
   }
 
   let emailChanged = false;
@@ -315,4 +464,27 @@ export async function deactivateEmployee(
   }
 
   return updateEmployee(id, { isActive: false });
+}
+
+export async function startEmployeeProbation(
+  id: string,
+  options: { periodMonths?: number } = {},
+): Promise<ServiceFailure | ServiceSuccess<EmployeeRecord>> {
+  const defaults = defaultProbationValues();
+  return updateEmployee(id, {
+    probationEnabled: true,
+    probationCompleted: false,
+    probationStartDate: defaults.probationStartDate,
+    probationPeriodMonths: options.periodMonths ?? defaults.probationPeriodMonths,
+  });
+}
+
+export async function endEmployeeProbation(
+  id: string,
+): Promise<ServiceFailure | ServiceSuccess<EmployeeRecord>> {
+  return updateEmployee(id, {
+    probationEnabled: false,
+    probationCompleted: true,
+    probationStartDate: null,
+  });
 }

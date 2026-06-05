@@ -10,10 +10,15 @@ import { isPublicPath } from "@/lib/auth/navigation";
 
 type ApplicationShellProps = {
   user: Session["user"] | null | undefined;
+  canAccessLeave?: boolean;
   children: React.ReactNode;
 };
 
-export function ApplicationShell({ user, children }: ApplicationShellProps) {
+export function ApplicationShell({
+  user,
+  canAccessLeave = false,
+  children,
+}: ApplicationShellProps) {
   const pathname = usePathname();
   const showAppChrome = user != null && !isPublicPath(pathname);
 
@@ -24,7 +29,7 @@ export function ApplicationShell({ user, children }: ApplicationShellProps) {
   return (
     <TooltipProvider>
       <SidebarProvider>
-        <AppSidebar user={user} />
+        <AppSidebar user={user} canAccessLeave={canAccessLeave} />
         <SidebarInset>
           <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
             <SidebarTrigger className="-ml-1" />

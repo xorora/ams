@@ -1,0 +1,66 @@
+import { MyLeaveManager } from "@/components/leave/my-leave-manager";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { getEmployee } from "@/lib/admin/employees-service";
+import { getProbationStatusLabel } from "@/lib/admin/probation";
+import { requireEmployeeSession } from "@/lib/auth/require-session";
+import { canEmployeeAccessLeave } from "@/lib/leave/access";
+import { getLeaveBalances, listLeaveRequests } from "@/lib/leave/leave-service";
+import { serializeLeaveRequest } from "@/lib/leave/serialize";
+
+export default async function LeavePage() {
+  const session = await requireEmployeeSession();
+  const employeeId = session.user.employeeId;
+
+  if (!employeeId) {
+    return null;
+  }
+
+  const canAccess = await canEmployeeAccessLeave(session.user);
+
+  if (!canAccess) {
+    const employeeResult = await getEmployee(employeeId);
+    const probationLabel = employeeResult.ok
+      ? getProbationStatusLabel(employeeResult.data)
+      : "On probation";
+
+    return (
+      <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-8">
+        <div>
+          <h1 className="text-2xl font-semibold">Leave</h1>
+          <p className="mt-1 text-muted-foreground text-sm">
+            Apply for annual, casual, and sick leave once your probation period is complete.
+          </p>
+        </div>
+
+        <Alert>
+          <AlertDescription>
+            Leave applications are not available during your probationary period. Current status:{" "}
+            <span className="font-medium">{probationLabel}</span>.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  const [balancesResult, requestsResult] = await Promise.all([
+    getLeaveBalances(employeeId),
+    listLeaveRequests({ employeeId }),
+  ]);
+
+  const balances = balancesResult.ok ? balancesResult.data : [];
+  const requests = requestsResult.data.map(serializeLeaveRequest);
+
+  return (
+    <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-8">
+      <div>
+        <h1 className="text-2xl font-semibold">Leave</h1>
+        <p className="mt-1 text-muted-foreground text-sm">
+          Apply for leave and track your balance. Annual leave: 14 working days; casual leave: 10
+          days (approval required); sick leave: 8 days (approval and medical certificate required).
+        </p>
+      </div>
+
+      <MyLeaveManager balances={balances} requests={requests} />
+    </div>
+  );
+}
