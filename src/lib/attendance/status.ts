@@ -1,4 +1,5 @@
 import { formatInTimeZone } from "date-fns-tz";
+import { isWeekendDate } from "@/lib/leave/working-days";
 import { BUSINESS_TIMEZONE, MAX_BREAK_SECONDS } from "./constants";
 import {
   type BreakSessionInput,
@@ -28,6 +29,7 @@ export type TodayStatusPayload = {
   pktNow: string;
   shiftDate: string;
   state: WorkState;
+  isWeekendOff: boolean;
   employeeInactive: boolean;
   attendanceDay: AttendanceDaySnapshot | null;
   breakSessions: BreakSessionInput[];
@@ -66,6 +68,7 @@ export function buildTodayStatus(
   now: Date = new Date(),
 ): TodayStatusPayload {
   const shiftDate = getShiftDate(now);
+  const isWeekendOff = isWeekendDate(shiftDate);
   const activeBreak = getActiveBreak(breakSessions);
   const state = deriveWorkState(day, activeBreak);
   const totalBreakSeconds = computeTotalBreakSeconds(breakSessions, now);
@@ -75,6 +78,9 @@ export function buildTodayStatus(
     day?.checkInAt != null && day.checkOutAt == null && isEarlyLeave(now, day.shiftDate);
 
   const warnings: string[] = [];
+  if (isWeekendOff) {
+    warnings.push("Saturday and Sunday are weekend days — the office is closed.");
+  }
   if (day?.isLate) {
     warnings.push("You checked in late (after 18:30 PKT).");
   }
@@ -100,6 +106,7 @@ export function buildTodayStatus(
     pktNow: formatInTimeZone(now, BUSINESS_TIMEZONE, "yyyy-MM-dd HH:mm:ss"),
     shiftDate,
     state,
+    isWeekendOff,
     employeeInactive: false,
     attendanceDay: day,
     breakSessions,
@@ -109,7 +116,7 @@ export function buildTodayStatus(
     wouldBeEarlyLeave,
     warnings,
     actions: {
-      canCheckIn: !day?.checkInAt,
+      canCheckIn: !isWeekendOff && !day?.checkInAt,
       canCheckOut: hasOpenShift && !activeBreak,
       canStartBreak: hasOpenShift && startBreakResult.ok,
       canEndBreak: hasOpenShift && endBreakResult.ok,

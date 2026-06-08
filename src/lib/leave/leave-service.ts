@@ -7,7 +7,12 @@ import { adminFailure, type ServiceFailure, type ServiceSuccess } from "@/lib/ad
 import { BUSINESS_TIMEZONE } from "@/lib/attendance/constants";
 import { LEAVE_ENTITLEMENTS } from "./constants";
 import type { LeaveBalance, LeaveRequestStatus, LeaveType } from "./types";
-import { countCalendarDays, countWorkingDays, eachDateInRange } from "./working-days";
+import {
+  countCalendarDays,
+  countWorkingDays,
+  eachDateInRange,
+  isWeekendDate,
+} from "./working-days";
 
 export type LeaveListItem = {
   id: string;
@@ -82,11 +87,7 @@ function getLeaveDatesForAttendance(
     return allDates;
   }
 
-  return allDates.filter((date) => {
-    const parsed = new Date(`${date}T12:00:00`);
-    const day = parsed.getDay();
-    return day !== 0 && day !== 6;
-  });
+  return allDates.filter((date) => !isWeekendDate(date));
 }
 
 function mapLeaveRow(

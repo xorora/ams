@@ -198,24 +198,42 @@ export function EmployeeDashboard({ initialStatus, loadError }: EmployeeDashboar
         />
       )}
 
-      {!status.employeeInactive && (
-        <EmployeeAttendanceActions
-          status={status}
-          acting={acting}
-          showEarlyConfirm={showEarlyConfirm}
-          onCheckIn={() => void runAction((coords) => checkInAction(coords))}
-          onStartBreak={() => void runAction((coords) => startBreakAction(coords))}
-          onEndBreak={() => void runAction((coords) => endBreakAction(coords))}
-          onCheckOut={() => void runAction((coords, opts) => checkOutAction(coords, opts))}
-        />
+      {status.isWeekendOff && !status.employeeInactive && (
+        <Alert>
+          <AlertTitle>Weekend</AlertTitle>
+          <AlertDescription>
+            Saturday and Sunday are always off. Attendance actions are disabled until the next
+            working day.
+          </AlertDescription>
+        </Alert>
       )}
 
-      {!status.employeeInactive && (
-        <p className="text-muted-foreground text-xs">
-          Actions require your location and you must be within the office geofence. Expected shift:
-          check-in by 18:30 PKT, check-out at 03:00 PKT.
-        </p>
-      )}
+      {!status.employeeInactive &&
+        (!status.isWeekendOff ||
+          status.actions.canCheckOut ||
+          status.actions.canStartBreak ||
+          status.actions.canEndBreak) && (
+          <EmployeeAttendanceActions
+            status={status}
+            acting={acting}
+            showEarlyConfirm={showEarlyConfirm}
+            onCheckIn={() => void runAction((coords) => checkInAction(coords))}
+            onStartBreak={() => void runAction((coords) => startBreakAction(coords))}
+            onEndBreak={() => void runAction((coords) => endBreakAction(coords))}
+            onCheckOut={() => void runAction((coords, opts) => checkOutAction(coords, opts))}
+          />
+        )}
+
+      {!status.employeeInactive &&
+        (!status.isWeekendOff ||
+          status.actions.canCheckOut ||
+          status.actions.canStartBreak ||
+          status.actions.canEndBreak) && (
+          <p className="text-muted-foreground text-xs">
+            Actions require your location and you must be within the office geofence. Expected
+            shift: check-in by 18:30 PKT, check-out at 03:00 PKT.
+          </p>
+        )}
     </div>
   );
 }

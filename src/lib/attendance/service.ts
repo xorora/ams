@@ -1,6 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { attendanceDays, breakSessions, employees } from "@/db/schema";
+import { isWeekendDate } from "@/lib/leave/working-days";
 import type { Coordinates } from "./coords";
 import { requireActiveEmployee, requireWithinGeofence } from "./employee-access";
 import {
@@ -30,6 +31,10 @@ export type ServiceSuccess<T> = { ok: true; data: T };
 
 function failure(status: number, code: string, message: string): ServiceFailure {
   return { ok: false, status, code, message };
+}
+
+function weekendOffFailure(): ServiceFailure {
+  return failure(403, "WEEKEND_OFF", "The office is closed on weekends (Saturday and Sunday).");
 }
 
 function toDaySnapshot(row: typeof attendanceDays.$inferSelect): AttendanceDaySnapshot {
@@ -133,6 +138,10 @@ export async function checkIn(
 
   const now = new Date();
   const shiftDate = getShiftDate(now);
+  if (isWeekendDate(shiftDate)) {
+    return weekendOffFailure();
+  }
+
   const { day } = await loadShiftAttendance(employeeId, shiftDate);
 
   if (day?.checkInAt) {

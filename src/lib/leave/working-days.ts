@@ -11,6 +11,11 @@ function isWeekend(date: Date): boolean {
   return day === 0 || day === 6;
 }
 
+/** Whether a YYYY-MM-DD date falls on Saturday or Sunday. */
+export function isWeekendDate(dateString: string): boolean {
+  return isWeekend(parseDate(dateString));
+}
+
 /** Count days in an inclusive date range. */
 export function countCalendarDays(startDate: string, endDate: string): number {
   const start = parseDate(startDate);

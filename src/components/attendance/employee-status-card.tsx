@@ -25,12 +25,16 @@ type EmployeeStatusCardProps = {
 };
 
 export function EmployeeStatusCard({ status }: EmployeeStatusCardProps) {
-  const stateBadgeVariant =
-    status.state === "on_break"
+  const stateBadgeVariant = status.isWeekendOff
+    ? "outline"
+    : status.state === "on_break"
       ? "outline"
       : status.state === "checked_in"
         ? "default"
         : "secondary";
+
+  const stateLabel = status.isWeekendOff ? "Weekend — office closed" : STATE_LABELS[status.state];
+  const badgeLabel = status.isWeekendOff ? "weekend off" : status.state.replaceAll("_", " ");
 
   return (
     <Card>
@@ -39,9 +43,9 @@ export function EmployeeStatusCard({ status }: EmployeeStatusCardProps) {
           <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
             Status
           </p>
-          <p className="mt-1 text-xl font-semibold">{STATE_LABELS[status.state]}</p>
+          <p className="mt-1 text-xl font-semibold">{stateLabel}</p>
         </div>
-        <Badge variant={stateBadgeVariant}>{status.state.replaceAll("_", " ")}</Badge>
+        <Badge variant={stateBadgeVariant}>{badgeLabel}</Badge>
       </CardContent>
       <CardContent className="pt-0">
         {status.attendanceDay?.checkInAt && (

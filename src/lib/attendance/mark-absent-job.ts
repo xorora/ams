@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { attendanceDays, employees } from "@/db/schema";
+import { isWeekendDate } from "@/lib/leave/working-days";
 import { shouldAutoMarkAbsent } from "./mark-absent-eligibility";
 import { getAutoAbsentShiftDate } from "./rules";
 
@@ -19,6 +20,15 @@ export async function runMarkAbsentJob(runAt: Date = new Date()): Promise<MarkAb
     .select({ id: employees.id })
     .from(employees)
     .where(eq(employees.isActive, true));
+
+  if (isWeekendDate(shiftDate)) {
+    return {
+      shiftDate,
+      marked: 0,
+      skipped: activeEmployees.length,
+      totalActive: activeEmployees.length,
+    };
+  }
 
   const existingDays = await db
     .select({

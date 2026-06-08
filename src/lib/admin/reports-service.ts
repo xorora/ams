@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, gte, lte } from "drizzle-orm";
 import { db } from "@/db";
 import { attendanceDays, employees } from "@/db/schema";
+import { countWorkingDays } from "@/lib/leave/working-days";
 import type { AttendanceListItem } from "./attendance-service";
 import { getEmployee } from "./employees-service";
 import type { ReportDateRange } from "./reports-date-range";
@@ -67,13 +68,10 @@ export type SummaryReport = {
 };
 
 function countShiftDaysInRange(from: string, to: string): number {
-  const start = new Date(`${from}T12:00:00Z`);
-  const end = new Date(`${to}T12:00:00Z`);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
+  if (from > to) {
     return 0;
   }
-  const msPerDay = 24 * 60 * 60 * 1000;
-  return Math.floor((end.getTime() - start.getTime()) / msPerDay) + 1;
+  return countWorkingDays(from, to);
 }
 
 export function validateReportDateRange(
