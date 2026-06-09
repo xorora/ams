@@ -14,7 +14,12 @@ import {
 } from "drizzle-orm/pg-core";
 
 export const userRoleEnum = pgEnum("user_role", ["admin", "employee"]);
-export const attendanceStatusEnum = pgEnum("attendance_status", ["present", "absent", "leave"]);
+export const attendanceStatusEnum = pgEnum("attendance_status", [
+  "present",
+  "absent",
+  "leave",
+  "weekend_off",
+]);
 export const attendanceSourceEnum = pgEnum("attendance_source", ["auto", "manual", "system"]);
 export const leaveTypeEnum = pgEnum("leave_type", ["annual", "casual", "sick"]);
 export const leaveRequestStatusEnum = pgEnum("leave_request_status", [

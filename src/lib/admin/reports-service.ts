@@ -27,7 +27,7 @@ export type EmployeeReportSummary = ReportTotals & {
 
 export type EmployeeReportRow = {
   shiftDate: string;
-  status: "present" | "absent" | "leave";
+  status: "present" | "absent" | "leave" | "weekend_off";
   source: "auto" | "manual" | "system";
   checkInAt: Date | null;
   checkOutAt: Date | null;

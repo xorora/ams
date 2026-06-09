@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { attendanceDays, employees } from "@/db/schema";
 import { isWeekendDate } from "@/lib/leave/working-days";
-import { shouldAutoMarkAbsent } from "./mark-absent-eligibility";
+import { shouldAutoMarkAbsent, shouldAutoMarkWeekendOff } from "./mark-absent-eligibility";
 import { getAutoAbsentShiftDate } from "./rules";
 
 export type MarkAbsentJobResult = {
@@ -10,25 +10,46 @@ export type MarkAbsentJobResult = {
   marked: number;
   skipped: number;
   totalActive: number;
+  kind: "absent" | "weekend_off";
+};
+
+const weekendOffRowValues = {
+  status: "weekend_off" as const,
+  source: "system" as const,
+  checkInAt: null,
+  checkOutAt: null,
+  checkInLat: null,
+  checkInLng: null,
+  checkOutLat: null,
+  checkOutLng: null,
+  isLate: false,
+  isEarlyLeave: false,
+  totalBreakSeconds: 0,
+};
+
+const absentRowValues = {
+  status: "absent" as const,
+  source: "system" as const,
+  checkInAt: null,
+  checkOutAt: null,
+  checkInLat: null,
+  checkInLng: null,
+  checkOutLat: null,
+  checkOutLng: null,
+  isLate: false,
+  isEarlyLeave: false,
+  totalBreakSeconds: 0,
 };
 
 export async function runMarkAbsentJob(runAt: Date = new Date()): Promise<MarkAbsentJobResult> {
   const shiftDate = getAutoAbsentShiftDate(runAt);
   const now = runAt;
+  const isWeekend = isWeekendDate(shiftDate);
 
   const activeEmployees = await db
     .select({ id: employees.id })
     .from(employees)
     .where(eq(employees.isActive, true));
-
-  if (isWeekendDate(shiftDate)) {
-    return {
-      shiftDate,
-      marked: 0,
-      skipped: activeEmployees.length,
-      totalActive: activeEmployees.length,
-    };
-  }
 
   const existingDays = await db
     .select({
@@ -48,26 +69,20 @@ export async function runMarkAbsentJob(runAt: Date = new Date()): Promise<MarkAb
 
   for (const { id: employeeId } of activeEmployees) {
     const day = dayByEmployee.get(employeeId) ?? null;
-    if (!shouldAutoMarkAbsent(day)) {
+    const shouldMark = isWeekend ? shouldAutoMarkWeekendOff(day) : shouldAutoMarkAbsent(day);
+
+    if (!shouldMark) {
       skipped += 1;
       continue;
     }
+
+    const rowValues = isWeekend ? weekendOffRowValues : absentRowValues;
 
     if (day) {
       await db
         .update(attendanceDays)
         .set({
-          status: "absent",
-          source: "system",
-          checkInAt: null,
-          checkOutAt: null,
-          checkInLat: null,
-          checkInLng: null,
-          checkOutLat: null,
-          checkOutLng: null,
-          isLate: false,
-          isEarlyLeave: false,
-          totalBreakSeconds: 0,
+          ...rowValues,
           updatedAt: now,
         })
         .where(eq(attendanceDays.id, day.id));
@@ -75,8 +90,7 @@ export async function runMarkAbsentJob(runAt: Date = new Date()): Promise<MarkAb
       await db.insert(attendanceDays).values({
         employeeId,
         shiftDate,
-        status: "absent",
-        source: "system",
+        ...rowValues,
       });
     }
 
@@ -88,5 +102,6 @@ export async function runMarkAbsentJob(runAt: Date = new Date()): Promise<MarkAb
     marked,
     skipped,
     totalActive: activeEmployees.length,
+    kind: isWeekend ? "weekend_off" : "absent",
   };
 }

@@ -36,6 +36,7 @@ const STATUS_ITEMS: Record<string, string> = {
   present: "Present",
   absent: "Absent",
   leave: "Leave",
+  weekend_off: "Weekend off",
 };
 
 export function AttendanceFilters({
@@ -115,6 +116,7 @@ export function AttendanceFilters({
             <SelectItem value="present">Present</SelectItem>
             <SelectItem value="absent">Absent</SelectItem>
             <SelectItem value="leave">Leave</SelectItem>
+            <SelectItem value="weekend_off">Weekend off</SelectItem>
           </SelectContent>
         </Select>
       </div>

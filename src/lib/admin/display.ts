@@ -14,6 +14,13 @@ export function formatBreakDuration(seconds: number): string {
   return `${minutes}m ${remainder}s`;
 }
 
+export function formatAttendanceStatus(status: string): string {
+  if (status === "weekend_off") {
+    return "weekend off";
+  }
+  return status.replaceAll("_", " ");
+}
+
 export function attendanceStatusBadgeVariant(
   status: string,
 ): "default" | "secondary" | "destructive" | "outline" {
@@ -24,6 +31,8 @@ export function attendanceStatusBadgeVariant(
       return "destructive";
     case "leave":
       return "outline";
+    case "weekend_off":
+      return "secondary";
     default:
       return "secondary";
   }

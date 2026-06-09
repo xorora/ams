@@ -10,7 +10,7 @@ import { serializeAttendance } from "@/lib/admin/serialize";
 import { requireApiAdminSession } from "@/lib/auth/require-session";
 
 function parseStatus(value: string | null): AttendanceStatus | undefined {
-  if (value === "present" || value === "absent" || value === "leave") {
+  if (value === "present" || value === "absent" || value === "leave" || value === "weekend_off") {
     return value;
   }
   return undefined;

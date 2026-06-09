@@ -20,10 +20,11 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import type { AttendanceStatus } from "@/lib/admin/attendance-service";
 import type { SerializedAttendance, SerializedEmployee } from "@/lib/admin/serialize";
 import { BUSINESS_TIMEZONE } from "@/lib/attendance/constants";
 
-export type AttendanceStatus = "present" | "absent" | "leave";
+export type { AttendanceStatus };
 
 export type AttendanceFormValues = {
   employeeId: string;

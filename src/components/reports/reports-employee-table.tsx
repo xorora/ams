@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import {
   attendanceStatusBadgeVariant,
+  formatAttendanceStatus,
   formatBreakDuration,
   formatPktIso,
 } from "@/lib/admin/display";
@@ -50,7 +51,7 @@ export function ReportsEmployeeTable({ days }: ReportsEmployeeTableProps) {
                 <TableCell className="font-mono text-xs">{day.shiftDate}</TableCell>
                 <TableCell>
                   <Badge variant={attendanceStatusBadgeVariant(day.status)} className="capitalize">
-                    {day.status}
+                    {formatAttendanceStatus(day.status)}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-xs">{formatPktIso(day.checkInAt)}</TableCell>

@@ -22,7 +22,10 @@ export default async function AdminAttendancePage({ searchParams }: PageProps) {
     from: params.from ?? "",
     to: params.to ?? "",
     employeeId: params.employeeId ?? "",
-    status: (statusParam === "present" || statusParam === "absent" || statusParam === "leave"
+    status: (statusParam === "present" ||
+    statusParam === "absent" ||
+    statusParam === "leave" ||
+    statusParam === "weekend_off"
       ? statusParam
       : "") as "" | AttendanceStatus,
   };

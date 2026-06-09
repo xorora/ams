@@ -6,7 +6,7 @@ import { adminFailure, type ServiceFailure, type ServiceSuccess } from "./types"
 
 export type { EmployeeRecord } from "./employees-service";
 
-export type AttendanceStatus = "present" | "absent" | "leave";
+export type AttendanceStatus = "present" | "absent" | "leave" | "weekend_off";
 
 export type AttendanceListItem = {
   id: string;

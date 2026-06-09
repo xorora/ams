@@ -12,7 +12,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { attendanceStatusBadgeVariant, formatPktIso } from "@/lib/admin/display";
+import {
+  attendanceStatusBadgeVariant,
+  formatAttendanceStatus,
+  formatPktIso,
+} from "@/lib/admin/display";
 import type { SerializedAttendance } from "@/lib/admin/serialize";
 
 type AttendanceTableProps = {
@@ -71,7 +75,7 @@ export function AttendanceTable({
                     variant={attendanceStatusBadgeVariant(record.status)}
                     className="capitalize"
                   >
-                    {record.status}
+                    {formatAttendanceStatus(record.status)}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-xs">{formatPktIso(record.checkInAt)}</TableCell>
