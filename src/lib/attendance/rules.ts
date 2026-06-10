@@ -113,6 +113,21 @@ export function computeTotalBreakSeconds(
   return sessions.reduce((sum, session) => sum + breakDurationSeconds(session, now), 0);
 }
 
+/** Net working time from check-in to check-out (or now), excluding breaks. */
+export function computeElapsedShiftSeconds(
+  checkInAt: Date | null | undefined,
+  checkOutAt: Date | null | undefined,
+  totalBreakSeconds: number,
+  now: Date = new Date(),
+): number | null {
+  if (!checkInAt) {
+    return null;
+  }
+  const end = checkOutAt ?? now;
+  const grossSeconds = Math.max(0, Math.floor((end.getTime() - checkInAt.getTime()) / 1000));
+  return Math.max(0, grossSeconds - totalBreakSeconds);
+}
+
 export function canStartBreak(sessions: BreakSessionInput[], now: Date = new Date()): RuleResult {
   if (getActiveBreak(sessions)) {
     return {

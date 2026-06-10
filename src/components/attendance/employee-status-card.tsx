@@ -1,6 +1,7 @@
 "use client";
 
 import { formatInTimeZone } from "date-fns-tz";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { BUSINESS_TIMEZONE } from "@/lib/attendance/constants";
@@ -15,9 +16,25 @@ const STATE_LABELS: Record<WorkState, string> = {
 };
 
 function formatDuration(seconds: number): string {
-  const m = Math.floor(seconds / 60);
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
   const s = seconds % 60;
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }
   return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function getLiveElapsedShiftSeconds(status: SerializedTodayStatus, now: Date): number | null {
+  if (status.elapsedShiftSeconds == null) {
+    return null;
+  }
+  if (status.state !== "checked_in") {
+    return status.elapsedShiftSeconds;
+  }
+  const statusAt = new Date(status.statusAt).getTime();
+  const deltaSeconds = Math.max(0, Math.floor((now.getTime() - statusAt) / 1000));
+  return status.elapsedShiftSeconds + deltaSeconds;
 }
 
 type EmployeeStatusCardProps = {
@@ -25,6 +42,19 @@ type EmployeeStatusCardProps = {
 };
 
 export function EmployeeStatusCard({ status }: EmployeeStatusCardProps) {
+  const [elapsedShiftSeconds, setElapsedShiftSeconds] = useState<number | null>(() =>
+    getLiveElapsedShiftSeconds(status, new Date()),
+  );
+
+  useEffect(() => {
+    const tick = () => {
+      setElapsedShiftSeconds(getLiveElapsedShiftSeconds(status, new Date()));
+    };
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [status]);
+
   const stateBadgeVariant = status.isWeekendOff
     ? "outline"
     : status.state === "on_break"
@@ -48,6 +78,11 @@ export function EmployeeStatusCard({ status }: EmployeeStatusCardProps) {
         <Badge variant={stateBadgeVariant}>{badgeLabel}</Badge>
       </CardContent>
       <CardContent className="pt-0">
+        {elapsedShiftSeconds != null && (
+          <p className="mt-3 font-mono text-lg font-semibold tabular-nums">
+            Shift time: {formatDuration(elapsedShiftSeconds)}
+          </p>
+        )}
         {status.attendanceDay?.checkInAt && (
           <p className="mt-3 text-muted-foreground text-sm">
             Check-in: {formatInTimeZone(status.attendanceDay.checkInAt, BUSINESS_TIMEZONE, "HH:mm")}

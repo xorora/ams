@@ -5,6 +5,7 @@ import {
   type BreakSessionInput,
   canEndBreak,
   canStartBreak,
+  computeElapsedShiftSeconds,
   computeTotalBreakSeconds,
   getActiveBreak,
   getShiftDate,
@@ -35,6 +36,8 @@ export type TodayStatusPayload = {
   breakSessions: BreakSessionInput[];
   totalBreakSeconds: number;
   breakRemainingSeconds: number;
+  elapsedShiftSeconds: number | null;
+  statusAt: string;
   activeBreakStartedAt: string | null;
   wouldBeEarlyLeave: boolean;
   warnings: string[];
@@ -73,6 +76,12 @@ export function buildTodayStatus(
   const state = deriveWorkState(day, activeBreak);
   const totalBreakSeconds = computeTotalBreakSeconds(breakSessions, now);
   const breakRemainingSeconds = Math.max(0, MAX_BREAK_SECONDS - totalBreakSeconds);
+  const elapsedShiftSeconds = computeElapsedShiftSeconds(
+    day?.checkInAt,
+    day?.checkOutAt,
+    totalBreakSeconds,
+    now,
+  );
 
   const wouldBeEarlyLeave =
     day?.checkInAt != null && day.checkOutAt == null && isEarlyLeave(now, day.shiftDate);
@@ -112,6 +121,8 @@ export function buildTodayStatus(
     breakSessions,
     totalBreakSeconds,
     breakRemainingSeconds,
+    elapsedShiftSeconds,
+    statusAt: now.toISOString(),
     activeBreakStartedAt: activeBreak ? activeBreak.startedAt.toISOString() : null,
     wouldBeEarlyLeave,
     warnings,
