@@ -29,6 +29,15 @@ export const leaveRequestStatusEnum = pgEnum("leave_request_status", [
   "cancelled",
 ]);
 
+export const companies = pgTable("companies", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name").notNull().unique(),
+  slug: text("slug").notNull().unique(),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const employees = pgTable("employees", {
   id: uuid("id").defaultRandom().primaryKey(),
   employeeCode: text("employee_code").notNull().unique(),
@@ -36,6 +45,10 @@ export const employees = pgTable("employees", {
   email: text("email").notNull().unique(),
   department: text("department"),
   designation: text("designation"),
+  machineCardNo: text("machine_card_no").unique(),
+  companyId: uuid("company_id")
+    .notNull()
+    .references((): AnyPgColumn => companies.id),
   isActive: boolean("is_active").notNull().default(true),
   probationEnabled: boolean("probation_enabled").notNull().default(false),
   probationCompleted: boolean("probation_completed").notNull().default(false),
@@ -124,6 +137,35 @@ export const leaveRequests = pgTable(
     index("leave_requests_employee_id_idx").on(table.employeeId),
     index("leave_requests_status_idx").on(table.status),
     index("leave_requests_start_date_idx").on(table.startDate),
+  ],
+);
+
+export const machinePunches = pgTable(
+  "machine_punches",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    // Tran_MachineRawPunchId from the Access DB; idempotency key for the sync.
+    sourcePunchId: integer("source_punch_id").notNull().unique(),
+    cardNo: text("card_no").notNull(),
+    // PunchDatetime, converted from machine-local time to UTC by the sync script.
+    punchAt: timestamp("punch_at", { withTimezone: true }).notNull(),
+    machineNo: text("machine_no"),
+    isManual: boolean("is_manual").notNull().default(false),
+    // Resolved on the Access side by joining CardNo -> Mst_Employee.
+    machineEmpCode: text("machine_emp_code"),
+    machineEmpName: text("machine_emp_name"),
+    sourceEmpId: integer("source_emp_id"),
+    // Best-effort link to an app employee via employees.machineCardNo.
+    employeeId: uuid("employee_id").references((): AnyPgColumn => employees.id),
+    // Original PunchDatetime string as stored by the device, for auditing.
+    rawPunchAt: text("raw_punch_at"),
+    syncedAt: timestamp("synced_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("machine_punches_punch_at_idx").on(table.punchAt),
+    index("machine_punches_card_no_idx").on(table.cardNo),
+    index("machine_punches_employee_id_idx").on(table.employeeId),
   ],
 );
 

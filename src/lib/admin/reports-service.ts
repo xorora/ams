@@ -157,14 +157,17 @@ function mapAttendanceRow(
 
 async function fetchAttendanceInRange(
   range: ReportDateRange,
-  employeeId?: string,
+  options: { employeeId?: string; companyId?: string } = {},
 ): Promise<AttendanceListItem[]> {
   const conditions = [
     gte(attendanceDays.shiftDate, range.from),
     lte(attendanceDays.shiftDate, range.to),
   ];
-  if (employeeId) {
-    conditions.push(eq(attendanceDays.employeeId, employeeId));
+  if (options.employeeId) {
+    conditions.push(eq(attendanceDays.employeeId, options.employeeId));
+  }
+  if (options.companyId) {
+    conditions.push(eq(employees.companyId, options.companyId));
   }
 
   const rows = await db
@@ -184,6 +187,7 @@ export async function getEmployeeReport(
   employeeId: string,
   from: string | null | undefined,
   to: string | null | undefined,
+  companyId?: string,
 ): Promise<ServiceFailure | ServiceSuccess<EmployeeReport>> {
   const rangeResult = validateReportDateRange(from, to);
   if (!rangeResult.ok) {
@@ -196,7 +200,11 @@ export async function getEmployeeReport(
   }
 
   const employee = employeeResult.data;
-  const rows = await fetchAttendanceInRange(rangeResult.data, employeeId);
+  if (companyId && employee.companyId !== companyId) {
+    return adminFailure(404, "EMPLOYEE_NOT_FOUND", "Employee not found.");
+  }
+
+  const rows = await fetchAttendanceInRange(rangeResult.data, { employeeId, companyId });
   const summary = {
     ...emptyTotals(),
     shiftDaysInRange: countShiftDaysInRange(rangeResult.data.from, rangeResult.data.to),
@@ -243,19 +251,25 @@ export async function getEmployeeReport(
 export async function getSummaryReport(
   from: string | null | undefined,
   to: string | null | undefined,
+  companyId?: string,
 ): Promise<ServiceFailure | ServiceSuccess<SummaryReport>> {
   const rangeResult = validateReportDateRange(from, to);
   if (!rangeResult.ok) {
     return rangeResult;
   }
 
+  const employeeConditions = [eq(employees.isActive, true)];
+  if (companyId) {
+    employeeConditions.push(eq(employees.companyId, companyId));
+  }
+
   const [activeEmployees, rows] = await Promise.all([
     db
       .select()
       .from(employees)
-      .where(eq(employees.isActive, true))
+      .where(and(...employeeConditions))
       .orderBy(asc(employees.fullName)),
-    fetchAttendanceInRange(rangeResult.data),
+    fetchAttendanceInRange(rangeResult.data, { companyId }),
   ]);
 
   const totals = emptyTotals();
@@ -283,10 +297,14 @@ export async function getSummaryReport(
 
   for (const [employeeId, employeeTotals] of byEmployee) {
     if (!activeEmployees.some((e) => e.id === employeeId)) {
+      const inactiveConditions = [eq(employees.id, employeeId)];
+      if (companyId) {
+        inactiveConditions.push(eq(employees.companyId, companyId));
+      }
       const [inactive] = await db
         .select()
         .from(employees)
-        .where(eq(employees.id, employeeId))
+        .where(and(...inactiveConditions))
         .limit(1);
       if (inactive) {
         employeeRows.push({

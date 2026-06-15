@@ -1,6 +1,7 @@
 import { AttendanceManager } from "@/components/admin/attendance-manager";
 import { type AttendanceStatus, listAttendance } from "@/lib/admin/attendance-service";
 import { listEmployees } from "@/lib/admin/employees-service";
+import { requireSelectedCompanyId } from "@/lib/admin/selected-company";
 import { serializeAttendance, serializeEmployee } from "@/lib/admin/serialize";
 import { requireAdminSession } from "@/lib/auth/require-session";
 
@@ -15,6 +16,7 @@ type PageProps = {
 
 export default async function AdminAttendancePage({ searchParams }: PageProps) {
   await requireAdminSession();
+  const companyId = await requireSelectedCompanyId();
   const params = await searchParams;
 
   const statusParam = params.status ?? "";
@@ -30,7 +32,7 @@ export default async function AdminAttendancePage({ searchParams }: PageProps) {
       : "") as "" | AttendanceStatus,
   };
 
-  const employeesResult = await listEmployees();
+  const employeesResult = await listEmployees({ companyId });
   const activeEmployees = employeesResult.ok
     ? employeesResult.data.filter((e) => e.isActive).map(serializeEmployee)
     : [];
@@ -40,6 +42,7 @@ export default async function AdminAttendancePage({ searchParams }: PageProps) {
     to: filters.to || undefined,
     employeeId: filters.employeeId || undefined,
     status: filters.status || undefined,
+    companyId,
   });
 
   const items = attendanceResult.data.items.map(serializeAttendance);

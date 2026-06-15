@@ -1,5 +1,6 @@
 import { EmployeesManager } from "@/components/admin/employees-manager";
 import { listEmployees } from "@/lib/admin/employees-service";
+import { requireSelectedCompanyId } from "@/lib/admin/selected-company";
 import { serializeEmployee } from "@/lib/admin/serialize";
 import { requireAdminSession } from "@/lib/auth/require-session";
 
@@ -9,6 +10,7 @@ type PageProps = {
 
 export default async function AdminEmployeesPage({ searchParams }: PageProps) {
   await requireAdminSession();
+  const companyId = await requireSelectedCompanyId();
   const params = await searchParams;
   const search = params.search ?? "";
   const includeInactive = params.includeInactive === "true";
@@ -16,6 +18,7 @@ export default async function AdminEmployeesPage({ searchParams }: PageProps) {
   const result = await listEmployees({
     includeInactive,
     search: search.trim() || undefined,
+    companyId,
   });
 
   const employees = result.data.map(serializeEmployee);

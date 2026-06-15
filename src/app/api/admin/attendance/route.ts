@@ -6,6 +6,7 @@ import {
   createAttendance,
   listAttendance,
 } from "@/lib/admin/attendance-service";
+import { getSelectedCompanyId } from "@/lib/admin/selected-company";
 import { serializeAttendance } from "@/lib/admin/serialize";
 import { requireApiAdminSession } from "@/lib/auth/require-session";
 
@@ -29,6 +30,7 @@ export async function GET(request: Request) {
   const status = parseStatus(searchParams.get("status"));
   const page = Number.parseInt(searchParams.get("page") ?? "1", 10);
   const limit = Number.parseInt(searchParams.get("limit") ?? "50", 10);
+  const companyId = (await getSelectedCompanyId()) ?? undefined;
 
   const result = await listAttendance({
     from,
@@ -37,6 +39,7 @@ export async function GET(request: Request) {
     status,
     page: Number.isNaN(page) ? 1 : page,
     limit: Number.isNaN(limit) ? 50 : limit,
+    companyId,
   });
 
   return NextResponse.json({

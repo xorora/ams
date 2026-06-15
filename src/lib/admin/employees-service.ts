@@ -15,12 +15,19 @@ export type CreateEmployeeInput = {
   employeeCode: string;
   fullName: string;
   email: string;
+  companyId?: string;
   department?: string | null;
   designation?: string | null;
   probationEnabled?: boolean;
   probationCompleted?: boolean;
   probationStartDate?: string | null;
   probationPeriodMonths?: number;
+};
+
+type ValidatedCreateEmployeeInput = Omit<CreateEmployeeInput, "companyId"> & {
+  companyId: string;
+  department: string | null;
+  designation: string | null;
 };
 
 export type UpdateEmployeeInput = {
@@ -39,6 +46,7 @@ export type UpdateEmployeeInput = {
 export type ListEmployeesFilters = {
   includeInactive?: boolean;
   search?: string;
+  companyId?: string;
 };
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -122,7 +130,7 @@ function normalizeEmail(email: string): string {
 
 function validateEmployeeInput(
   input: CreateEmployeeInput,
-): ServiceFailure | ServiceSuccess<CreateEmployeeInput> {
+): ServiceFailure | ServiceSuccess<ValidatedCreateEmployeeInput> {
   const employeeCode = input.employeeCode.trim();
   const fullName = input.fullName.trim();
   const email = normalizeEmail(input.email);
@@ -136,6 +144,10 @@ function validateEmployeeInput(
   if (!EMAIL_PATTERN.test(email)) {
     return adminFailure(400, "INVALID_EMAIL", "A valid email address is required.");
   }
+  const companyId = input.companyId?.trim();
+  if (!companyId) {
+    return adminFailure(400, "INVALID_COMPANY", "Company is required.");
+  }
 
   return {
     ok: true,
@@ -143,6 +155,7 @@ function validateEmployeeInput(
       employeeCode,
       fullName,
       email,
+      companyId,
       department: input.department?.trim() || null,
       designation: input.designation?.trim() || null,
     },
@@ -183,6 +196,10 @@ export async function listEmployees(
 
   if (!filters.includeInactive) {
     conditions.push(eq(employees.isActive, true));
+  }
+
+  if (filters.companyId) {
+    conditions.push(eq(employees.companyId, filters.companyId));
   }
 
   const search = filters.search?.trim();
@@ -257,6 +274,7 @@ export async function createEmployee(
       employeeCode: data.employeeCode,
       fullName: data.fullName,
       email: data.email,
+      companyId: data.companyId,
       department: data.department,
       designation: data.designation,
       probationEnabled: probation.data.probationEnabled,

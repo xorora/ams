@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { employees, users } from "@/db/schema";
+import { companies, employees, users } from "@/db/schema";
 import { defaultProbationValues } from "@/lib/admin/probation";
 import { adminFailure, type ServiceFailure, type ServiceSuccess } from "@/lib/admin/types";
 
@@ -93,6 +93,19 @@ async function createAndLinkEmployee(
     );
   }
 
+  const [defaultCompany] = await db
+    .select({ id: companies.id })
+    .from(companies)
+    .where(eq(companies.slug, "xorora"))
+    .limit(1);
+  if (!defaultCompany) {
+    return adminFailure(
+      500,
+      "COMPANY_NOT_CONFIGURED",
+      "Default company is not configured. Contact your administrator.",
+    );
+  }
+
   const probation = defaultProbationValues();
   const [created] = await db
     .insert(employees)
@@ -100,6 +113,7 @@ async function createAndLinkEmployee(
       employeeCode,
       fullName,
       email,
+      companyId: defaultCompany.id,
       probationEnabled: probation.probationEnabled,
       probationCompleted: probation.probationCompleted,
       probationStartDate: probation.probationStartDate,

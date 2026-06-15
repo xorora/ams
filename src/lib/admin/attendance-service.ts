@@ -40,6 +40,7 @@ export type ListAttendanceFilters = {
   from?: string;
   to?: string;
   employeeId?: string;
+  companyId?: string;
   status?: AttendanceStatus;
   page?: number;
   limit?: number;
@@ -170,6 +171,9 @@ function buildListConditions(filters: ListAttendanceFilters): SQL[] {
   if (filters.status) {
     conditions.push(eq(attendanceDays.status, filters.status));
   }
+  if (filters.companyId) {
+    conditions.push(eq(employees.companyId, filters.companyId));
+  }
 
   return conditions;
 }
@@ -198,6 +202,7 @@ export async function listAttendance(
   const allMatching = await db
     .select({ id: attendanceDays.id })
     .from(attendanceDays)
+    .innerJoin(employees, eq(attendanceDays.employeeId, employees.id))
     .where(whereClause);
 
   return {

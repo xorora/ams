@@ -1,5 +1,6 @@
 import { LeaveManager } from "@/components/leave/leave-manager";
 import { listEmployees } from "@/lib/admin/employees-service";
+import { requireSelectedCompanyId } from "@/lib/admin/selected-company";
 import { serializeEmployee } from "@/lib/admin/serialize";
 import { requireAdminSession } from "@/lib/auth/require-session";
 import { listLeaveRequests } from "@/lib/leave/leave-service";
@@ -16,6 +17,7 @@ type PageProps = {
 
 export default async function AdminLeavePage({ searchParams }: PageProps) {
   await requireAdminSession();
+  const companyId = await requireSelectedCompanyId();
   const params = await searchParams;
 
   const statusParam = params.status;
@@ -37,8 +39,8 @@ export default async function AdminLeavePage({ searchParams }: PageProps) {
   };
 
   const [employeesResult, requestsResult] = await Promise.all([
-    listEmployees({ includeInactive: false }),
-    listLeaveRequests(filters),
+    listEmployees({ includeInactive: false, companyId }),
+    listLeaveRequests({ ...filters, companyId }),
   ]);
 
   const employees = employeesResult.data.map(serializeEmployee);

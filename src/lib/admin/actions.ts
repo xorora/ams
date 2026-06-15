@@ -21,6 +21,7 @@ import {
   type UpdateEmployeeInput,
   updateEmployee,
 } from "@/lib/admin/employees-service";
+import { getSelectedCompanyId } from "@/lib/admin/selected-company";
 import { requireAdminSession } from "@/lib/auth/require-session";
 
 function revalidateAdminAttendance() {
@@ -35,7 +36,15 @@ function revalidateAdminEmployees() {
 
 export async function createEmployeeAction(input: CreateEmployeeInput): Promise<ActionResult> {
   await requireAdminSession();
-  const result = await createEmployee(input);
+  const companyId = input.companyId?.trim() || (await getSelectedCompanyId());
+  if (!companyId) {
+    return actionFailure({
+      ok: false,
+      message: "No company selected.",
+      code: "NO_COMPANY",
+    });
+  }
+  const result = await createEmployee({ ...input, companyId });
   if (!result.ok) {
     return actionFailure(result);
   }

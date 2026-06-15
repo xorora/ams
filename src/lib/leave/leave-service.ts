@@ -44,6 +44,7 @@ export type SubmitLeaveInput = {
 
 export type ListLeaveFilters = {
   employeeId?: string;
+  companyId?: string;
   status?: LeaveRequestStatus;
   leaveType?: LeaveType;
   year?: number;
@@ -164,6 +165,9 @@ function buildListConditions(filters: ListLeaveFilters): SQL[] {
 
   if (filters.employeeId) {
     conditions.push(eq(leaveRequests.employeeId, filters.employeeId));
+  }
+  if (filters.companyId) {
+    conditions.push(eq(employees.companyId, filters.companyId));
   }
   if (filters.status) {
     conditions.push(eq(leaveRequests.status, filters.status));
