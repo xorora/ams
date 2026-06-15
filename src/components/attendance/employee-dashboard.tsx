@@ -15,7 +15,7 @@ import {
   loadTodayStatusAction,
   startBreakAction,
 } from "@/lib/attendance/actions";
-import { BUSINESS_TIMEZONE } from "@/lib/attendance/constants";
+import { BUSINESS_TIMEZONE, formatLateCheckInDeadline } from "@/lib/attendance/constants";
 import type { SerializedTodayStatus } from "@/lib/attendance/serialize";
 
 function getCurrentPosition(): Promise<GeolocationPosition> {
@@ -231,7 +231,8 @@ export function EmployeeDashboard({ initialStatus, loadError }: EmployeeDashboar
           status.actions.canEndBreak) && (
           <p className="text-muted-foreground text-xs">
             Actions require your location and you must be within the office geofence. Expected
-            shift: check-in by 18:30 PKT, check-out at 03:00 PKT.
+            shift: check-in by {formatLateCheckInDeadline()} (15 min grace), check-out at 03:00 PKT.
+            Time after 03:00 PKT while still checked in is tracked as overtime.
           </p>
         )}
     </div>

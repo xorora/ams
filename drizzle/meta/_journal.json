@@ -36,6 +36,20 @@
       "when": 1780676807077,
       "tag": "0004_milky_romulus",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1781535071527,
+      "tag": "0005_striped_wasp",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781535341034,
+      "tag": "0006_dazzling_korg",
+      "breakpoints": true
     }
   ]
 }

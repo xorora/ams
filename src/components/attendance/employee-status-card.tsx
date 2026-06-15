@@ -4,6 +4,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { formatShiftDuration } from "@/lib/admin/display";
 import { BUSINESS_TIMEZONE } from "@/lib/attendance/constants";
 import type { SerializedTodayStatus } from "@/lib/attendance/serialize";
 import type { WorkState } from "@/lib/attendance/status";
@@ -15,26 +16,25 @@ const STATE_LABELS: Record<WorkState, string> = {
   checked_out: "Checked out",
 };
 
-function formatDuration(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-  if (h > 0) {
-    return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  }
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
-
 function getLiveElapsedShiftSeconds(status: SerializedTodayStatus, now: Date): number | null {
   if (status.elapsedShiftSeconds == null) {
     return null;
   }
-  if (status.state !== "checked_in") {
+  if (status.state !== "checked_in" && status.state !== "on_break") {
     return status.elapsedShiftSeconds;
   }
   const statusAt = new Date(status.statusAt).getTime();
   const deltaSeconds = Math.max(0, Math.floor((now.getTime() - statusAt) / 1000));
   return status.elapsedShiftSeconds + deltaSeconds;
+}
+
+function getLiveOvertimeSeconds(status: SerializedTodayStatus, now: Date): number {
+  if (!status.overtime.isActive) {
+    return status.overtime.elapsedSeconds;
+  }
+  const statusAt = new Date(status.statusAt).getTime();
+  const deltaSeconds = Math.max(0, Math.floor((now.getTime() - statusAt) / 1000));
+  return status.overtime.elapsedSeconds + deltaSeconds;
 }
 
 type EmployeeStatusCardProps = {
@@ -45,10 +45,14 @@ export function EmployeeStatusCard({ status }: EmployeeStatusCardProps) {
   const [elapsedShiftSeconds, setElapsedShiftSeconds] = useState<number | null>(() =>
     getLiveElapsedShiftSeconds(status, new Date()),
   );
+  const [overtimeSeconds, setOvertimeSeconds] = useState(() =>
+    getLiveOvertimeSeconds(status, new Date()),
+  );
 
   useEffect(() => {
     const tick = () => {
       setElapsedShiftSeconds(getLiveElapsedShiftSeconds(status, new Date()));
+      setOvertimeSeconds(getLiveOvertimeSeconds(status, new Date()));
     };
     tick();
     const id = window.setInterval(tick, 1000);
@@ -65,6 +69,10 @@ export function EmployeeStatusCard({ status }: EmployeeStatusCardProps) {
 
   const stateLabel = status.isWeekendOff ? "Weekend — office closed" : STATE_LABELS[status.state];
   const badgeLabel = status.isWeekendOff ? "weekend off" : status.state.replaceAll("_", " ");
+  const hasOvertime =
+    status.overtime.isActive ||
+    status.overtime.elapsedSeconds > 0 ||
+    status.overtime.startedAt != null;
 
   return (
     <Card>
@@ -80,7 +88,7 @@ export function EmployeeStatusCard({ status }: EmployeeStatusCardProps) {
       <CardContent className="pt-0">
         {elapsedShiftSeconds != null && (
           <p className="mt-3 font-mono text-lg font-semibold tabular-nums">
-            Shift time: {formatDuration(elapsedShiftSeconds)}
+            Shift time: {formatShiftDuration(elapsedShiftSeconds)}
           </p>
         )}
         {status.attendanceDay?.checkInAt && (
@@ -97,10 +105,43 @@ export function EmployeeStatusCard({ status }: EmployeeStatusCardProps) {
           </p>
         )}
 
+        {hasOvertime && (
+          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 dark:border-amber-900/50 dark:bg-amber-950/30">
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-medium text-amber-900 text-sm dark:text-amber-200">
+                {status.overtime.isActive ? "Overtime in progress" : "Overtime"}
+              </p>
+              {status.overtime.isActive && (
+                <Badge
+                  variant="outline"
+                  className="border-amber-400 text-amber-800 dark:text-amber-200"
+                >
+                  Active
+                </Badge>
+              )}
+            </div>
+            {status.overtime.startedAt && (
+              <p className="mt-1 text-amber-800 text-sm dark:text-amber-300">
+                Started:{" "}
+                {formatInTimeZone(status.overtime.startedAt, BUSINESS_TIMEZONE, "yyyy-MM-dd HH:mm")}
+              </p>
+            )}
+            {status.overtime.endedAt && (
+              <p className="text-amber-800 text-sm dark:text-amber-300">
+                Ended:{" "}
+                {formatInTimeZone(status.overtime.endedAt, BUSINESS_TIMEZONE, "yyyy-MM-dd HH:mm")}
+              </p>
+            )}
+            <p className="mt-1 font-mono font-semibold text-amber-900 tabular-nums dark:text-amber-100">
+              Elapsed: {formatShiftDuration(overtimeSeconds)}
+            </p>
+          </div>
+        )}
+
         {status.state !== "checked_out" && (
-          <p className="text-muted-foreground text-sm">
-            Break used: {formatDuration(status.totalBreakSeconds)} / 60:00 · Remaining:{" "}
-            {formatDuration(status.breakRemainingSeconds)}
+          <p className="mt-3 text-muted-foreground text-sm">
+            Break used: {formatShiftDuration(status.totalBreakSeconds)} / 60:00 · Remaining:{" "}
+            {formatShiftDuration(status.breakRemainingSeconds)}
           </p>
         )}
       </CardContent>

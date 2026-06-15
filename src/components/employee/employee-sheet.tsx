@@ -30,6 +30,7 @@ export type EmployeeFormValues = {
   fullName: string;
   email: string;
   department: string;
+  designation: string;
   probationEnabled: boolean;
   probationCompleted: boolean;
   probationStartDate: string;
@@ -41,6 +42,7 @@ export const emptyEmployeeForm: EmployeeFormValues = {
   fullName: "",
   email: "",
   department: "",
+  designation: "",
   probationEnabled: false,
   probationCompleted: false,
   probationStartDate: getTodayPkt(),
@@ -53,6 +55,7 @@ export function employeeToForm(employee: SerializedEmployee): EmployeeFormValues
     fullName: employee.fullName,
     email: employee.email,
     department: employee.department ?? "",
+    designation: employee.designation ?? "",
     probationEnabled: isCurrentlyOnProbation(employee),
     probationCompleted: isProbationCompleted(employee),
     probationStartDate: employee.probationStartDate ?? getTodayPkt(),
@@ -163,6 +166,14 @@ export function EmployeeSheet({
               type="email"
               value={form.email}
               onChange={(e) => onFormChange((f) => ({ ...f, email: e.target.value }))}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="designation">Designation</Label>
+            <Input
+              id="designation"
+              value={form.designation}
+              onChange={(e) => onFormChange((f) => ({ ...f, designation: e.target.value }))}
             />
           </div>
           <div className="flex flex-col gap-1.5">

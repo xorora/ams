@@ -33,6 +33,9 @@ export type EmployeeReportRow = {
   checkOutAt: Date | null;
   isLate: boolean;
   isEarlyLeave: boolean;
+  overtimeStartedAt: Date | null;
+  overtimeEndedAt: Date | null;
+  overtimeSeconds: number | null;
   totalBreakSeconds: number;
   notes: string | null;
 };
@@ -45,6 +48,7 @@ export type EmployeeReport = {
     fullName: string;
     email: string;
     department: string | null;
+    designation: string | null;
     isActive: boolean;
   };
   summary: EmployeeReportSummary;
@@ -56,6 +60,7 @@ export type SummaryEmployeeRow = {
   employeeCode: string;
   fullName: string;
   department: string | null;
+  designation: string | null;
   isActive: boolean;
   totals: ReportTotals;
 };
@@ -139,6 +144,9 @@ function mapAttendanceRow(
     checkOutLng: row.checkOutLng,
     isLate: row.isLate,
     isEarlyLeave: row.isEarlyLeave,
+    overtimeStartedAt: row.overtimeStartedAt,
+    overtimeEndedAt: row.overtimeEndedAt,
+    overtimeSeconds: row.overtimeSeconds,
     totalBreakSeconds: row.totalBreakSeconds,
     notes: row.notes,
     editedByUserId: row.editedByUserId,
@@ -206,6 +214,9 @@ export async function getEmployeeReport(
     checkOutAt: row.checkOutAt,
     isLate: row.isLate,
     isEarlyLeave: row.isEarlyLeave,
+    overtimeStartedAt: row.overtimeStartedAt,
+    overtimeEndedAt: row.overtimeEndedAt,
+    overtimeSeconds: row.overtimeSeconds,
     totalBreakSeconds: row.totalBreakSeconds,
     notes: row.notes,
   }));
@@ -220,6 +231,7 @@ export async function getEmployeeReport(
         fullName: employee.fullName,
         email: employee.email,
         department: employee.department,
+        designation: employee.designation,
         isActive: employee.isActive,
       },
       summary,
@@ -264,6 +276,7 @@ export async function getSummaryReport(
     employeeCode: employee.employeeCode,
     fullName: employee.fullName,
     department: employee.department,
+    designation: employee.designation,
     isActive: employee.isActive,
     totals: byEmployee.get(employee.id) ?? emptyTotals(),
   }));
@@ -281,6 +294,7 @@ export async function getSummaryReport(
           employeeCode: inactive.employeeCode,
           fullName: inactive.fullName,
           department: inactive.department,
+          designation: inactive.designation,
           isActive: inactive.isActive,
           totals: employeeTotals,
         });

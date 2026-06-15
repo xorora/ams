@@ -1,6 +1,7 @@
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { attendanceDays, breakSessions } from "@/db/schema";
+import { overtimeFieldsOnCheckout } from "./overtime";
 import {
   type BreakSessionInput,
   computeTotalBreakSeconds,
@@ -127,6 +128,7 @@ export async function closeOpenShiftForEmployee(
 
   const totalBreakSeconds = computeTotalBreakSeconds(updatedSessions, at);
   const early = isEarlyLeave(at, day.shiftDate);
+  const overtime = overtimeFieldsOnCheckout(day.shiftDate, at, day.overtimeStartedAt);
 
   await db
     .update(attendanceDays)
@@ -137,6 +139,11 @@ export async function closeOpenShiftForEmployee(
       isEarlyLeave: early,
       totalBreakSeconds,
       notes: appendDeactivationNote(day.notes),
+      ...(overtime ?? {
+        overtimeStartedAt: null,
+        overtimeEndedAt: null,
+        overtimeSeconds: null,
+      }),
       updatedAt: at,
     })
     .where(eq(attendanceDays.id, day.id));

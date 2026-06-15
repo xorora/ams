@@ -16,6 +16,7 @@ export type CreateEmployeeInput = {
   fullName: string;
   email: string;
   department?: string | null;
+  designation?: string | null;
   probationEnabled?: boolean;
   probationCompleted?: boolean;
   probationStartDate?: string | null;
@@ -27,6 +28,7 @@ export type UpdateEmployeeInput = {
   fullName?: string;
   email?: string;
   department?: string | null;
+  designation?: string | null;
   isActive?: boolean;
   probationEnabled?: boolean;
   probationCompleted?: boolean;
@@ -142,6 +144,7 @@ function validateEmployeeInput(
       fullName,
       email,
       department: input.department?.trim() || null,
+      designation: input.designation?.trim() || null,
     },
   };
 }
@@ -191,6 +194,7 @@ export async function listEmployees(
         ilike(employees.email, pattern),
         ilike(employees.employeeCode, pattern),
         ilike(employees.department, pattern),
+        ilike(employees.designation, pattern),
       ),
     );
   }
@@ -254,6 +258,7 @@ export async function createEmployee(
       fullName: data.fullName,
       email: data.email,
       department: data.department,
+      designation: data.designation,
       probationEnabled: probation.data.probationEnabled,
       probationCompleted: probation.data.probationCompleted,
       probationStartDate: probation.data.probationStartDate,
@@ -308,6 +313,10 @@ export async function updateEmployee(
 
   if (input.department !== undefined) {
     updates.department = input.department?.trim() || null;
+  }
+
+  if (input.designation !== undefined) {
+    updates.designation = input.designation?.trim() || null;
   }
 
   if (input.isActive !== undefined) {

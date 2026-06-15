@@ -55,6 +55,7 @@ export function EmployeeTable({
             <TableHead>Code</TableHead>
             <TableHead>Name</TableHead>
             <TableHead>Email</TableHead>
+            <TableHead>Designation</TableHead>
             <TableHead>Department</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Probation</TableHead>
@@ -64,13 +65,13 @@ export function EmployeeTable({
         <TableBody>
           {loading ? (
             <TableRow>
-              <TableCell colSpan={7} className="text-muted-foreground">
+              <TableCell colSpan={8} className="text-muted-foreground">
                 Loading…
               </TableCell>
             </TableRow>
           ) : employees.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="text-muted-foreground">
+              <TableCell colSpan={8} className="text-muted-foreground">
                 No employees found.
               </TableCell>
             </TableRow>
@@ -83,6 +84,7 @@ export function EmployeeTable({
                   <TableCell className="font-mono text-xs">{employee.employeeCode}</TableCell>
                   <TableCell>{employee.fullName}</TableCell>
                   <TableCell>{employee.email}</TableCell>
+                  <TableCell>{employee.designation ?? "—"}</TableCell>
                   <TableCell>{employee.department ?? "—"}</TableCell>
                   <TableCell>
                     <Badge variant={employee.isActive ? "default" : "secondary"}>

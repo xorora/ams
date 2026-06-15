@@ -41,6 +41,7 @@ export async function buildSummaryExcel(report: SummaryReport): Promise<Buffer> 
   detailSheet.columns = [
     { header: "Employee code", key: "code", width: 14 },
     { header: "Name", key: "name", width: 24 },
+    { header: "Designation", key: "designation", width: 18 },
     { header: "Department", key: "department", width: 18 },
     { header: "Active", key: "active", width: 8 },
     { header: "Records", key: "records", width: 10 },
@@ -55,6 +56,7 @@ export async function buildSummaryExcel(report: SummaryReport): Promise<Buffer> 
     detailSheet.addRow({
       code: row.employeeCode,
       name: row.fullName,
+      designation: row.designation ?? "",
       department: row.department ?? "",
       active: row.isActive ? "Yes" : "No",
       records: row.totals.records,
@@ -69,6 +71,7 @@ export async function buildSummaryExcel(report: SummaryReport): Promise<Buffer> 
   detailSheet.addRow({
     code: "TOTAL",
     name: "",
+    designation: "",
     department: "",
     active: "",
     records: report.totals.records,
@@ -99,6 +102,7 @@ export async function buildEmployeeExcel(report: EmployeeReport): Promise<Buffer
   infoSheet.addRow(["Employee code", report.employee.employeeCode]);
   infoSheet.addRow(["Name", report.employee.fullName]);
   infoSheet.addRow(["Email", report.employee.email]);
+  infoSheet.addRow(["Designation", report.employee.designation ?? ""]);
   infoSheet.addRow(["Department", report.employee.department ?? ""]);
   infoSheet.addRow(["Active", report.employee.isActive ? "Yes" : "No"]);
   infoSheet.addRow(["Shift days in range", report.summary.shiftDaysInRange]);
@@ -117,6 +121,9 @@ export async function buildEmployeeExcel(report: EmployeeReport): Promise<Buffer
     { header: "Source", key: "source", width: 10 },
     { header: "Check-in (PKT)", key: "checkIn", width: 18 },
     { header: "Check-out (PKT)", key: "checkOut", width: 18 },
+    { header: "Overtime start (PKT)", key: "overtimeStart", width: 18 },
+    { header: "Overtime end (PKT)", key: "overtimeEnd", width: 18 },
+    { header: "Overtime elapsed", key: "overtimeElapsed", width: 14 },
     { header: "Late", key: "late", width: 8 },
     { header: "Early leave", key: "early", width: 12 },
     { header: "Break", key: "break", width: 12 },
@@ -130,6 +137,9 @@ export async function buildEmployeeExcel(report: EmployeeReport): Promise<Buffer
       source: day.source,
       checkIn: formatPktDateTime(day.checkInAt),
       checkOut: formatPktDateTime(day.checkOutAt),
+      overtimeStart: formatPktDateTime(day.overtimeStartedAt),
+      overtimeEnd: formatPktDateTime(day.overtimeEndedAt),
+      overtimeElapsed: day.overtimeSeconds != null ? formatBreakSeconds(day.overtimeSeconds) : "",
       late: day.isLate ? "Yes" : "No",
       early: day.isEarlyLeave ? "Yes" : "No",
       break: formatBreakSeconds(day.totalBreakSeconds),

@@ -16,6 +16,7 @@ import {
   attendanceStatusBadgeVariant,
   formatAttendanceStatus,
   formatPktIso,
+  formatShiftDuration,
 } from "@/lib/admin/display";
 import type { SerializedAttendance } from "@/lib/admin/serialize";
 
@@ -44,6 +45,7 @@ export function AttendanceTable({
             <TableHead>Status</TableHead>
             <TableHead>Check-in</TableHead>
             <TableHead>Check-out</TableHead>
+            <TableHead>Overtime</TableHead>
             <TableHead>Flags</TableHead>
             <TableHead>Source</TableHead>
             <TableHead>Actions</TableHead>
@@ -52,13 +54,13 @@ export function AttendanceTable({
         <TableBody>
           {loading ? (
             <TableRow>
-              <TableCell colSpan={8} className="text-muted-foreground">
+              <TableCell colSpan={9} className="text-muted-foreground">
                 Loading…
               </TableCell>
             </TableRow>
           ) : items.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={8} className="text-muted-foreground">
+              <TableCell colSpan={9} className="text-muted-foreground">
                 No attendance records match your filters.
               </TableCell>
             </TableRow>
@@ -80,6 +82,25 @@ export function AttendanceTable({
                 </TableCell>
                 <TableCell className="text-xs">{formatPktIso(record.checkInAt)}</TableCell>
                 <TableCell className="text-xs">{formatPktIso(record.checkOutAt)}</TableCell>
+                <TableCell className="text-xs">
+                  {record.overtimeSeconds != null && record.overtimeSeconds > 0 ? (
+                    <div>
+                      <div>{formatShiftDuration(record.overtimeSeconds)}</div>
+                      {record.overtimeStartedAt && (
+                        <div className="text-muted-foreground">
+                          {formatPktIso(record.overtimeStartedAt)}
+                          {record.overtimeEndedAt
+                            ? ` → ${formatPktIso(record.overtimeEndedAt)}`
+                            : ""}
+                        </div>
+                      )}
+                    </div>
+                  ) : !record.checkOutAt && record.overtimeStartedAt ? (
+                    <span className="text-amber-700 dark:text-amber-300">Active</span>
+                  ) : (
+                    "—"
+                  )}
+                </TableCell>
                 <TableCell className="text-xs">
                   {record.isLate && (
                     <span className="mr-1 text-amber-700 dark:text-amber-300">Late</span>

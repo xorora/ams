@@ -51,7 +51,7 @@ export function getShiftDate(at: Date): string {
   return shiftDateAddDays(calendarDate, -1);
 }
 
-/** 18:30 PKT on the shift start date — last on-time check-in. */
+/** Expected check-in + grace on the shift start date — last on-time check-in. */
 export function getLateCheckInDeadline(shiftDate: string): Date {
   return zonedTimeOnShiftDate(shiftDate, {
     hour: LATE_CHECK_IN_HOUR,
@@ -70,7 +70,7 @@ export function getExpectedCheckOutAt(shiftDate: string): Date {
   });
 }
 
-/** Late when check-in is strictly after 18:30 PKT on the shift date. */
+/** Late when check-in is strictly after the grace deadline on the shift date. */
 export function isLateCheckIn(checkInAt: Date, shiftDate: string): boolean {
   return checkInAt.getTime() > getLateCheckInDeadline(shiftDate).getTime();
 }

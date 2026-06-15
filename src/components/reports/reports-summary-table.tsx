@@ -23,6 +23,7 @@ export function ReportsSummaryTable({ report }: ReportsSummaryTableProps) {
         <TableHeader>
           <TableRow>
             <TableHead>Employee</TableHead>
+            <TableHead>Designation</TableHead>
             <TableHead>Department</TableHead>
             <TableHead className="text-right">Records</TableHead>
             <TableHead className="text-right">Present</TableHead>
@@ -36,7 +37,7 @@ export function ReportsSummaryTable({ report }: ReportsSummaryTableProps) {
         <TableBody>
           {report.employees.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={9} className="text-muted-foreground">
+              <TableCell colSpan={10} className="text-muted-foreground">
                 No active employees found.
               </TableCell>
             </TableRow>
@@ -47,6 +48,7 @@ export function ReportsSummaryTable({ report }: ReportsSummaryTableProps) {
                   <div>{row.fullName}</div>
                   <div className="text-muted-foreground text-xs">{row.employeeCode}</div>
                 </TableCell>
+                <TableCell className="text-muted-foreground">{row.designation ?? "—"}</TableCell>
                 <TableCell className="text-muted-foreground">{row.department ?? "—"}</TableCell>
                 <TableCell className="text-right tabular-nums">{row.totals.records}</TableCell>
                 <TableCell className="text-right tabular-nums">{row.totals.present}</TableCell>

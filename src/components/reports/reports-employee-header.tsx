@@ -16,6 +16,7 @@ export function ReportsEmployeeHeader({ report }: ReportsEmployeeHeaderProps) {
       <CardContent className="-mt-2">
         <p className="text-muted-foreground text-sm">
           {report.employee.employeeCode} · {report.employee.email}
+          {report.employee.designation ? ` · ${report.employee.designation}` : ""}
           {report.employee.department ? ` · ${report.employee.department}` : ""}
           {!report.employee.isActive && (
             <span className="ml-2 text-amber-700 dark:text-amber-300">(inactive)</span>

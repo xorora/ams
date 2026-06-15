@@ -1,6 +1,7 @@
 import { formatInTimeZone } from "date-fns-tz";
 import { isWeekendDate } from "@/lib/leave/working-days";
-import { BUSINESS_TIMEZONE, MAX_BREAK_SECONDS } from "./constants";
+import { BUSINESS_TIMEZONE, formatLateCheckInDeadline, MAX_BREAK_SECONDS } from "./constants";
+import { computeOvertimeSnapshot, type OvertimeSnapshot } from "./overtime";
 import {
   type BreakSessionInput,
   canEndBreak,
@@ -23,6 +24,9 @@ export type AttendanceDaySnapshot = {
   checkOutAt: Date | null;
   isLate: boolean;
   isEarlyLeave: boolean;
+  overtimeStartedAt: Date | null;
+  overtimeEndedAt: Date | null;
+  overtimeSeconds: number | null;
   totalBreakSeconds: number;
 };
 
@@ -37,6 +41,7 @@ export type TodayStatusPayload = {
   totalBreakSeconds: number;
   breakRemainingSeconds: number;
   elapsedShiftSeconds: number | null;
+  overtime: OvertimeSnapshot;
   statusAt: string;
   activeBreakStartedAt: string | null;
   wouldBeEarlyLeave: boolean;
@@ -91,13 +96,21 @@ export function buildTodayStatus(
     warnings.push("Saturday and Sunday are weekend days — the office is closed.");
   }
   if (day?.isLate) {
-    warnings.push("You checked in late (after 18:30 PKT).");
+    warnings.push(`You checked in late (after ${formatLateCheckInDeadline()}).`);
   }
   if (day?.isEarlyLeave) {
     warnings.push("You checked out early (before 03:00 PKT).");
   }
   if (wouldBeEarlyLeave && state !== "checked_out") {
     warnings.push("Checking out now would be marked as early leave (before 03:00 PKT).");
+  }
+
+  const overtime = day
+    ? computeOvertimeSnapshot(day, now)
+    : { isActive: false, startedAt: null, endedAt: null, elapsedSeconds: 0 };
+
+  if (overtime.isActive) {
+    warnings.push("Overtime is in progress (past 03:00 PKT).");
   }
   if (breakRemainingSeconds <= 0 && state !== "checked_out") {
     warnings.push("You have used the full 60-minute break allowance for this shift.");
@@ -122,6 +135,7 @@ export function buildTodayStatus(
     totalBreakSeconds,
     breakRemainingSeconds,
     elapsedShiftSeconds,
+    overtime,
     statusAt: now.toISOString(),
     activeBreakStartedAt: activeBreak ? activeBreak.startedAt.toISOString() : null,
     wouldBeEarlyLeave,

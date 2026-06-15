@@ -90,11 +90,32 @@ export function AttendanceManager({
 
     try {
       if (editingId) {
+        const record = items.find((item) => item.id === editingId);
+        const overtimeMinutes = form.overtimeSeconds.trim();
+        const overtimeStartedIso = pktLocalToIso(form.overtimeStartedAt);
+        const overtimeEndedIso = pktLocalToIso(form.overtimeEndedAt);
+        const overtimeChanged =
+          overtimeMinutes !==
+            (record?.overtimeSeconds != null
+              ? String(Math.floor(record.overtimeSeconds / 60))
+              : "") ||
+          overtimeStartedIso !== (record?.overtimeStartedAt ?? null) ||
+          overtimeEndedIso !== (record?.overtimeEndedAt ?? null);
+
         const result = await updateAttendanceAction(editingId, {
           status: form.status,
           checkInAt: checkInIso,
           checkOutAt: checkOutIso,
           notes: form.notes || null,
+          ...(overtimeChanged
+            ? {
+                overtimeStartedAt: overtimeStartedIso,
+                overtimeEndedAt: overtimeEndedIso,
+                overtimeSeconds: overtimeMinutes
+                  ? Number.parseInt(overtimeMinutes, 10) * 60
+                  : undefined,
+              }
+            : {}),
         });
         if (!result.ok) {
           throw new Error(result.error);

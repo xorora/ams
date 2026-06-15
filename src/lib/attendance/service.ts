@@ -2,8 +2,15 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { attendanceDays, breakSessions, employees } from "@/db/schema";
 import { isWeekendDate } from "@/lib/leave/working-days";
+import { formatLateCheckInDeadline } from "./constants";
 import type { Coordinates } from "./coords";
 import { requireActiveEmployee, requireWithinGeofence } from "./employee-access";
+import {
+  computeOvertimeSnapshot,
+  getDefaultOvertimeStart,
+  isInOvertimePeriod,
+  overtimeFieldsOnCheckout,
+} from "./overtime";
 import {
   type BreakSessionInput,
   canEndBreak,
@@ -46,6 +53,9 @@ function toDaySnapshot(row: typeof attendanceDays.$inferSelect): AttendanceDaySn
     checkOutAt: row.checkOutAt,
     isLate: row.isLate,
     isEarlyLeave: row.isEarlyLeave,
+    overtimeStartedAt: row.overtimeStartedAt,
+    overtimeEndedAt: row.overtimeEndedAt,
+    overtimeSeconds: row.overtimeSeconds,
     totalBreakSeconds: row.totalBreakSeconds,
   };
 }
@@ -58,7 +68,7 @@ async function loadShiftAttendance(employeeId: string, shiftDate: string) {
     .limit(1);
 
   if (!day) {
-    return { day: null, sessions: [] as BreakSessionInput[] };
+    return { day: null, sessions: [] as BreakSessionInput[], rawDay: null };
   }
 
   const sessions = await db
@@ -72,7 +82,34 @@ async function loadShiftAttendance(employeeId: string, shiftDate: string) {
     durationSeconds: s.durationSeconds,
   }));
 
-  return { day: toDaySnapshot(day), sessions: breakInputs };
+  return { day: toDaySnapshot(day), sessions: breakInputs, rawDay: day };
+}
+
+async function ensureOvertimeStarted(
+  day: typeof attendanceDays.$inferSelect,
+  now: Date,
+): Promise<AttendanceDaySnapshot> {
+  const snapshot = toDaySnapshot(day);
+
+  if (
+    day.checkInAt &&
+    !day.checkOutAt &&
+    isInOvertimePeriod(snapshot, now) &&
+    !day.overtimeStartedAt
+  ) {
+    const overtimeStartedAt = getDefaultOvertimeStart(day.shiftDate);
+    await db
+      .update(attendanceDays)
+      .set({ overtimeStartedAt, updatedAt: now })
+      .where(eq(attendanceDays.id, day.id));
+
+    return {
+      ...snapshot,
+      overtimeStartedAt,
+    };
+  }
+
+  return snapshot;
 }
 
 async function guardEmployeeAndGeofence(
@@ -99,8 +136,9 @@ export async function getTodayStatus(
 ): Promise<ServiceSuccess<TodayStatusPayload>> {
   const now = new Date();
   const shiftDate = getShiftDate(now);
-  const { day, sessions } = await loadShiftAttendance(employeeId, shiftDate);
-  const status = buildTodayStatus(day, sessions, now);
+  const { day, sessions, rawDay } = await loadShiftAttendance(employeeId, shiftDate);
+  const resolvedDay = rawDay && day ? await ensureOvertimeStarted(rawDay, now) : day;
+  const status = buildTodayStatus(resolvedDay, sessions, now);
 
   const [employee] = await db
     .select({ isActive: employees.isActive })
@@ -182,7 +220,7 @@ export async function checkIn(
 
   const status = await getTodayStatus(employeeId);
   const message = isLate
-    ? "Checked in. You are marked late (after 18:30 PKT)."
+    ? `Checked in. You are marked late (after ${formatLateCheckInDeadline()}).`
     : "Checked in successfully.";
 
   return { ok: true, data: { message, status: status.data } };
@@ -230,14 +268,22 @@ export async function checkOut(
       checkOutLat: coords.lat,
       checkOutLng: coords.lng,
       isEarlyLeave: early,
+      ...(overtimeFieldsOnCheckout(day.shiftDate, now, day.overtimeStartedAt) ?? {
+        overtimeStartedAt: null,
+        overtimeEndedAt: null,
+        overtimeSeconds: null,
+      }),
       updatedAt: now,
     })
     .where(eq(attendanceDays.id, day.id));
 
   const status = await getTodayStatus(employeeId);
+  const overtime = computeOvertimeSnapshot({ ...day, checkOutAt: now, overtimeEndedAt: now }, now);
   const message = early
     ? "Checked out. Early leave recorded (before 03:00 PKT)."
-    : "Checked out successfully.";
+    : overtime.elapsedSeconds > 0
+      ? `Checked out. Overtime recorded (${Math.ceil(overtime.elapsedSeconds / 60)} min).`
+      : "Checked out successfully.";
 
   return { ok: true, data: { message, status: status.data } };
 }

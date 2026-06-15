@@ -4,6 +4,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -12,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
   SheetContent,
@@ -32,6 +34,9 @@ export type AttendanceFormValues = {
   status: AttendanceStatus;
   checkInAt: string;
   checkOutAt: string;
+  overtimeStartedAt: string;
+  overtimeEndedAt: string;
+  overtimeSeconds: string;
   notes: string;
 };
 
@@ -42,6 +47,9 @@ export function emptyAttendanceForm(): AttendanceFormValues {
     status: "present",
     checkInAt: "",
     checkOutAt: "",
+    overtimeStartedAt: "",
+    overtimeEndedAt: "",
+    overtimeSeconds: "",
     notes: "",
   };
 }
@@ -71,6 +79,10 @@ export function attendanceToForm(record: SerializedAttendance): AttendanceFormVa
     status: record.status,
     checkInAt: toDatetimeLocalValue(record.checkInAt),
     checkOutAt: toDatetimeLocalValue(record.checkOutAt),
+    overtimeStartedAt: toDatetimeLocalValue(record.overtimeStartedAt),
+    overtimeEndedAt: toDatetimeLocalValue(record.overtimeEndedAt),
+    overtimeSeconds:
+      record.overtimeSeconds != null ? String(Math.floor(record.overtimeSeconds / 60)) : "",
     notes: record.notes ?? "",
   };
 }
@@ -187,6 +199,50 @@ export function AttendanceSheet({
                 className="rounded-lg border bg-background px-3 py-2 text-sm"
               />
             </div>
+
+            {editingId && (
+              <>
+                <Separator />
+                <div>
+                  <p className="font-medium text-sm">Overtime</p>
+                  <p className="text-muted-foreground text-sm">
+                    Adjust overtime only when correcting records. Employees cannot edit these
+                    fields.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label>Overtime started (PKT)</Label>
+                  <DateTimePicker
+                    value={form.overtimeStartedAt}
+                    onChange={(overtimeStartedAt) =>
+                      onFormChange((f) => ({ ...f, overtimeStartedAt }))
+                    }
+                    placeholder="Pick overtime start"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label>Overtime ended (PKT)</Label>
+                  <DateTimePicker
+                    value={form.overtimeEndedAt}
+                    onChange={(overtimeEndedAt) => onFormChange((f) => ({ ...f, overtimeEndedAt }))}
+                    placeholder="Pick overtime end"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="overtime-minutes">Overtime elapsed (minutes)</Label>
+                  <Input
+                    id="overtime-minutes"
+                    type="number"
+                    min={0}
+                    value={form.overtimeSeconds}
+                    onChange={(e) =>
+                      onFormChange((f) => ({ ...f, overtimeSeconds: e.target.value }))
+                    }
+                    placeholder="Auto-calculated from start/end if blank"
+                  />
+                </div>
+              </>
+            )}
           </div>
           <SheetFooter className="flex-row px-0 pb-0">
             <Button type="submit" disabled={saving}>

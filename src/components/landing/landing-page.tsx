@@ -4,6 +4,7 @@ import { ModeToggle } from "@/components/mode-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { CHECK_IN_GRACE_MINUTES, formatLateCheckInDeadline } from "@/lib/attendance/constants";
 
 const features = [
   {
@@ -16,7 +17,7 @@ const features = [
     icon: Moon,
     title: "Built for night shifts",
     description:
-      "Shift window runs 18:00 to 03:00 PKT with late and early-leave detection built in.",
+      "Shift window runs 18:00 to 03:00 PKT with a 15-minute check-in grace period and early-leave detection.",
   },
   {
     icon: Timer,
@@ -46,7 +47,8 @@ const features = [
 
 const shiftFacts = [
   { label: "Check-in", value: "18:00 PKT" },
-  { label: "Late after", value: "18:30 PKT" },
+  { label: "Late after", value: formatLateCheckInDeadline() },
+  { label: "Check-in grace", value: `${CHECK_IN_GRACE_MINUTES} min` },
   { label: "Check-out", value: "03:00 PKT" },
   { label: "Max break", value: "60 min" },
 ] as const;

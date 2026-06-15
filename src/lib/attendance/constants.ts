@@ -4,9 +4,16 @@ export const BUSINESS_TIMEZONE = "Asia/Karachi";
 /** Expected night-shift check-in anchor (18:00 PKT). */
 export const EXPECTED_CHECK_IN_HOUR = 18;
 
-/** On-time check-in if at or before this time on the shift date. */
-export const LATE_CHECK_IN_HOUR = 18;
-export const LATE_CHECK_IN_MINUTE = 30;
+/** Grace period after expected check-in before a check-in is marked late (check-in only). */
+export const CHECK_IN_GRACE_MINUTES = 15;
+
+/** Last on-time check-in: expected check-in + grace (18:15 PKT). */
+export const LATE_CHECK_IN_HOUR = EXPECTED_CHECK_IN_HOUR;
+export const LATE_CHECK_IN_MINUTE = CHECK_IN_GRACE_MINUTES;
+
+export function formatLateCheckInDeadline(): string {
+  return `${String(LATE_CHECK_IN_HOUR).padStart(2, "0")}:${String(LATE_CHECK_IN_MINUTE).padStart(2, "0")} PKT`;
+}
 
 /** Expected check-out on the morning after shift date (03:00 PKT). */
 export const EXPECTED_CHECK_OUT_HOUR = 3;
