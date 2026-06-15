@@ -9,7 +9,6 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
-  SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { getNavItemsForUser } from "@/lib/auth/navigation";
 
@@ -32,8 +31,7 @@ export function AppSidebar({ user, canAccessLeave = false }: AppSidebarProps) {
         <SidebarNav items={navItems} />
       </SidebarContent>
 
-      <SidebarFooter>
-        <SidebarSeparator />
+      <SidebarFooter className="border-t">
         <div className="space-y-2 px-1 py-1 group-data-[collapsible=icon]:hidden">
           <div className="text-xs">
             <p className="truncate font-medium">{user.name ?? user.email}</p>

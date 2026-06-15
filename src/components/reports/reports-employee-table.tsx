@@ -74,12 +74,8 @@ export function ReportsEmployeeTable({ days }: ReportsEmployeeTableProps) {
                   )}
                 </TableCell>
                 <TableCell className="text-xs">
-                  {day.isLate && (
-                    <span className="mr-1 text-amber-700 dark:text-amber-300">Late</span>
-                  )}
-                  {day.isEarlyLeave && (
-                    <span className="text-amber-700 dark:text-amber-300">Early</span>
-                  )}
+                  {day.isLate && <span className="mr-1 text-amber-700">Late</span>}
+                  {day.isEarlyLeave && <span className="text-amber-700">Early</span>}
                   {!day.isLate && !day.isEarlyLeave && "—"}
                 </TableCell>
                 <TableCell className="text-xs">

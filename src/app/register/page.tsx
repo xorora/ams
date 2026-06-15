@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { RegisterForm } from "@/components/auth/register-form";
-import { ModeToggle } from "@/components/mode-toggle";
 import {
   getDefaultAuthenticatedPath,
   getPostAuthRedirect,
@@ -28,10 +27,7 @@ export default async function RegisterPage() {
   }
 
   return (
-    <div className="relative flex min-h-full flex-col items-center justify-center gap-6 p-8">
-      <div className="absolute top-4 right-4">
-        <ModeToggle />
-      </div>
+    <div className="flex min-h-full flex-col items-center justify-center gap-6 p-8">
       <div className="max-w-md text-center">
         <h1 className="text-2xl font-semibold tracking-tight">Link your account</h1>
         <p className="mt-2 text-muted-foreground text-sm">

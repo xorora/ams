@@ -96,18 +96,14 @@ export function AttendanceTable({
                       )}
                     </div>
                   ) : !record.checkOutAt && record.overtimeStartedAt ? (
-                    <span className="text-amber-700 dark:text-amber-300">Active</span>
+                    <span className="text-amber-700">Active</span>
                   ) : (
                     "—"
                   )}
                 </TableCell>
                 <TableCell className="text-xs">
-                  {record.isLate && (
-                    <span className="mr-1 text-amber-700 dark:text-amber-300">Late</span>
-                  )}
-                  {record.isEarlyLeave && (
-                    <span className="text-amber-700 dark:text-amber-300">Early</span>
-                  )}
+                  {record.isLate && <span className="mr-1 text-amber-700">Late</span>}
+                  {record.isEarlyLeave && <span className="text-amber-700">Early</span>}
                   {!record.isLate && !record.isEarlyLeave && "—"}
                 </TableCell>
                 <TableCell className="text-xs capitalize">{record.source}</TableCell>

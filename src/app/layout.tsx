@@ -1,19 +1,19 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { DM_Sans, Space_Mono } from "next/font/google";
 import { auth } from "@/auth";
 import { ApplicationShell } from "@/components/layout/application-shell";
-import { ThemeProvider } from "@/components/theme-provider";
 import { canEmployeeAccessLeave } from "@/lib/leave/access";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const fontSans = DM_Sans({
   subsets: ["latin"],
+  variable: "--font-dm-sans",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const fontMono = Space_Mono({
+  weight: ["400", "700"],
   subsets: ["latin"],
+  variable: "--font-space-mono",
 });
 
 export const metadata: Metadata = {
@@ -30,22 +30,11 @@ export default async function RootLayout({
   const canAccessLeave = session?.user ? await canEmployeeAccessLeave(session.user) : false;
 
   return (
-    <html
-      lang="en"
-      suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
+    <html lang="en" className={`${fontSans.variable} ${fontMono.variable} h-full antialiased`}>
       <body className="min-h-svh font-sans">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <ApplicationShell user={session?.user} canAccessLeave={canAccessLeave}>
-            {children}
-          </ApplicationShell>
-        </ThemeProvider>
+        <ApplicationShell user={session?.user} canAccessLeave={canAccessLeave}>
+          {children}
+        </ApplicationShell>
       </body>
     </html>
   );

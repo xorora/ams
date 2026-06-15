@@ -3,7 +3,6 @@
 import { usePathname } from "next/navigation";
 import type { Session } from "next-auth";
 import { AppSidebar } from "@/components/layout/app-sidebar";
-import { ModeToggle } from "@/components/mode-toggle";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { isPublicPath } from "@/lib/auth/navigation";
@@ -33,9 +32,6 @@ export function ApplicationShell({
         <SidebarInset>
           <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
             <SidebarTrigger className="-ml-1" />
-            <div className="ml-auto">
-              <ModeToggle />
-            </div>
           </header>
           <div className="flex flex-1 flex-col">{children}</div>
         </SidebarInset>

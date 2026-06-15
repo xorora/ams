@@ -18,9 +18,7 @@ export function ReportsEmployeeHeader({ report }: ReportsEmployeeHeaderProps) {
           {report.employee.employeeCode} · {report.employee.email}
           {report.employee.designation ? ` · ${report.employee.designation}` : ""}
           {report.employee.department ? ` · ${report.employee.department}` : ""}
-          {!report.employee.isActive && (
-            <span className="ml-2 text-amber-700 dark:text-amber-300">(inactive)</span>
-          )}
+          {!report.employee.isActive && <span className="ml-2 text-amber-700">(inactive)</span>}
         </p>
         <p className="mt-2 text-muted-foreground text-sm">
           {report.range.from} to {report.range.to} · {report.summary.shiftDaysInRange} shift days in

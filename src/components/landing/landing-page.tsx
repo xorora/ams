@@ -1,6 +1,5 @@
 import { BarChart3, CalendarDays, Clock, MapPin, Moon, Shield, Timer } from "lucide-react";
 import { GoogleSignInButton } from "@/components/landing/google-sign-in-button";
-import { ModeToggle } from "@/components/mode-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -83,7 +82,7 @@ export function LandingPage({ callbackUrl, errorMessage }: LandingPageProps) {
     <div className="relative flex min-h-svh flex-col">
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <div className="absolute inset-0 bg-linear-to-b from-transparent to-background/60" />
-        <div className="absolute -top-32 left-1/2 h-112 w-3xl -translate-x-1/2 rounded-full bg-muted/60 blur-3xl dark:bg-muted/30" />
+        <div className="absolute -top-32 left-1/2 h-112 w-3xl -translate-x-1/2 rounded-full bg-muted/60 blur-3xl" />
         <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-size-[4rem_4rem] mask-[radial-gradient(ellipse_at_center,black,transparent_75%)] opacity-50" />
       </div>
 
@@ -97,12 +96,9 @@ export function LandingPage({ callbackUrl, errorMessage }: LandingPageProps) {
             <p className="text-muted-foreground text-xs">Attendance Management</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="hidden sm:inline-flex">
-            Asia/Karachi
-          </Badge>
-          <ModeToggle />
-        </div>
+        <Badge variant="secondary" className="hidden sm:inline-flex">
+          Asia/Karachi
+        </Badge>
       </header>
 
       <main className="flex flex-1 flex-col">
