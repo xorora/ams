@@ -15,10 +15,22 @@ import { cn } from "@/lib/utils";
 type MyLeaveManagerProps = {
   balances: LeaveBalance[];
   requests: SerializedLeaveRequest[];
+  companyName: string;
+  employeeName: string;
+  designation?: string | null;
+  department?: string | null;
   className?: string;
 };
 
-export function MyLeaveManager({ balances, requests, className }: MyLeaveManagerProps) {
+export function MyLeaveManager({
+  balances,
+  requests,
+  companyName,
+  employeeName,
+  designation,
+  department,
+  className,
+}: MyLeaveManagerProps) {
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState<LeaveFormValues>(emptyLeaveForm);
   const [saving, setSaving] = useState(false);
@@ -126,6 +138,10 @@ export function MyLeaveManager({ balances, requests, className }: MyLeaveManager
           }
         }}
         request={viewRequest}
+        companyName={companyName}
+        designation={designation}
+        department={department}
+        balances={balances}
       />
 
       <LeaveSheet
@@ -136,6 +152,11 @@ export function MyLeaveManager({ balances, requests, className }: MyLeaveManager
         saving={saving}
         onSubmit={handleSubmit}
         onCancel={closeForm}
+        companyName={companyName}
+        employeeName={employeeName}
+        designation={designation}
+        department={department}
+        balances={balances}
       />
     </div>
   );

@@ -21,6 +21,8 @@ export type LeaveListItem = {
   employeeCode: string;
   employeeName: string;
   employeeEmail: string;
+  employeeDesignation: string | null;
+  employeeDepartment: string | null;
   leaveType: LeaveType;
   startDate: string;
   endDate: string;
@@ -102,6 +104,8 @@ function mapLeaveRow(
     employeeCode: employee.employeeCode,
     employeeName: employee.fullName,
     employeeEmail: employee.email,
+    employeeDesignation: employee.designation,
+    employeeDepartment: employee.department,
     leaveType: row.leaveType,
     startDate: row.startDate,
     endDate: row.endDate,
@@ -206,6 +210,7 @@ export async function getLeaveRequestForPdf(
       daysCount: row.daysCount,
       leaveType: row.leaveType,
       reason: row.reason,
+      medicalCertificateNote: row.medicalCertificateNote,
       balances: balancesResult.data,
     },
   };

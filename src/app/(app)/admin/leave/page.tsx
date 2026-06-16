@@ -1,6 +1,6 @@
 import { LeaveManager } from "@/components/leave/leave-manager";
 import { listEmployees } from "@/lib/admin/employees-service";
-import { requireSelectedCompanyId } from "@/lib/admin/selected-company";
+import { getCompanies, requireSelectedCompanyId } from "@/lib/admin/selected-company";
 import { serializeEmployee } from "@/lib/admin/serialize";
 import { requireAdminSession } from "@/lib/auth/require-session";
 import { listLeaveRequests } from "@/lib/leave/leave-service";
@@ -38,13 +38,16 @@ export default async function AdminLeavePage({ searchParams }: PageProps) {
     employeeId: params.employeeId || undefined,
   };
 
-  const [employeesResult, requestsResult] = await Promise.all([
+  const [employeesResult, requestsResult, activeCompanies] = await Promise.all([
     listEmployees({ includeInactive: false, companyId }),
     listLeaveRequests({ ...filters, companyId }),
+    getCompanies(),
   ]);
 
   const employees = employeesResult.data.map((employee) => serializeEmployee(employee));
   const requests = requestsResult.data.map(serializeLeaveRequest);
+  const companyName =
+    activeCompanies.find((company) => company.id === companyId)?.name ?? "Company";
 
   return (
     <div className="mx-auto flex h-full min-h-0 w-full max-w-6xl flex-1 flex-col gap-6 overflow-hidden p-8">
@@ -55,7 +58,12 @@ export default async function AdminLeavePage({ searchParams }: PageProps) {
         </p>
       </div>
 
-      <LeaveManager employees={employees} requests={requests} filters={filters} />
+      <LeaveManager
+        employees={employees}
+        requests={requests}
+        filters={filters}
+        companyName={companyName}
+      />
     </div>
   );
 }

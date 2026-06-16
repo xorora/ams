@@ -6,10 +6,12 @@ import { requireAdminSession, requireEmployeeSession } from "@/lib/auth/require-
 import {
   approveLeaveRequest,
   cancelLeaveRequest,
+  getLeaveBalances,
   rejectLeaveRequest,
   type SubmitLeaveInput,
   submitLeaveRequest,
 } from "./leave-service";
+import type { LeaveBalance } from "./types";
 
 function revalidateLeavePaths() {
   revalidatePath("/leave");
@@ -73,4 +75,16 @@ export async function rejectLeaveRequestAction(
   }
   revalidateLeavePaths();
   return actionSuccess();
+}
+
+export async function getLeaveBalancesAction(
+  employeeId: string,
+  year?: number,
+): Promise<ActionResult<LeaveBalance[]>> {
+  await requireAdminSession();
+  const result = await getLeaveBalances(employeeId, year);
+  if (!result.ok) {
+    return actionFailure(result);
+  }
+  return actionSuccess(result.data);
 }

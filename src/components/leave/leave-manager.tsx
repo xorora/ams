@@ -6,24 +6,50 @@ import { LeaveDetailSheet } from "@/components/leave/leave-detail-sheet";
 import { LeaveFilters, type LeaveFiltersState } from "@/components/leave/leave-filters";
 import { LeaveTable } from "@/components/leave/leave-table";
 import type { SerializedEmployee } from "@/lib/admin/serialize";
-import { approveLeaveRequestAction, rejectLeaveRequestAction } from "@/lib/leave/actions";
+import {
+  approveLeaveRequestAction,
+  getLeaveBalancesAction,
+  rejectLeaveRequestAction,
+} from "@/lib/leave/actions";
 import { leaveListQuery } from "@/lib/leave/query-params";
 import type { SerializedLeaveRequest } from "@/lib/leave/serialize";
+import type { LeaveBalance } from "@/lib/leave/types";
 import { downloadResponseBlob, toastAsync } from "@/lib/toast";
 
 type LeaveManagerProps = {
   employees: SerializedEmployee[];
   requests: SerializedLeaveRequest[];
   filters: LeaveFiltersState;
+  companyName: string;
 };
 
-export function LeaveManager({ employees, requests, filters: initialFilters }: LeaveManagerProps) {
+export function LeaveManager({
+  employees,
+  requests,
+  filters: initialFilters,
+  companyName,
+}: LeaveManagerProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [filters, setFilters] = useState<LeaveFiltersState>(initialFilters);
   const [actionPending, setActionPending] = useState(false);
   const [downloadPending, setDownloadPending] = useState(false);
   const [viewRequest, setViewRequest] = useState<SerializedLeaveRequest | null>(null);
+  const [viewBalances, setViewBalances] = useState<LeaveBalance[]>([]);
+
+  useEffect(() => {
+    if (!viewRequest) {
+      setViewBalances([]);
+      return;
+    }
+
+    const year = Number.parseInt(viewRequest.startDate.slice(0, 4), 10);
+    void getLeaveBalancesAction(viewRequest.employeeId, year).then((result) => {
+      if (result.ok) {
+        setViewBalances(result.data);
+      }
+    });
+  }, [viewRequest]);
 
   useEffect(() => {
     setFilters(initialFilters);
@@ -133,7 +159,8 @@ export function LeaveManager({ employees, requests, filters: initialFilters }: L
           }
         }}
         request={viewRequest}
-        showEmployee
+        companyName={companyName}
+        balances={viewBalances}
       />
     </div>
   );
