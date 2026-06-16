@@ -10,7 +10,7 @@ export default async function DashboardPage() {
   const session = await requireSession();
 
   if (needsEmployeeRegistration(session.user)) {
-    redirect("/register");
+    redirect("/");
   }
   const employeeId = session.user.employeeId;
   const canCheckIn = hasLinkedEmployee(session);
@@ -43,13 +43,13 @@ export default async function DashboardPage() {
           {session.user.role === "admin" ? (
             <p>
               Use the admin section in the sidebar for team attendance. To check in for yourself,
-              create an employee entry in Admin → Employees using the same email as your Google
-              account, then refresh this page.
+              create an employee entry in Admin → Employees, then sign in with that employee code
+              and the same email you use for AMS.
             </p>
           ) : (
             <p>
-              Ask an administrator to add your corporate email in the employee directory, then
-              refresh this page.
+              Ask an administrator to add your employee record, then sign in on the home page with
+              your employee code, email, and password.
             </p>
           )}
         </div>

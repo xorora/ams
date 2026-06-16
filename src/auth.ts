@@ -1,60 +1,71 @@
 import { eq } from "drizzle-orm";
 import NextAuth from "next-auth";
-import Google from "next-auth/providers/google";
+import Credentials from "next-auth/providers/credentials";
 import { db } from "@/db";
 import { users } from "@/db/schema";
-import { isAllowedHostedDomain, isAllowedWorkspaceEmail } from "@/lib/auth/domain";
-import { resolveUserOnSignIn } from "@/lib/auth/resolve-user";
-import { getWorkspaceDomain } from "@/lib/env";
-
-const workspaceDomain = getWorkspaceDomain();
+import { authenticateWithCredentials } from "@/lib/auth/credentials-auth";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   providers: [
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      authorization: {
-        params: { hd: workspaceDomain },
+    Credentials({
+      credentials: {
+        employeeCode: { label: "Employee code", type: "text" },
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+        name: { label: "Name", type: "text" },
+      },
+      async authorize(credentials) {
+        const employeeCode = credentials?.employeeCode;
+        const email = credentials?.email;
+        const password = credentials?.password;
+        const name = credentials?.name;
+
+        if (
+          typeof employeeCode !== "string" ||
+          typeof email !== "string" ||
+          typeof password !== "string"
+        ) {
+          return null;
+        }
+
+        try {
+          const user = await authenticateWithCredentials({
+            employeeCode,
+            email,
+            password,
+            name: typeof name === "string" ? name : null,
+          });
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            employeeId: user.employeeId,
+          };
+        } catch {
+          return null;
+        }
       },
     }),
   ],
   pages: {
     signIn: "/",
   },
+  session: {
+    strategy: "jwt",
+  },
   callbacks: {
-    signIn({ profile }) {
-      if (!profile?.email || profile.email_verified !== true) {
-        return false;
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+        token.role = user.role;
+        token.employeeId = user.employeeId ?? null;
+        return token;
       }
 
-      if (!isAllowedWorkspaceEmail(profile.email, profile.email_verified === true)) {
-        return false;
-      }
-
-      const hostedDomain =
-        typeof profile.hd === "string"
-          ? profile.hd
-          : typeof (profile as { hostedDomain?: string }).hostedDomain === "string"
-            ? (profile as { hostedDomain?: string }).hostedDomain
-            : undefined;
-
-      return isAllowedHostedDomain(hostedDomain);
-    },
-    async jwt({ token, account, profile }) {
-      if (account?.provider === "google" && profile?.email && profile.sub) {
-        const dbUser = await resolveUserOnSignIn({
-          email: profile.email,
-          name: profile.name,
-          image: profile.picture,
-          googleSubject: profile.sub,
-        });
-
-        token.id = dbUser.id;
-        token.role = dbUser.role;
-        token.employeeId = dbUser.employeeId;
-      } else if (typeof token.id === "string") {
+      if (typeof token.id === "string") {
         const [dbUser] = await db
           .select({ role: users.role, employeeId: users.employeeId })
           .from(users)

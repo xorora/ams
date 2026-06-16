@@ -136,7 +136,7 @@ export function EmployeeSheet({
           <SheetDescription>
             {editingId
               ? "Update employee details. Email must stay unique."
-              : "Add a new employee. They can sign in with their company email."}
+              : "Add a new employee. They can sign in with their employee code, email, and password."}
           </SheetDescription>
         </SheetHeader>
         <form onSubmit={onSubmit} className="flex flex-1 flex-col gap-4 overflow-y-auto px-4">

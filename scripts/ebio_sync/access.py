@@ -26,6 +26,12 @@ WHERE p.Tran_MachineRawPunchId > ?
 ORDER BY p.Tran_MachineRawPunchId
 """
 
+ACCESS_PUNCH_STATS_QUERY = """
+SELECT COALESCE(MAX(p.Tran_MachineRawPunchId), 0),
+       COALESCE(SUM(IIF(p.PunchDatetime IS NULL, 1, 0)), 0)
+FROM Tran_MachineRawPunch AS p
+"""
+
 EMPLOYEE_QUERY = """
 SELECT e.Empid,
        e.EmpCode,
@@ -58,3 +64,11 @@ def fetch_employees(access_conn):
     cur = access_conn.cursor()
     cur.execute(EMPLOYEE_QUERY)
     return cur.fetchall()
+
+
+def get_access_punch_stats(access_conn) -> tuple[int, int]:
+    """Return (max Tran_MachineRawPunchId, rows with NULL PunchDatetime) in Access."""
+    cur = access_conn.cursor()
+    cur.execute(ACCESS_PUNCH_STATS_QUERY)
+    row = cur.fetchone()
+    return int(row[0]), int(row[1])

@@ -21,15 +21,7 @@ export default auth((req) => {
   }
 
   if (pathname === "/register") {
-    if (!isLoggedIn) {
-      const signInUrl = new URL("/", req.nextUrl.origin);
-      signInUrl.searchParams.set("callbackUrl", "/register");
-      return NextResponse.redirect(signInUrl);
-    }
-    if (user && !needsEmployeeRegistration(user)) {
-      return NextResponse.redirect(new URL(getPostAuthRedirect(user), req.nextUrl.origin));
-    }
-    return;
+    return NextResponse.redirect(new URL("/", req.nextUrl.origin));
   }
 
   if (pathname === "/admin" && isLoggedIn && user) {
@@ -56,7 +48,7 @@ export default auth((req) => {
           { status: 403 },
         );
       }
-      return NextResponse.redirect(new URL("/register", req.nextUrl.origin));
+      return NextResponse.redirect(new URL("/", req.nextUrl.origin));
     }
   }
 

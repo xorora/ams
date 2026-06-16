@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 
-from ebio_sync.access import SOURCE_QUERY
+from ebio_sync.access import SOURCE_QUERY, get_access_punch_stats
 from ebio_sync.config import Config
 
 LOG = logging.getLogger("ebio_sync")
@@ -80,7 +80,27 @@ def sync_punches(
 ) -> int:
     """Upsert new punches from Access. Returns the number of rows read."""
     watermark = get_watermark(pg_conn, full)
-    LOG.info("Watermark (last synced punch id): %s", watermark)
+    access_max_id, null_datetime_rows = get_access_punch_stats(access_conn)
+    pending = max(0, access_max_id - watermark)
+    LOG.info(
+        "Watermark (last synced punch id): %s | Access max punch id: %s | pending by id: %s",
+        watermark,
+        access_max_id,
+        pending,
+    )
+    if null_datetime_rows:
+        LOG.warning(
+            "%s Access punch row(s) have NULL PunchDatetime and are excluded from sync.",
+            null_datetime_rows,
+        )
+    if not full and access_max_id < watermark:
+        LOG.warning(
+            "Access max punch id (%s) is below the Neon watermark (%s). "
+            "If attendance_db.mdb was replaced or reset, run a full sync "
+            "(py ebio_sync.py --once --full) to backfill lower ids.",
+            access_max_id,
+            watermark,
+        )
 
     cur = access_conn.cursor()
     cur.execute(SOURCE_QUERY, watermark)

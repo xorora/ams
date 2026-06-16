@@ -4,11 +4,8 @@ import { LandingPage } from "@/components/landing/landing-page";
 import { getPostAuthRedirect } from "@/lib/auth/navigation";
 
 const errorMessages: Record<string, string> = {
-  AccessDenied:
-    "Sign-in was denied. Use a verified company Google account from your Workspace domain.",
+  CredentialsSignin: "Invalid employee code, email, or password.",
   Configuration: "Authentication is misconfigured. Contact your administrator.",
-  OAuthSignin: "Could not start Google sign-in. Try again.",
-  OAuthCallback: "Google sign-in failed. Try again.",
   Default: "Sign-in failed. Try again.",
 };
 

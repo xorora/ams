@@ -41,8 +41,8 @@ export default async function AdminEmployeesPage({ searchParams }: PageProps) {
       <div className="shrink-0">
         <h1 className="text-2xl font-semibold">Employees</h1>
         <p className="mt-1 text-muted-foreground text-sm">
-          Manage the employee directory. New employees can sign in with Google once their corporate
-          email matches a record here.
+          Manage the employee directory. Employees sign in with their employee code, email, and
+          password — existing records are linked automatically on first sign-in.
         </p>
       </div>
 

@@ -1,5 +1,5 @@
 import { BarChart3, CalendarDays, Clock, MapPin, Moon, Shield, Timer } from "lucide-react";
-import { GoogleSignInButton } from "@/components/landing/google-sign-in-button";
+import { CredentialsAuthForm } from "@/components/auth/credentials-auth-form";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -46,9 +46,9 @@ const features = [
   },
   {
     icon: Shield,
-    title: "Workspace SSO",
+    title: "Employee code sign-in",
     description:
-      "Sign in with your company Google account. Roles and employee records are linked automatically.",
+      "Sign in with your employee code, email, and password. Works for company and personal email addresses.",
   },
 ] as const;
 
@@ -65,20 +65,21 @@ const shiftFacts = [
 const steps = [
   {
     step: "01",
-    title: "Sign in with Google",
-    description: "Use your company Workspace account. Only verified domain users can access AMS.",
+    title: "Enter your employee code",
+    description:
+      "Use your badge or employee number. If HR already added you, we link your account; otherwise we create your record.",
   },
   {
     step: "02",
-    title: "Link your employee code",
+    title: "Add email and password",
     description:
-      "Enter the code provided by HR on first login, or get auto-linked if your email is already on file.",
+      "Xorora staff can use @xorora.com. Crest-led staff can use a personal Gmail or any email you check regularly.",
   },
   {
     step: "03",
     title: "Track attendance",
     description:
-      "Check in from the office, manage breaks, apply for leave, and let admins handle the rest.",
+      "Open your dashboard for leave, profile, and geofenced check-in when you are at the office.",
   },
 ] as const;
 
@@ -134,9 +135,10 @@ export function LandingPage({ callbackUrl, errorMessage }: LandingPageProps) {
             ) : null}
 
             <div className="mt-8 flex flex-col items-center gap-3">
-              <GoogleSignInButton callbackUrl={callbackUrl} />
+              <CredentialsAuthForm callbackUrl={callbackUrl} />
               <p className="max-w-md text-muted-foreground text-sm">
-                Company Google account required. Your role is assigned automatically after sign-in.
+                First time here? Enter your employee code, email, and a password to create or link
+                your account.
               </p>
             </div>
           </div>
@@ -210,9 +212,10 @@ export function LandingPage({ callbackUrl, errorMessage }: LandingPageProps) {
                 <CardContent className="flex flex-col items-center gap-4 py-8 text-center">
                   <CardTitle className="text-lg">Ready to clock in?</CardTitle>
                   <CardDescription>
-                    Sign in with your Workspace account to open your dashboard or admin panel.
+                    Enter your employee code, email, and password to open your dashboard or admin
+                    panel.
                   </CardDescription>
-                  <GoogleSignInButton callbackUrl={callbackUrl} />
+                  <CredentialsAuthForm callbackUrl={callbackUrl} />
                 </CardContent>
               </Card>
             </div>

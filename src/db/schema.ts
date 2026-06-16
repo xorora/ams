@@ -66,6 +66,7 @@ export const users = pgTable("users", {
   image: text("image"),
   role: userRoleEnum("role").notNull().default("employee"),
   googleSubject: text("google_subject").unique(),
+  passwordHash: text("password_hash"),
   employeeId: uuid("employee_id").references((): AnyPgColumn => employees.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
