@@ -170,6 +170,24 @@ export const machinePunches = pgTable(
   ],
 );
 
+export const biometricEmployeeMappings = pgTable("biometric_employee_mappings", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  // Mst_Employee.Empid from the Access DB; durable key for the sync service.
+  sourceEmpId: integer("source_emp_id").notNull().unique(),
+  cardNo: text("card_no").notNull().unique(),
+  machineEmpCode: text("machine_emp_code"),
+  machineEmpName: text("machine_emp_name").notNull(),
+  normalizedName: text("normalized_name").notNull(),
+  employeeId: uuid("employee_id")
+    .notNull()
+    .references((): AnyPgColumn => employees.id),
+  // card | mapping | exact_name | fuzzy_name | created
+  matchMethod: text("match_method").notNull(),
+  matchScore: real("match_score"),
+  syncedAt: timestamp("synced_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const breakSessions = pgTable("break_sessions", {
   id: uuid("id").defaultRandom().primaryKey(),
   attendanceDayId: uuid("attendance_day_id")

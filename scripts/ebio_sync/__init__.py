@@ -1,0 +1,3 @@
+"""AMS biometric sync — Access DB to Neon Postgres."""
+
+__version__ = "0.2.0"

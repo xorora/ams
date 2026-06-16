@@ -1,17 +1,13 @@
-import { and, gte, isNotNull, lte, sql } from "drizzle-orm";
+import { and, eq, gte, isNotNull, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { attendanceDays, machinePunches } from "@/db/schema";
+import { attendanceDays, companies, employees, machinePunches } from "@/db/schema";
 import {
-  COMPANY_SHIFT_BY_SLUG,
-  type CompanyShiftConfig,
+  getCompanyShiftConfig,
   getExpectedCheckOutAt,
   getShiftDateForCompany,
   isEarlyLeaveForCompany,
   isLateCheckInForCompany,
 } from "./company-shift";
-
-/** Crest LED machine punches use the 9 AM–5 PM day shift (15 min grace). */
-const MACHINE_PUNCH_SHIFT = COMPANY_SHIFT_BY_SLUG["crest-led"];
 
 const INSERT_BATCH_SIZE = 100;
 
@@ -29,44 +25,53 @@ export type ProcessMachinePunchesResult = {
   skipped: number;
 };
 
+type PunchRow = {
+  employeeId: string;
+  punchAt: Date;
+  companySlug: string;
+};
+
 type PunchGroup = {
   employeeId: string;
   shiftDate: string;
   checkInAt: Date;
   checkOutAt: Date | null;
+  companySlug: string;
 };
 
 type AttendanceInsertRow = typeof attendanceDays.$inferInsert;
 
-function groupPunches(
-  rows: { employeeId: string; punchAt: Date }[],
-  config: CompanyShiftConfig,
-): PunchGroup[] {
-  const byKey = new Map<string, { employeeId: string; shiftDate: string; punches: Date[] }>();
+function groupPunches(rows: PunchRow[]): PunchGroup[] {
+  const byKey = new Map<
+    string,
+    { employeeId: string; shiftDate: string; companySlug: string; punches: Date[] }
+  >();
 
-  for (const { employeeId, punchAt } of rows) {
+  for (const { employeeId, punchAt, companySlug } of rows) {
+    const config = getCompanyShiftConfig(companySlug);
     const shiftDate = getShiftDateForCompany(punchAt, config);
     const key = `${employeeId}:${shiftDate}`;
     const existing = byKey.get(key);
     if (existing) {
       existing.punches.push(punchAt);
     } else {
-      byKey.set(key, { employeeId, shiftDate, punches: [punchAt] });
+      byKey.set(key, { employeeId, shiftDate, companySlug, punches: [punchAt] });
     }
   }
 
   const groups: PunchGroup[] = [];
-  for (const { employeeId, shiftDate, punches } of byKey.values()) {
+  for (const { employeeId, shiftDate, companySlug, punches } of byKey.values()) {
     punches.sort((a, b) => a.getTime() - b.getTime());
     const checkInAt = punches[0];
     const checkOutAt = punches.length > 1 ? punches[punches.length - 1] : null;
-    groups.push({ employeeId, shiftDate, checkInAt, checkOutAt });
+    groups.push({ employeeId, shiftDate, checkInAt, checkOutAt, companySlug });
   }
 
   return groups;
 }
 
-function buildAttendanceRow(group: PunchGroup, config: CompanyShiftConfig): AttendanceInsertRow {
+function buildAttendanceRow(group: PunchGroup): AttendanceInsertRow {
+  const config = getCompanyShiftConfig(group.companySlug);
   const { employeeId, shiftDate, checkInAt, checkOutAt } = group;
   const isLate = isLateCheckInForCompany(checkInAt, shiftDate, config);
   const isEarlyLeave = checkOutAt ? isEarlyLeaveForCompany(checkOutAt, shiftDate, config) : false;
@@ -107,23 +112,34 @@ function buildAttendanceRow(group: PunchGroup, config: CompanyShiftConfig): Atte
   };
 }
 
-async function insertAttendanceRows(rows: AttendanceInsertRow[]): Promise<number> {
-  let inserted = 0;
+async function upsertAttendanceRows(rows: AttendanceInsertRow[]): Promise<number> {
+  let affected = 0;
 
   for (let i = 0; i < rows.length; i += INSERT_BATCH_SIZE) {
     const batch = rows.slice(i, i + INSERT_BATCH_SIZE);
-    const created = await db
+    const result = await db
       .insert(attendanceDays)
       .values(batch)
-      .onConflictDoNothing({
+      .onConflictDoUpdate({
         target: [attendanceDays.employeeId, attendanceDays.shiftDate],
+        set: {
+          checkInAt: sql`excluded.check_in_at`,
+          checkOutAt: sql`excluded.check_out_at`,
+          isLate: sql`excluded.is_late`,
+          isEarlyLeave: sql`excluded.is_early_leave`,
+          overtimeStartedAt: sql`excluded.overtime_started_at`,
+          overtimeEndedAt: sql`excluded.overtime_ended_at`,
+          overtimeSeconds: sql`excluded.overtime_seconds`,
+          updatedAt: sql`now()`,
+        },
+        where: eq(attendanceDays.source, "system"),
       })
       .returning({ id: attendanceDays.id });
 
-    inserted += created.length;
+    affected += result.length;
   }
 
-  return inserted;
+  return affected;
 }
 
 /** Attach unlinked punches to employees via employees.machine_card_no = machine_punches.card_no. */
@@ -155,17 +171,28 @@ export async function runProcessMachinePunchesJob(
     .select({
       employeeId: machinePunches.employeeId,
       punchAt: machinePunches.punchAt,
+      companySlug: companies.slug,
     })
     .from(machinePunches)
+    .innerJoin(employees, eq(machinePunches.employeeId, employees.id))
+    .innerJoin(companies, eq(employees.companyId, companies.id))
     .where(and(...conditions));
 
   const mappedPunches = punchRows.flatMap((row) =>
-    row.employeeId ? [{ employeeId: row.employeeId, punchAt: row.punchAt }] : [],
+    row.employeeId
+      ? [
+          {
+            employeeId: row.employeeId,
+            punchAt: row.punchAt,
+            companySlug: row.companySlug,
+          },
+        ]
+      : [],
   );
 
-  const groups = groupPunches(mappedPunches, MACHINE_PUNCH_SHIFT);
-  const attendanceRows = groups.map((group) => buildAttendanceRow(group, MACHINE_PUNCH_SHIFT));
-  const inserted = await insertAttendanceRows(attendanceRows);
+  const groups = groupPunches(mappedPunches);
+  const attendanceRows = groups.map((group) => buildAttendanceRow(group));
+  const inserted = await upsertAttendanceRows(attendanceRows);
 
   return {
     punchRows: mappedPunches.length,

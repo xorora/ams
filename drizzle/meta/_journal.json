@@ -78,6 +78,13 @@
       "when": 1781621533014,
       "tag": "0010_missed_checkout_grace",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1781629218539,
+      "tag": "0011_bored_wallow",
+      "breakpoints": true
     }
   ]
 }
