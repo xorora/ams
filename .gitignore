@@ -19,7 +19,6 @@
 
 # eBio local attendance DB (PII — keep out of git)
 AttendanceTracker11.8_Ebio/attendance_db.mdb
-scripts/.ebio-sync-state.json
 
 # Extracted biometric data (PII — keep out of git)
 /exports/
@@ -40,3 +39,4 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 AttendanceTracker11.8_Ebio
+/scripts/

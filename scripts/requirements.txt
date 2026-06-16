@@ -1,3 +1,0 @@
-pyodbc>=5.1
-psycopg[binary]>=3.2
-tzdata>=2024.1
