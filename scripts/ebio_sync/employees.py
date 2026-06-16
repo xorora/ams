@@ -183,7 +183,7 @@ def _load_neon_context(pg_conn, cfg: Config) -> NeonContext:
     slugs = cfg.company_slugs
     with pg_conn.cursor() as cur:
         cur.execute(LOAD_COMPANIES_SQL, (slugs,))
-        company_ids = {slug: str(row[0]) for row in cur.fetchall()}
+        company_ids = {str(row[1]): str(row[0]) for row in cur.fetchall()}
 
         missing = [slug for slug in slugs if slug not in company_ids]
         if missing:
