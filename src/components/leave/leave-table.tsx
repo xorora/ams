@@ -1,16 +1,17 @@
 "use client";
 
+import { MoreHorizontalIcon } from "lucide-react";
+import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { type ColumnDef, DataTable } from "@/components/ui/table";
 import { leaveStatusBadgeVariant, leaveStatusLabel, leaveTypeLabel } from "@/lib/leave/display";
 import type { SerializedLeaveRequest } from "@/lib/leave/serialize";
 
@@ -18,115 +19,178 @@ type LeaveTableProps = {
   requests: SerializedLeaveRequest[];
   loading?: boolean;
   showEmployee?: boolean;
+  onView?: (request: SerializedLeaveRequest) => void;
   onCancel?: (id: string) => void;
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
+  onDownloadPdf?: (id: string) => void;
+  downloadPending?: boolean;
   actionPending?: boolean;
+  resetDeps?: readonly unknown[];
+  className?: string;
 };
 
 export function LeaveTable({
   requests,
   loading = false,
   showEmployee = false,
+  onView,
   onCancel,
   onApprove,
   onReject,
+  onDownloadPdf,
+  downloadPending = false,
   actionPending = false,
+  resetDeps,
+  className,
 }: LeaveTableProps) {
-  const colSpan = showEmployee ? 8 : 7;
+  const columns = useMemo<ColumnDef<SerializedLeaveRequest>[]>(() => {
+    const baseColumns: ColumnDef<SerializedLeaveRequest>[] = [];
+
+    if (showEmployee) {
+      baseColumns.push(
+        {
+          accessorKey: "employeeCode",
+          header: "Code",
+          cell: ({ row }) => <span className="font-mono text-xs">{row.original.employeeCode}</span>,
+        },
+        {
+          accessorKey: "employeeName",
+          header: "Employee",
+          cell: ({ row }) => <span className="font-medium">{row.original.employeeName}</span>,
+        },
+      );
+    }
+
+    baseColumns.push(
+      {
+        accessorKey: "leaveType",
+        header: "Type",
+        cell: ({ row }) => leaveTypeLabel(row.original.leaveType),
+      },
+      {
+        accessorKey: "startDate",
+        header: "From",
+        cell: ({ row }) => <span className="tabular-nums">{row.original.startDate}</span>,
+      },
+      {
+        accessorKey: "endDate",
+        header: "To",
+        cell: ({ row }) => <span className="tabular-nums">{row.original.endDate}</span>,
+      },
+      {
+        accessorKey: "daysCount",
+        header: "Days",
+        cell: ({ row }) => <span className="tabular-nums">{row.original.daysCount}</span>,
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => (
+          <Badge variant={leaveStatusBadgeVariant(row.original.status)}>
+            {leaveStatusLabel(row.original.status)}
+          </Badge>
+        ),
+      },
+      {
+        accessorKey: "reason",
+        header: "Reason",
+        cell: ({ row }) => (
+          <span className="block max-w-[200px] truncate" title={row.original.reason}>
+            {row.original.reason}
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => {
+          const request = row.original;
+          const hasReviewActions =
+            request.status === "pending" && (onCancel || onApprove || onReject);
+          const hasSecondaryActions = Boolean(onDownloadPdf) || hasReviewActions;
+
+          if (!onView && !hasSecondaryActions) {
+            return "—";
+          }
+
+          return (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Open actions menu"
+                    disabled={actionPending || downloadPending}
+                  />
+                }
+              >
+                <MoreHorizontalIcon />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {onView ? (
+                  <DropdownMenuItem onClick={() => onView(request)}>View</DropdownMenuItem>
+                ) : null}
+                {onView && hasSecondaryActions ? <DropdownMenuSeparator /> : null}
+                {onDownloadPdf ? (
+                  <DropdownMenuItem
+                    disabled={downloadPending}
+                    onClick={() => onDownloadPdf(request.id)}
+                  >
+                    Download PDF
+                  </DropdownMenuItem>
+                ) : null}
+                {onDownloadPdf && hasReviewActions ? <DropdownMenuSeparator /> : null}
+                {onCancel ? (
+                  <DropdownMenuItem disabled={actionPending} onClick={() => onCancel(request.id)}>
+                    Cancel
+                  </DropdownMenuItem>
+                ) : null}
+                {onApprove ? (
+                  <DropdownMenuItem disabled={actionPending} onClick={() => onApprove(request.id)}>
+                    Approve
+                  </DropdownMenuItem>
+                ) : null}
+                {onReject ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      variant="destructive"
+                      disabled={actionPending}
+                      onClick={() => onReject(request.id)}
+                    >
+                      Reject
+                    </DropdownMenuItem>
+                  </>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          );
+        },
+      },
+    );
+
+    return baseColumns;
+  }, [
+    actionPending,
+    downloadPending,
+    onApprove,
+    onCancel,
+    onDownloadPdf,
+    onReject,
+    onView,
+    showEmployee,
+  ]);
 
   return (
-    <Card className="py-0">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            {showEmployee ? <TableHead>Employee</TableHead> : null}
-            <TableHead>Type</TableHead>
-            <TableHead>From</TableHead>
-            <TableHead>To</TableHead>
-            <TableHead>Days</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Reason</TableHead>
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {loading ? (
-            <TableRow>
-              <TableCell colSpan={colSpan} className="text-muted-foreground">
-                Loading…
-              </TableCell>
-            </TableRow>
-          ) : requests.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={colSpan} className="text-muted-foreground">
-                No leave requests found.
-              </TableCell>
-            </TableRow>
-          ) : (
-            requests.map((request) => (
-              <TableRow key={request.id}>
-                {showEmployee ? (
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{request.employeeName}</p>
-                      <p className="text-muted-foreground text-xs">{request.employeeCode}</p>
-                    </div>
-                  </TableCell>
-                ) : null}
-                <TableCell>{leaveTypeLabel(request.leaveType)}</TableCell>
-                <TableCell className="tabular-nums">{request.startDate}</TableCell>
-                <TableCell className="tabular-nums">{request.endDate}</TableCell>
-                <TableCell className="tabular-nums">{request.daysCount}</TableCell>
-                <TableCell>
-                  <Badge variant={leaveStatusBadgeVariant(request.status)}>
-                    {leaveStatusLabel(request.status)}
-                  </Badge>
-                </TableCell>
-                <TableCell className="max-w-[200px] truncate" title={request.reason}>
-                  {request.reason}
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-2">
-                    {request.status === "pending" && onCancel ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        disabled={actionPending}
-                        onClick={() => onCancel(request.id)}
-                      >
-                        Cancel
-                      </Button>
-                    ) : null}
-                    {request.status === "pending" && onApprove ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        disabled={actionPending}
-                        onClick={() => onApprove(request.id)}
-                      >
-                        Approve
-                      </Button>
-                    ) : null}
-                    {request.status === "pending" && onReject ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="destructive"
-                        disabled={actionPending}
-                        onClick={() => onReject(request.id)}
-                      >
-                        Reject
-                      </Button>
-                    ) : null}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </Card>
+    <DataTable
+      className={className}
+      columns={columns}
+      data={requests}
+      loading={loading}
+      emptyMessage="No leave requests found."
+      resetDeps={resetDeps}
+    />
   );
 }

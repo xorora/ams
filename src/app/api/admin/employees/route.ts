@@ -22,7 +22,7 @@ export async function GET(request: Request) {
 
   const result = await listEmployees({ includeInactive, search, companyId });
   return NextResponse.json({
-    employees: result.data.map(serializeEmployee),
+    employees: result.data.map((employee) => serializeEmployee(employee)),
   });
 }
 

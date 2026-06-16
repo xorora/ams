@@ -20,8 +20,8 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
   const loadError = reportResult.ok ? null : reportResult.message;
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-8">
-      <div>
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-6xl flex-1 flex-col gap-6 overflow-hidden p-8">
+      <div className="shrink-0">
         <h1 className="text-2xl font-semibold">Reports</h1>
         <p className="mt-1 text-muted-foreground text-sm">
           Attendance totals by shift date (PKT). Drill into an employee for day-by-day detail, or
@@ -29,7 +29,13 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
         </p>
       </div>
 
-      <ReportsSummaryView from={from} to={to} report={report} loadError={loadError} />
+      <ReportsSummaryView
+        className="min-h-0 flex-1"
+        from={from}
+        to={to}
+        report={report}
+        loadError={loadError}
+      />
     </div>
   );
 }

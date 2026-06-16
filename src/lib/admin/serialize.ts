@@ -4,6 +4,8 @@ import type { EmployeeRecord } from "./employees-service";
 export type SerializedEmployee = Omit<EmployeeRecord, "createdAt" | "updatedAt"> & {
   createdAt: string;
   updatedAt: string;
+  pendingLateFinePkr: number;
+  pendingFineableLates: number;
 };
 
 export type SerializedAttendance = Omit<
@@ -18,11 +20,19 @@ export type SerializedAttendance = Omit<
   updatedAt: string;
 };
 
-export function serializeEmployee(employee: EmployeeRecord): SerializedEmployee {
+export function serializeEmployee(
+  employee: EmployeeRecord,
+  pendingFines: { pendingLateFinePkr: number; pendingFineableLates: number } = {
+    pendingLateFinePkr: 0,
+    pendingFineableLates: 0,
+  },
+): SerializedEmployee {
   return {
     ...employee,
     createdAt: employee.createdAt.toISOString(),
     updatedAt: employee.updatedAt.toISOString(),
+    pendingLateFinePkr: pendingFines.pendingLateFinePkr,
+    pendingFineableLates: pendingFines.pendingFineableLates,
   };
 }
 

@@ -3,6 +3,10 @@ import { db } from "@/db";
 import { attendanceDays, employees } from "@/db/schema";
 import { isWeekendDate } from "@/lib/leave/working-days";
 import { shouldAutoMarkAbsent, shouldAutoMarkWeekendOff } from "./mark-absent-eligibility";
+import {
+  type MarkMissedCheckoutJobResult,
+  runMarkMissedCheckoutJob,
+} from "./mark-missed-checkout-job";
 import { getAutoAbsentShiftDate } from "./rules";
 
 export type MarkAbsentJobResult = {
@@ -11,6 +15,7 @@ export type MarkAbsentJobResult = {
   skipped: number;
   totalActive: number;
   kind: "absent" | "weekend_off";
+  missedCheckout: MarkMissedCheckoutJobResult;
 };
 
 const weekendOffRowValues = {
@@ -24,6 +29,7 @@ const weekendOffRowValues = {
   checkOutLng: null,
   isLate: false,
   isEarlyLeave: false,
+  isMissedCheckout: false,
   totalBreakSeconds: 0,
 };
 
@@ -38,10 +44,12 @@ const absentRowValues = {
   checkOutLng: null,
   isLate: false,
   isEarlyLeave: false,
+  isMissedCheckout: false,
   totalBreakSeconds: 0,
 };
 
 export async function runMarkAbsentJob(runAt: Date = new Date()): Promise<MarkAbsentJobResult> {
+  const missedCheckout = await runMarkMissedCheckoutJob(runAt);
   const shiftDate = getAutoAbsentShiftDate(runAt);
   const now = runAt;
   const isWeekend = isWeekendDate(shiftDate);
@@ -103,5 +111,6 @@ export async function runMarkAbsentJob(runAt: Date = new Date()): Promise<MarkAb
     skipped,
     totalActive: activeEmployees.length,
     kind: isWeekend ? "weekend_off" : "absent",
+    missedCheckout,
   };
 }

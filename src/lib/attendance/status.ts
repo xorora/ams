@@ -1,6 +1,14 @@
 import { formatInTimeZone } from "date-fns-tz";
+import { PKT_DATETIME_12H_FORMAT } from "@/lib/admin/display";
 import { isWeekendDate } from "@/lib/leave/working-days";
-import { BUSINESS_TIMEZONE, formatLateCheckInDeadline, MAX_BREAK_SECONDS } from "./constants";
+import {
+  BUSINESS_TIMEZONE,
+  EXPECTED_CHECK_OUT_TIME_PKT,
+  formatLateCheckInDeadline,
+  formatLateCheckOutDeadline,
+  MAX_BREAK_SECONDS,
+} from "./constants";
+import { buildMonthlyLateWarnings, type MonthlyLateSummary } from "./late-fines";
 import { computeOvertimeSnapshot, type OvertimeSnapshot } from "./overtime";
 import {
   type BreakSessionInput,
@@ -9,9 +17,11 @@ import {
   computeElapsedShiftSeconds,
   computeTotalBreakSeconds,
   getActiveBreak,
+  getExpectedCheckOutAt,
   getShiftDate,
   isEarlyLeave,
   isLateCheckIn,
+  isPastMissedCheckOutDeadline,
 } from "./rules";
 
 export type WorkState = "not_checked_in" | "checked_in" | "on_break" | "checked_out";
@@ -24,6 +34,7 @@ export type AttendanceDaySnapshot = {
   checkOutAt: Date | null;
   isLate: boolean;
   isEarlyLeave: boolean;
+  isMissedCheckout: boolean;
   overtimeStartedAt: Date | null;
   overtimeEndedAt: Date | null;
   overtimeSeconds: number | null;
@@ -45,6 +56,7 @@ export type TodayStatusPayload = {
   statusAt: string;
   activeBreakStartedAt: string | null;
   wouldBeEarlyLeave: boolean;
+  monthlyLate: MonthlyLateSummary;
   warnings: string[];
   actions: {
     canCheckIn: boolean;
@@ -61,7 +73,7 @@ function deriveWorkState(
   if (!day?.checkInAt) {
     return "not_checked_in";
   }
-  if (day.checkOutAt) {
+  if (day.checkOutAt || day.isMissedCheckout) {
     return "checked_out";
   }
   if (activeBreak) {
@@ -73,6 +85,7 @@ function deriveWorkState(
 export function buildTodayStatus(
   day: AttendanceDaySnapshot | null,
   breakSessions: BreakSessionInput[],
+  monthlyLate: MonthlyLateSummary,
   now: Date = new Date(),
 ): TodayStatusPayload {
   const shiftDate = getShiftDate(now);
@@ -91,6 +104,8 @@ export function buildTodayStatus(
   const wouldBeEarlyLeave =
     day?.checkInAt != null && day.checkOutAt == null && isEarlyLeave(now, day.shiftDate);
 
+  const hasOpenShift = day?.checkInAt != null && day.checkOutAt == null && !day.isMissedCheckout;
+
   const warnings: string[] = [];
   if (isWeekendOff) {
     warnings.push("Saturday and Sunday are weekend days — the office is closed.");
@@ -99,10 +114,17 @@ export function buildTodayStatus(
     warnings.push(`You checked in late (after ${formatLateCheckInDeadline()}).`);
   }
   if (day?.isEarlyLeave) {
-    warnings.push("You checked out early (before 03:00 PKT).");
+    warnings.push(`You checked out early (before ${EXPECTED_CHECK_OUT_TIME_PKT}).`);
+  }
+  if (day?.isMissedCheckout) {
+    warnings.push(
+      `This shift was marked absent because you did not check out by ${formatLateCheckOutDeadline()}.`,
+    );
   }
   if (wouldBeEarlyLeave && state !== "checked_out") {
-    warnings.push("Checking out now would be marked as early leave (before 03:00 PKT).");
+    warnings.push(
+      `Checking out now would be marked as early leave (before ${EXPECTED_CHECK_OUT_TIME_PKT}).`,
+    );
   }
 
   const overtime = day
@@ -110,7 +132,26 @@ export function buildTodayStatus(
     : { isActive: false, startedAt: null, endedAt: null, elapsedSeconds: 0 };
 
   if (overtime.isActive) {
-    warnings.push("Overtime is in progress (past 03:00 PKT).");
+    warnings.push(`Overtime is in progress (past ${EXPECTED_CHECK_OUT_TIME_PKT}).`);
+  }
+  if (
+    hasOpenShift &&
+    day &&
+    isPastMissedCheckOutDeadline(now, day.shiftDate) &&
+    !day.isMissedCheckout
+  ) {
+    warnings.push(
+      `You missed the check-out deadline (${formatLateCheckOutDeadline()}). Check out now or this shift may be marked absent.`,
+    );
+  } else if (
+    hasOpenShift &&
+    day &&
+    !isPastMissedCheckOutDeadline(now, day.shiftDate) &&
+    now.getTime() > getExpectedCheckOutAt(day.shiftDate).getTime()
+  ) {
+    warnings.push(
+      `Check out by ${formatLateCheckOutDeadline()} to complete your shift (15 min grace after ${EXPECTED_CHECK_OUT_TIME_PKT}).`,
+    );
   }
   if (breakRemainingSeconds <= 0 && state !== "checked_out") {
     warnings.push("You have used the full 60-minute break allowance for this shift.");
@@ -120,12 +161,13 @@ export function buildTodayStatus(
     );
   }
 
-  const hasOpenShift = day?.checkInAt != null && day.checkOutAt == null;
+  warnings.push(...buildMonthlyLateWarnings(monthlyLate, day?.isLate ?? false));
+
   const startBreakResult = canStartBreak(breakSessions, now);
   const endBreakResult = canEndBreak(breakSessions, now);
 
   return {
-    pktNow: formatInTimeZone(now, BUSINESS_TIMEZONE, "yyyy-MM-dd HH:mm:ss"),
+    pktNow: formatInTimeZone(now, BUSINESS_TIMEZONE, PKT_DATETIME_12H_FORMAT),
     shiftDate,
     state,
     isWeekendOff,
@@ -139,6 +181,7 @@ export function buildTodayStatus(
     statusAt: now.toISOString(),
     activeBreakStartedAt: activeBreak ? activeBreak.startedAt.toISOString() : null,
     wouldBeEarlyLeave,
+    monthlyLate,
     warnings,
     actions: {
       canCheckIn: !isWeekendOff && !day?.checkInAt,

@@ -3,7 +3,16 @@ import { GoogleSignInButton } from "@/components/landing/google-sign-in-button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { CHECK_IN_GRACE_MINUTES, formatLateCheckInDeadline } from "@/lib/attendance/constants";
+import {
+  CHECK_IN_GRACE_MINUTES,
+  CHECK_OUT_GRACE_MINUTES,
+  EXPECTED_CHECK_IN_TIME_PKT,
+  EXPECTED_CHECK_OUT_TIME_PKT,
+  formatLateCheckInDeadline,
+  formatLateCheckOutDeadline,
+} from "@/lib/attendance/constants";
+
+const shiftWindowLabel = `${EXPECTED_CHECK_IN_TIME_PKT.replace(" PKT", "")} to ${EXPECTED_CHECK_OUT_TIME_PKT}`;
 
 const features = [
   {
@@ -15,8 +24,7 @@ const features = [
   {
     icon: Moon,
     title: "Built for night shifts",
-    description:
-      "Shift window runs 18:00 to 03:00 PKT with a 15-minute check-in grace period and early-leave detection.",
+    description: `Shift window runs ${shiftWindowLabel} with 15-minute check-in and check-out grace periods and early-leave detection.`,
   },
   {
     icon: Timer,
@@ -45,10 +53,12 @@ const features = [
 ] as const;
 
 const shiftFacts = [
-  { label: "Check-in", value: "18:00 PKT" },
+  { label: "Check-in", value: EXPECTED_CHECK_IN_TIME_PKT },
   { label: "Late after", value: formatLateCheckInDeadline() },
   { label: "Check-in grace", value: `${CHECK_IN_GRACE_MINUTES} min` },
-  { label: "Check-out", value: "03:00 PKT" },
+  { label: "Check-out", value: EXPECTED_CHECK_OUT_TIME_PKT },
+  { label: "Check-out by", value: formatLateCheckOutDeadline() },
+  { label: "Check-out grace", value: `${CHECK_OUT_GRACE_MINUTES} min` },
   { label: "Max break", value: "60 min" },
 ] as const;
 
@@ -113,7 +123,8 @@ export function LandingPage({ callbackUrl, errorMessage }: LandingPageProps) {
             </h1>
             <p className="mx-auto mt-5 max-w-2xl text-lg text-muted-foreground text-pretty">
               Geofenced check-in, break tracking, leave balances, and admin reporting — all
-              calibrated for 18:00–03:00 shifts in Pakistan Standard Time.
+              calibrated for {shiftWindowLabel.replace(" PKT", "")} shifts in Pakistan Standard
+              Time.
             </p>
 
             {errorMessage ? (

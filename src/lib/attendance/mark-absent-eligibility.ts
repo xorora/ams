@@ -1,7 +1,9 @@
 export type AttendanceDayForAutoJob = {
   checkInAt: Date | null;
+  checkOutAt?: Date | null;
   status: "present" | "absent" | "leave" | "weekend_off";
   source?: "auto" | "manual" | "system";
+  isMissedCheckout?: boolean;
 };
 
 /**
@@ -52,6 +54,32 @@ export function shouldAutoMarkAbsent(day: AttendanceDayForAutoJob | null): boole
     return false;
   }
   if (day.status === "weekend_off") {
+    return false;
+  }
+  if (day.source === "manual") {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Whether the cron should mark an open shift absent for missed check-out.
+ * Applies when the employee checked in but never checked out past the grace deadline.
+ */
+export function shouldAutoMarkMissedCheckout(day: AttendanceDayForAutoJob | null): boolean {
+  if (!day) {
+    return false;
+  }
+  if (day.checkInAt == null) {
+    return false;
+  }
+  if (day.checkOutAt != null) {
+    return false;
+  }
+  if (day.status === "leave") {
+    return false;
+  }
+  if (day.status === "absent" && day.isMissedCheckout) {
     return false;
   }
   if (day.source === "manual") {

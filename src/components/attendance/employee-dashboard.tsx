@@ -8,6 +8,7 @@ import { EmployeeClockCard } from "@/components/attendance/employee-clock-card";
 import { EmployeeEarlyCheckoutAlert } from "@/components/attendance/employee-early-checkout-alert";
 import { EmployeeStatusCard } from "@/components/attendance/employee-status-card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { PKT_CLOCK_12H_FORMAT } from "@/lib/admin/display";
 import {
   checkInAction,
   checkOutAction,
@@ -15,8 +16,17 @@ import {
   loadTodayStatusAction,
   startBreakAction,
 } from "@/lib/attendance/actions";
-import { BUSINESS_TIMEZONE, formatLateCheckInDeadline } from "@/lib/attendance/constants";
+import {
+  BUSINESS_TIMEZONE,
+  EXPECTED_CHECK_OUT_TIME_PKT,
+  formatLateCheckInDeadline,
+  formatLateCheckOutDeadline,
+  LATE_FINE_AMOUNT_PKR,
+  MONTHLY_LATE_ALLOWANCE,
+} from "@/lib/attendance/constants";
+import { formatLateFinePkr } from "@/lib/attendance/late-fines-utils";
 import type { SerializedTodayStatus } from "@/lib/attendance/serialize";
+import { toast, toastError } from "@/lib/toast";
 
 function getCurrentPosition(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
@@ -59,9 +69,6 @@ export function EmployeeDashboard({ initialStatus, loadError }: EmployeeDashboar
   const [status, setStatus] = useState<SerializedTodayStatus | null>(initialStatus);
   const [pktClock, setPktClock] = useState("");
   const [acting, setActing] = useState(false);
-  const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(
-    loadError ? { type: "error", text: loadError } : null,
-  );
   const [showEarlyConfirm, setShowEarlyConfirm] = useState(false);
 
   useEffect(() => {
@@ -70,7 +77,7 @@ export function EmployeeDashboard({ initialStatus, loadError }: EmployeeDashboar
 
   useEffect(() => {
     if (loadError) {
-      setFeedback({ type: "error", text: loadError });
+      toastError(loadError);
     }
   }, [loadError]);
 
@@ -84,7 +91,7 @@ export function EmployeeDashboard({ initialStatus, loadError }: EmployeeDashboar
 
   useEffect(() => {
     const tick = () => {
-      setPktClock(formatInTimeZone(new Date(), BUSINESS_TIMEZONE, "EEEE, d MMM yyyy · HH:mm:ss"));
+      setPktClock(formatInTimeZone(new Date(), BUSINESS_TIMEZONE, PKT_CLOCK_12H_FORMAT));
     };
     tick();
     const id = window.setInterval(tick, 1000);
@@ -109,10 +116,10 @@ export function EmployeeDashboard({ initialStatus, loadError }: EmployeeDashboar
       | { ok: true; data: { message: string; status: SerializedTodayStatus } }
       | { ok: false; error: string; code?: string }
     >,
-    options?: { confirmEarlyLeave?: boolean },
+    options?: { confirmEarlyLeave?: boolean; loadingMessage?: string },
   ): Promise<boolean> => {
     setActing(true);
-    setFeedback(null);
+    const toastId = toast.loading(options?.loadingMessage ?? "Processing…");
     try {
       const position = await getCurrentPosition();
       const coords = {
@@ -123,14 +130,14 @@ export function EmployeeDashboard({ initialStatus, loadError }: EmployeeDashboar
       if (!result.ok) {
         if (result.code === "EARLY_LEAVE_CONFIRM_REQUIRED") {
           setShowEarlyConfirm(true);
-          setFeedback({ type: "error", text: result.error });
+          toast.error(result.error, { id: toastId });
           return false;
         }
         throw new Error(result.error);
       }
       setStatus(result.data.status);
       setShowEarlyConfirm(false);
-      setFeedback({ type: "success", text: result.data.message });
+      toast.success(result.data.message, { id: toastId });
       startTransition(() => router.refresh());
       return true;
     } catch (e) {
@@ -138,7 +145,7 @@ export function EmployeeDashboard({ initialStatus, loadError }: EmployeeDashboar
         e instanceof GeolocationPositionError || e instanceof Error
           ? geolocationErrorMessage(e as GeolocationPositionError)
           : "Action failed";
-      setFeedback({ type: "error", text });
+      toast.error(text, { id: toastId });
       return false;
     } finally {
       setActing(false);
@@ -146,11 +153,7 @@ export function EmployeeDashboard({ initialStatus, loadError }: EmployeeDashboar
   };
 
   if (!status) {
-    return (
-      <p className="text-destructive text-sm">
-        {feedback?.text ?? "Unable to load attendance. Refresh the page."}
-      </p>
-    );
+    return <p className="text-destructive text-sm">Unable to load attendance. Refresh the page.</p>;
   }
 
   return (
@@ -180,18 +183,13 @@ export function EmployeeDashboard({ initialStatus, loadError }: EmployeeDashboar
         </Alert>
       )}
 
-      {feedback && (
-        <Alert variant={feedback.type === "error" ? "destructive" : "default"}>
-          <AlertDescription>{feedback.text}</AlertDescription>
-        </Alert>
-      )}
-
       {showEarlyConfirm && !status.employeeInactive && (
         <EmployeeEarlyCheckoutAlert
           acting={acting}
           onConfirm={() =>
             void runAction((coords, opts) => checkOutAction(coords, opts), {
               confirmEarlyLeave: true,
+              loadingMessage: "Checking out…",
             })
           }
           onCancel={() => setShowEarlyConfirm(false)}
@@ -217,10 +215,26 @@ export function EmployeeDashboard({ initialStatus, loadError }: EmployeeDashboar
             status={status}
             acting={acting}
             showEarlyConfirm={showEarlyConfirm}
-            onCheckIn={() => void runAction((coords) => checkInAction(coords))}
-            onStartBreak={() => void runAction((coords) => startBreakAction(coords))}
-            onEndBreak={() => void runAction((coords) => endBreakAction(coords))}
-            onCheckOut={() => void runAction((coords, opts) => checkOutAction(coords, opts))}
+            onCheckIn={() =>
+              void runAction((coords) => checkInAction(coords), {
+                loadingMessage: "Checking in…",
+              })
+            }
+            onStartBreak={() =>
+              void runAction((coords) => startBreakAction(coords), {
+                loadingMessage: "Starting break…",
+              })
+            }
+            onEndBreak={() =>
+              void runAction((coords) => endBreakAction(coords), {
+                loadingMessage: "Ending break…",
+              })
+            }
+            onCheckOut={() =>
+              void runAction((coords, opts) => checkOutAction(coords, opts), {
+                loadingMessage: "Checking out…",
+              })
+            }
           />
         )}
 
@@ -231,8 +245,12 @@ export function EmployeeDashboard({ initialStatus, loadError }: EmployeeDashboar
           status.actions.canEndBreak) && (
           <p className="text-muted-foreground text-xs">
             Actions require your location and you must be within the office geofence. Expected
-            shift: check-in by {formatLateCheckInDeadline()} (15 min grace), check-out at 03:00 PKT.
-            Time after 03:00 PKT while still checked in is tracked as overtime.
+            shift: check-in by {formatLateCheckInDeadline()} (15 min grace), check-out by{" "}
+            {formatLateCheckOutDeadline()} (15 min grace after {EXPECTED_CHECK_OUT_TIME_PKT}). Time
+            after {EXPECTED_CHECK_OUT_TIME_PKT} while still checked in is tracked as overtime.
+            Missing check-out after the grace period marks the shift absent. You get{" "}
+            {MONTHLY_LATE_ALLOWANCE} free late check-ins per month; each additional late costs{" "}
+            {formatLateFinePkr(LATE_FINE_AMOUNT_PKR)}.
           </p>
         )}
     </div>

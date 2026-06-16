@@ -196,3 +196,7 @@
   --shadow-xl: 4px 4px 0px 0px hsl(0 0% 0% / 1), 4px 8px 10px -1px hsl(0 0% 0% / 1);
   --shadow-2xl: 4px 4px 0px 0px hsl(0 0% 0% / 2.5);
 }
+
+::-webkit-scrollbar {
+  display: none;
+}

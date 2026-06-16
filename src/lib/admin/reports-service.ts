@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, gte, lte } from "drizzle-orm";
 import { db } from "@/db";
 import { attendanceDays, employees } from "@/db/schema";
+import { assignLateFinesByShiftDate, computeLateFineTotals } from "@/lib/attendance/late-fines";
 import { countWorkingDays } from "@/lib/leave/working-days";
 import type { AttendanceListItem } from "./attendance-service";
 import { getEmployee } from "./employees-service";
@@ -18,6 +19,8 @@ export type ReportTotals = {
   leave: number;
   late: number;
   earlyLeave: number;
+  fineableLates: number;
+  lateFinePkr: number;
   records: number;
 };
 
@@ -33,6 +36,8 @@ export type EmployeeReportRow = {
   checkOutAt: Date | null;
   isLate: boolean;
   isEarlyLeave: boolean;
+  isMissedCheckout: boolean;
+  lateFinePkr: number;
   overtimeStartedAt: Date | null;
   overtimeEndedAt: Date | null;
   overtimeSeconds: number | null;
@@ -102,6 +107,8 @@ function emptyTotals(): ReportTotals {
     leave: 0,
     late: 0,
     earlyLeave: 0,
+    fineableLates: 0,
+    lateFinePkr: 0,
     records: 0,
   };
 }
@@ -144,6 +151,7 @@ function mapAttendanceRow(
     checkOutLng: row.checkOutLng,
     isLate: row.isLate,
     isEarlyLeave: row.isEarlyLeave,
+    isMissedCheckout: row.isMissedCheckout,
     overtimeStartedAt: row.overtimeStartedAt,
     overtimeEndedAt: row.overtimeEndedAt,
     overtimeSeconds: row.overtimeSeconds,
@@ -205,9 +213,13 @@ export async function getEmployeeReport(
   }
 
   const rows = await fetchAttendanceInRange(rangeResult.data, { employeeId, companyId });
+  const lateFinesByShiftDate = assignLateFinesByShiftDate(rows);
+  const lateFineTotals = computeLateFineTotals(rows);
   const summary = {
     ...emptyTotals(),
     shiftDaysInRange: countShiftDaysInRange(rangeResult.data.from, rangeResult.data.to),
+    fineableLates: lateFineTotals.fineableLates,
+    lateFinePkr: lateFineTotals.totalFinePkr,
   };
 
   for (const row of rows) {
@@ -222,6 +234,8 @@ export async function getEmployeeReport(
     checkOutAt: row.checkOutAt,
     isLate: row.isLate,
     isEarlyLeave: row.isEarlyLeave,
+    isMissedCheckout: row.isMissedCheckout,
+    lateFinePkr: lateFinesByShiftDate.get(row.shiftDate) ?? 0,
     overtimeStartedAt: row.overtimeStartedAt,
     overtimeEndedAt: row.overtimeEndedAt,
     overtimeSeconds: row.overtimeSeconds,
@@ -283,6 +297,27 @@ export async function getSummaryReport(
       byEmployee.set(row.employeeId, employeeTotals);
     }
     accumulateTotals(employeeTotals, row);
+  }
+
+  const employeeLateRows = new Map<string, AttendanceListItem[]>();
+  for (const row of rows) {
+    const employeeRows = employeeLateRows.get(row.employeeId) ?? [];
+    employeeRows.push(row);
+    employeeLateRows.set(row.employeeId, employeeRows);
+  }
+
+  const rangeLateFineTotals = computeLateFineTotals(rows);
+  totals.fineableLates = rangeLateFineTotals.fineableLates;
+  totals.lateFinePkr = rangeLateFineTotals.totalFinePkr;
+
+  for (const [employeeId, employeeRows] of employeeLateRows) {
+    const employeeTotals = byEmployee.get(employeeId);
+    if (!employeeTotals) {
+      continue;
+    }
+    const employeeFineTotals = computeLateFineTotals(employeeRows);
+    employeeTotals.fineableLates = employeeFineTotals.fineableLates;
+    employeeTotals.lateFinePkr = employeeFineTotals.totalFinePkr;
   }
 
   const employeeRows: SummaryEmployeeRow[] = activeEmployees.map((employee) => ({

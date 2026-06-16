@@ -24,7 +24,7 @@ export default async function LeavePage() {
       : "On probation";
 
     return (
-      <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-8">
+      <div className="mx-auto flex h-full min-h-0 w-full max-w-6xl flex-1 flex-col gap-6 overflow-hidden p-8">
         <div>
           <h1 className="text-2xl font-semibold">Leave</h1>
           <p className="mt-1 text-muted-foreground text-sm">
@@ -51,8 +51,8 @@ export default async function LeavePage() {
   const requests = requestsResult.data.map(serializeLeaveRequest);
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-8">
-      <div>
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-6xl flex-1 flex-col gap-6 overflow-hidden p-8">
+      <div className="shrink-0">
         <h1 className="text-2xl font-semibold">Leave</h1>
         <p className="mt-1 text-muted-foreground text-sm">
           Apply for leave and track your balance. Annual leave: 14 working days; casual leave: 10
@@ -60,7 +60,7 @@ export default async function LeavePage() {
         </p>
       </div>
 
-      <MyLeaveManager balances={balances} requests={requests} />
+      <MyLeaveManager balances={balances} requests={requests} className="min-h-0 flex-1" />
     </div>
   );
 }

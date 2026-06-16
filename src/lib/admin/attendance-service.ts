@@ -26,6 +26,7 @@ export type AttendanceListItem = {
   checkOutLng: number | null;
   isLate: boolean;
   isEarlyLeave: boolean;
+  isMissedCheckout: boolean;
   overtimeStartedAt: Date | null;
   overtimeEndedAt: Date | null;
   overtimeSeconds: number | null;
@@ -129,6 +130,7 @@ function mapAttendanceRow(
     checkOutLng: row.checkOutLng,
     isLate: row.isLate,
     isEarlyLeave: row.isEarlyLeave,
+    isMissedCheckout: row.isMissedCheckout,
     overtimeStartedAt: row.overtimeStartedAt,
     overtimeEndedAt: row.overtimeEndedAt,
     overtimeSeconds: row.overtimeSeconds,
@@ -181,13 +183,14 @@ function buildListConditions(filters: ListAttendanceFilters): SQL[] {
 export async function listAttendance(
   filters: ListAttendanceFilters = {},
 ): Promise<ServiceSuccess<AttendanceListResult>> {
+  const conditions = buildListConditions(filters);
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+  const paginate = filters.page != null || filters.limit != null;
   const page = Math.max(1, filters.page ?? 1);
   const limit = Math.min(100, Math.max(1, filters.limit ?? 50));
   const offset = (page - 1) * limit;
-  const conditions = buildListConditions(filters);
-  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-  const rows = await db
+  const baseQuery = db
     .select({
       attendance: attendanceDays,
       employee: employees,
@@ -195,23 +198,27 @@ export async function listAttendance(
     .from(attendanceDays)
     .innerJoin(employees, eq(attendanceDays.employeeId, employees.id))
     .where(whereClause)
-    .orderBy(desc(attendanceDays.shiftDate), desc(attendanceDays.createdAt))
-    .limit(limit)
-    .offset(offset);
+    .orderBy(desc(attendanceDays.shiftDate), desc(attendanceDays.createdAt));
 
-  const allMatching = await db
-    .select({ id: attendanceDays.id })
-    .from(attendanceDays)
-    .innerJoin(employees, eq(attendanceDays.employeeId, employees.id))
-    .where(whereClause);
+  const rows = paginate ? await baseQuery.limit(limit).offset(offset) : await baseQuery;
+
+  const total = paginate
+    ? (
+        await db
+          .select({ id: attendanceDays.id })
+          .from(attendanceDays)
+          .innerJoin(employees, eq(attendanceDays.employeeId, employees.id))
+          .where(whereClause)
+      ).length
+    : rows.length;
 
   return {
     ok: true,
     data: {
       items: rows.map(({ attendance, employee }) => mapAttendanceRow(attendance, employee)),
-      total: allMatching.length,
-      page,
-      limit,
+      total,
+      page: paginate ? page : 1,
+      limit: paginate ? limit : rows.length,
     },
   };
 }
@@ -473,6 +480,7 @@ export async function markAttendanceStatus(
     updates.checkOutLng = null;
     updates.isLate = false;
     updates.isEarlyLeave = false;
+    updates.isMissedCheckout = false;
     updates.overtimeStartedAt = null;
     updates.overtimeEndedAt = null;
     updates.overtimeSeconds = null;

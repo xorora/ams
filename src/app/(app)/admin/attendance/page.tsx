@@ -34,7 +34,7 @@ export default async function AdminAttendancePage({ searchParams }: PageProps) {
 
   const employeesResult = await listEmployees({ companyId });
   const activeEmployees = employeesResult.ok
-    ? employeesResult.data.filter((e) => e.isActive).map(serializeEmployee)
+    ? employeesResult.data.filter((e) => e.isActive).map((employee) => serializeEmployee(employee))
     : [];
 
   const attendanceResult = await listAttendance({
@@ -46,11 +46,10 @@ export default async function AdminAttendancePage({ searchParams }: PageProps) {
   });
 
   const items = attendanceResult.data.items.map(serializeAttendance);
-  const total = attendanceResult.data.total;
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-8">
-      <div>
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-6xl flex-1 flex-col gap-6 overflow-hidden p-8">
+      <div className="shrink-0">
         <h1 className="text-2xl font-semibold">Attendance</h1>
         <p className="mt-1 text-muted-foreground text-sm">
           Shift dates follow the night-shift model (keyed by 6 PM check-in date in PKT). Times below
@@ -58,12 +57,7 @@ export default async function AdminAttendancePage({ searchParams }: PageProps) {
         </p>
       </div>
 
-      <AttendanceManager
-        employees={activeEmployees}
-        items={items}
-        total={total}
-        filters={filters}
-      />
+      <AttendanceManager employees={activeEmployees} items={items} filters={filters} />
     </div>
   );
 }

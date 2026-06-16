@@ -43,12 +43,12 @@ export default async function AdminLeavePage({ searchParams }: PageProps) {
     listLeaveRequests({ ...filters, companyId }),
   ]);
 
-  const employees = employeesResult.data.map(serializeEmployee);
+  const employees = employeesResult.data.map((employee) => serializeEmployee(employee));
   const requests = requestsResult.data.map(serializeLeaveRequest);
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-8">
-      <div>
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-6xl flex-1 flex-col gap-6 overflow-hidden p-8">
+      <div className="shrink-0">
         <h1 className="text-2xl font-semibold">Leave requests</h1>
         <p className="mt-1 text-muted-foreground text-sm">
           Review and approve casual and sick leave requests from employees.

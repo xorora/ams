@@ -1,17 +1,18 @@
 "use client";
 
+import { MoreHorizontalIcon } from "lucide-react";
+import { useMemo } from "react";
 import type { AttendanceStatus } from "@/components/attendance/attendance-sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { type ColumnDef, DataTable } from "@/components/ui/table";
 import {
   attendanceStatusBadgeVariant,
   formatAttendanceStatus,
@@ -26,6 +27,8 @@ type AttendanceTableProps = {
   onEdit: (record: SerializedAttendance) => void;
   onMarkStatus: (id: string, status: AttendanceStatus) => void;
   onDelete: (id: string) => void;
+  resetDeps?: readonly unknown[];
+  className?: string;
 };
 
 export function AttendanceTable({
@@ -34,120 +37,121 @@ export function AttendanceTable({
   onEdit,
   onMarkStatus,
   onDelete,
+  resetDeps,
+  className,
 }: AttendanceTableProps) {
-  return (
-    <Card className="py-0">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Shift date</TableHead>
-            <TableHead>Employee</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Check-in</TableHead>
-            <TableHead>Check-out</TableHead>
-            <TableHead>Overtime</TableHead>
-            <TableHead>Flags</TableHead>
-            <TableHead>Source</TableHead>
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {loading ? (
-            <TableRow>
-              <TableCell colSpan={9} className="text-muted-foreground">
-                Loading…
-              </TableCell>
-            </TableRow>
-          ) : items.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={9} className="text-muted-foreground">
-                No attendance records match your filters.
-              </TableCell>
-            </TableRow>
-          ) : (
-            items.map((record) => (
-              <TableRow key={record.id}>
-                <TableCell className="font-mono text-xs">{record.shiftDate}</TableCell>
-                <TableCell>
-                  <div>{record.employeeName}</div>
-                  <div className="text-muted-foreground text-xs">{record.employeeCode}</div>
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    variant={attendanceStatusBadgeVariant(record.status)}
-                    className="capitalize"
-                  >
-                    {formatAttendanceStatus(record.status)}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-xs">{formatPktIso(record.checkInAt)}</TableCell>
-                <TableCell className="text-xs">{formatPktIso(record.checkOutAt)}</TableCell>
-                <TableCell className="text-xs">
-                  {record.overtimeSeconds != null && record.overtimeSeconds > 0 ? (
-                    <div>
-                      <div>{formatShiftDuration(record.overtimeSeconds)}</div>
-                      {record.overtimeStartedAt && (
-                        <div className="text-muted-foreground">
-                          {formatPktIso(record.overtimeStartedAt)}
-                          {record.overtimeEndedAt
-                            ? ` → ${formatPktIso(record.overtimeEndedAt)}`
-                            : ""}
-                        </div>
-                      )}
+  const columns = useMemo<ColumnDef<SerializedAttendance>[]>(
+    () => [
+      {
+        accessorKey: "shiftDate",
+        header: "Shift date",
+        cell: ({ row }) => <span className="font-mono text-xs">{row.original.shiftDate}</span>,
+      },
+      {
+        accessorKey: "employeeName",
+        header: "Employee",
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => (
+          <Badge variant={attendanceStatusBadgeVariant(row.original.status)} className="capitalize">
+            {formatAttendanceStatus(row.original.status)}
+          </Badge>
+        ),
+      },
+      {
+        id: "checkInAt",
+        header: "Check-in",
+        cell: ({ row }) => <span className="text-xs">{formatPktIso(row.original.checkInAt)}</span>,
+      },
+      {
+        id: "checkOutAt",
+        header: "Check-out",
+        cell: ({ row }) => <span className="text-xs">{formatPktIso(row.original.checkOutAt)}</span>,
+      },
+      {
+        id: "overtime",
+        header: "Overtime",
+        cell: ({ row }) => {
+          const record = row.original;
+          return (
+            <span className="text-xs">
+              {record.overtimeSeconds != null && record.overtimeSeconds > 0 ? (
+                <div>
+                  <div>{formatShiftDuration(record.overtimeSeconds)}</div>
+                  {record.overtimeStartedAt && (
+                    <div className="text-muted-foreground">
+                      {formatPktIso(record.overtimeStartedAt)}
+                      {record.overtimeEndedAt ? ` → ${formatPktIso(record.overtimeEndedAt)}` : ""}
                     </div>
-                  ) : !record.checkOutAt && record.overtimeStartedAt ? (
-                    <span className="text-amber-700">Active</span>
-                  ) : (
-                    "—"
                   )}
-                </TableCell>
-                <TableCell className="text-xs">
-                  {record.isLate && <span className="mr-1 text-amber-700">Late</span>}
-                  {record.isEarlyLeave && <span className="text-amber-700">Early</span>}
-                  {!record.isLate && !record.isEarlyLeave && "—"}
-                </TableCell>
-                <TableCell className="text-xs capitalize">{record.source}</TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onEdit(record)}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => onMarkStatus(record.id, "present")}
-                    >
-                      Present
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => onMarkStatus(record.id, "absent")}
-                    >
-                      Absent
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => onDelete(record.id)}
-                    >
-                      Delete
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </Card>
+                </div>
+              ) : !record.checkOutAt && record.overtimeStartedAt ? (
+                <span className="text-amber-700">Active</span>
+              ) : (
+                "—"
+              )}
+            </span>
+          );
+        },
+      },
+      {
+        id: "flags",
+        header: "Flags",
+        cell: ({ row }) => (
+          <span className="text-xs">
+            {row.original.isLate && <span className="mr-1 text-amber-700">Late</span>}
+            {row.original.isEarlyLeave && <span className="mr-1 text-amber-700">Early</span>}
+            {row.original.isMissedCheckout && <span className="text-destructive">No checkout</span>}
+            {!row.original.isLate &&
+              !row.original.isEarlyLeave &&
+              !row.original.isMissedCheckout &&
+              "—"}
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => {
+          const record = row.original;
+          return (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={<Button variant="ghost" size="icon-sm" aria-label="Open actions menu" />}
+              >
+                <MoreHorizontalIcon />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onEdit(record)}>Edit</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onMarkStatus(record.id, "present")}>
+                  Mark present
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onMarkStatus(record.id, "absent")}>
+                  Mark absent
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem variant="destructive" onClick={() => onDelete(record.id)}>
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          );
+        },
+      },
+    ],
+    [onDelete, onEdit, onMarkStatus],
+  );
+
+  return (
+    <DataTable
+      className={className}
+      columns={columns}
+      data={items}
+      loading={loading}
+      emptyMessage="No attendance records match your filters."
+      resetDeps={resetDeps}
+    />
   );
 }

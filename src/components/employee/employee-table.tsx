@@ -1,22 +1,24 @@
 "use client";
 
+import { MoreHorizontalIcon } from "lucide-react";
+import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { type ColumnDef, DataTable } from "@/components/ui/table";
 import {
   getProbationStatusLabel,
   isCurrentlyOnProbation,
   isProbationCompleted,
 } from "@/lib/admin/probation";
 import type { SerializedEmployee } from "@/lib/admin/serialize";
+import { formatLateFinePkr } from "@/lib/attendance/late-fines-utils";
 
 type EmployeeTableProps = {
   employees: SerializedEmployee[];
@@ -26,6 +28,8 @@ type EmployeeTableProps = {
   onReactivate: (id: string) => void;
   onStartProbation?: (id: string, name: string) => void;
   onEndProbation?: (id: string, name: string) => void;
+  resetDeps?: readonly unknown[];
+  className?: string;
 };
 
 function probationBadgeVariant(employee: SerializedEmployee): "default" | "secondary" | "outline" {
@@ -46,116 +50,142 @@ export function EmployeeTable({
   onReactivate,
   onStartProbation,
   onEndProbation,
+  resetDeps,
+  className,
 }: EmployeeTableProps) {
-  return (
-    <Card className="py-0">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Code</TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Designation</TableHead>
-            <TableHead>Department</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Probation</TableHead>
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {loading ? (
-            <TableRow>
-              <TableCell colSpan={8} className="text-muted-foreground">
-                Loading…
-              </TableCell>
-            </TableRow>
-          ) : employees.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={8} className="text-muted-foreground">
-                No employees found.
-              </TableCell>
-            </TableRow>
-          ) : (
-            employees.map((employee) => {
-              const onProbation = isCurrentlyOnProbation(employee);
+  const columns = useMemo<ColumnDef<SerializedEmployee>[]>(
+    () => [
+      {
+        accessorKey: "employeeCode",
+        header: "Code",
+        cell: ({ row }) => <span className="font-mono text-xs">{row.original.employeeCode}</span>,
+      },
+      {
+        accessorKey: "fullName",
+        header: "Name",
+      },
+      {
+        accessorKey: "email",
+        header: "Email",
+      },
+      {
+        id: "designation",
+        accessorFn: (row) => row.designation ?? "—",
+        header: "Designation",
+        cell: ({ row }) => row.original.designation ?? "—",
+      },
+      {
+        id: "department",
+        accessorFn: (row) => row.department ?? "—",
+        header: "Department",
+        cell: ({ row }) => row.original.department ?? "—",
+      },
+      {
+        id: "status",
+        accessorFn: (row) => (row.isActive ? "Active" : "Inactive"),
+        header: "Status",
+        cell: ({ row }) => (
+          <Badge variant={row.original.isActive ? "default" : "secondary"}>
+            {row.original.isActive ? "Active" : "Inactive"}
+          </Badge>
+        ),
+      },
+      {
+        id: "probation",
+        accessorFn: (row) => getProbationStatusLabel(row),
+        header: "Probation",
+        cell: ({ row }) => (
+          <Badge variant={probationBadgeVariant(row.original)}>
+            {getProbationStatusLabel(row.original)}
+          </Badge>
+        ),
+      },
+      {
+        id: "pendingFines",
+        accessorFn: (row) => row.pendingLateFinePkr,
+        header: "Pending fines",
+        meta: { align: "right" },
+        cell: ({ row }) => {
+          const { pendingLateFinePkr, pendingFineableLates } = row.original;
+          if (pendingLateFinePkr <= 0) {
+            return <span className="text-muted-foreground">—</span>;
+          }
 
-              return (
-                <TableRow key={employee.id}>
-                  <TableCell className="font-mono text-xs">{employee.employeeCode}</TableCell>
-                  <TableCell>{employee.fullName}</TableCell>
-                  <TableCell>{employee.email}</TableCell>
-                  <TableCell>{employee.designation ?? "—"}</TableCell>
-                  <TableCell>{employee.department ?? "—"}</TableCell>
-                  <TableCell>
-                    <Badge variant={employee.isActive ? "default" : "secondary"}>
-                      {employee.isActive ? "Active" : "Inactive"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={probationBadgeVariant(employee)}>
-                      {getProbationStatusLabel(employee)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => onEdit(employee)}
-                      >
-                        Edit
-                      </Button>
-                      {employee.isActive && onProbation && onEndProbation ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => onEndProbation(employee.id, employee.fullName)}
-                        >
-                          End probation
-                        </Button>
-                      ) : null}
-                      {employee.isActive &&
-                      !onProbation &&
-                      !isProbationCompleted(employee) &&
-                      onStartProbation ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => onStartProbation(employee.id, employee.fullName)}
-                        >
-                          Start probation
-                        </Button>
-                      ) : null}
-                      {employee.isActive ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => onDeactivate(employee.id, employee.fullName)}
-                        >
-                          Deactivate
-                        </Button>
-                      ) : (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => onReactivate(employee.id)}
-                        >
-                          Reactivate
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })
-          )}
-        </TableBody>
-      </Table>
-    </Card>
+          return (
+            <div className="text-right">
+              <div className="font-medium text-destructive tabular-nums">
+                {formatLateFinePkr(pendingLateFinePkr)}
+              </div>
+              <div className="text-muted-foreground text-xs tabular-nums">
+                {pendingFineableLates} fined late{pendingFineableLates === 1 ? "" : "s"}
+              </div>
+            </div>
+          );
+        },
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => {
+          const employee = row.original;
+          const onProbation = isCurrentlyOnProbation(employee);
+
+          return (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={<Button variant="ghost" size="icon-sm" aria-label="Open actions menu" />}
+              >
+                <MoreHorizontalIcon />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onEdit(employee)}>Edit</DropdownMenuItem>
+                {employee.isActive && onProbation && onEndProbation ? (
+                  <DropdownMenuItem onClick={() => onEndProbation(employee.id, employee.fullName)}>
+                    End probation
+                  </DropdownMenuItem>
+                ) : null}
+                {employee.isActive &&
+                !onProbation &&
+                !isProbationCompleted(employee) &&
+                onStartProbation ? (
+                  <DropdownMenuItem
+                    onClick={() => onStartProbation(employee.id, employee.fullName)}
+                  >
+                    Start probation
+                  </DropdownMenuItem>
+                ) : null}
+                {employee.isActive ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onClick={() => onDeactivate(employee.id, employee.fullName)}
+                    >
+                      Deactivate
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <DropdownMenuItem onClick={() => onReactivate(employee.id)}>
+                    Reactivate
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          );
+        },
+      },
+    ],
+    [onDeactivate, onEdit, onEndProbation, onReactivate, onStartProbation],
+  );
+
+  return (
+    <DataTable
+      className={className}
+      columns={columns}
+      data={employees}
+      loading={loading}
+      emptyMessage="No employees found."
+      resetDeps={resetDeps}
+    />
   );
 }

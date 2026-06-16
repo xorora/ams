@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import { FeedbackBanner } from "@/components/admin/feedback-banner";
 import {
   AttendanceFilters,
   type AttendanceFiltersState,
@@ -24,26 +23,22 @@ import {
 } from "@/lib/admin/actions";
 import { attendanceListQuery } from "@/lib/admin/query-params";
 import type { SerializedAttendance, SerializedEmployee } from "@/lib/admin/serialize";
+import { toastAsync, toastError } from "@/lib/toast";
 
 type AttendanceManagerProps = {
   employees: SerializedEmployee[];
   items: SerializedAttendance[];
-  total: number;
   filters: AttendanceFiltersState;
 };
 
 export function AttendanceManager({
   employees,
   items,
-  total,
   filters: initialFilters,
 }: AttendanceManagerProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [filters, setFilters] = useState<AttendanceFiltersState>(initialFilters);
-  const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(
-    null,
-  );
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<AttendanceFormValues>(emptyAttendanceForm);
@@ -64,14 +59,12 @@ export function AttendanceManager({
     setEditingId(null);
     setForm(emptyAttendanceForm());
     setFormOpen(true);
-    setFeedback(null);
   }
 
   function openEdit(record: SerializedAttendance) {
     setEditingId(record.id);
     setForm(attendanceToForm(record));
     setFormOpen(true);
-    setFeedback(null);
   }
 
   function closeForm() {
@@ -83,7 +76,6 @@ export function AttendanceManager({
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setSaving(true);
-    setFeedback(null);
 
     const checkInIso = pktLocalToIso(form.checkInAt);
     const checkOutIso = pktLocalToIso(form.checkOutAt);
@@ -102,69 +94,82 @@ export function AttendanceManager({
           overtimeStartedIso !== (record?.overtimeStartedAt ?? null) ||
           overtimeEndedIso !== (record?.overtimeEndedAt ?? null);
 
-        const result = await updateAttendanceAction(editingId, {
-          status: form.status,
-          checkInAt: checkInIso,
-          checkOutAt: checkOutIso,
-          notes: form.notes || null,
-          ...(overtimeChanged
-            ? {
-                overtimeStartedAt: overtimeStartedIso,
-                overtimeEndedAt: overtimeEndedIso,
-                overtimeSeconds: overtimeMinutes
-                  ? Number.parseInt(overtimeMinutes, 10) * 60
-                  : undefined,
-              }
-            : {}),
-        });
-        if (!result.ok) {
-          throw new Error(result.error);
-        }
-        setFeedback({ type: "success", text: "Attendance updated." });
+        await toastAsync(
+          updateAttendanceAction(editingId, {
+            status: form.status,
+            checkInAt: checkInIso,
+            checkOutAt: checkOutIso,
+            notes: form.notes || null,
+            ...(overtimeChanged
+              ? {
+                  overtimeStartedAt: overtimeStartedIso,
+                  overtimeEndedAt: overtimeEndedIso,
+                  overtimeSeconds: overtimeMinutes
+                    ? Number.parseInt(overtimeMinutes, 10) * 60
+                    : undefined,
+                }
+              : {}),
+          }).then((result) => {
+            if (!result.ok) {
+              throw new Error(result.error);
+            }
+          }),
+          {
+            loading: "Saving attendance…",
+            success: "Attendance updated.",
+          },
+        );
       } else {
         if (!form.employeeId) {
-          throw new Error("Select an employee.");
+          toastError("Select an employee.");
+          return;
         }
-        const result = await createAttendanceAction({
-          employeeId: form.employeeId,
-          shiftDate: form.shiftDate,
-          status: form.status,
-          checkInAt: checkInIso,
-          checkOutAt: checkOutIso,
-          notes: form.notes || null,
-        });
-        if (!result.ok) {
-          throw new Error(result.error);
-        }
-        setFeedback({ type: "success", text: "Attendance record created." });
+
+        await toastAsync(
+          createAttendanceAction({
+            employeeId: form.employeeId,
+            shiftDate: form.shiftDate,
+            status: form.status,
+            checkInAt: checkInIso,
+            checkOutAt: checkOutIso,
+            notes: form.notes || null,
+          }).then((result) => {
+            if (!result.ok) {
+              throw new Error(result.error);
+            }
+          }),
+          {
+            loading: "Creating attendance record…",
+            success: "Attendance record created.",
+          },
+        );
       }
 
       closeForm();
       startTransition(() => router.refresh());
-    } catch (error) {
-      setFeedback({
-        type: "error",
-        text: error instanceof Error ? error.message : "Save failed",
-      });
+    } catch {
+      // toastAsync already surfaced the error toast
     } finally {
       setSaving(false);
     }
   }
 
   async function handleMarkStatus(id: string, status: AttendanceStatus) {
-    setFeedback(null);
     try {
-      const result = await markAttendanceStatusAction(id, status);
-      if (!result.ok) {
-        throw new Error(result.error);
-      }
-      setFeedback({ type: "success", text: `Marked as ${status}.` });
+      await toastAsync(
+        markAttendanceStatusAction(id, status).then((result) => {
+          if (!result.ok) {
+            throw new Error(result.error);
+          }
+        }),
+        {
+          loading: "Updating status…",
+          success: `Marked as ${status}.`,
+        },
+      );
       startTransition(() => router.refresh());
-    } catch (error) {
-      setFeedback({
-        type: "error",
-        text: error instanceof Error ? error.message : "Status update failed",
-      });
+    } catch {
+      // toastAsync already surfaced the error toast
     }
   }
 
@@ -173,62 +178,66 @@ export function AttendanceManager({
       return;
     }
 
-    setFeedback(null);
     try {
-      const result = await deleteAttendanceAction(id);
-      if (!result.ok) {
-        throw new Error(result.error);
-      }
-      setFeedback({ type: "success", text: "Attendance record deleted." });
+      await toastAsync(
+        deleteAttendanceAction(id).then((result) => {
+          if (!result.ok) {
+            throw new Error(result.error);
+          }
+        }),
+        {
+          loading: "Deleting attendance record…",
+          success: "Attendance record deleted.",
+        },
+      );
       startTransition(() => router.refresh());
-    } catch (error) {
-      setFeedback({
-        type: "error",
-        text: error instanceof Error ? error.message : "Delete failed",
-      });
+    } catch {
+      // toastAsync already surfaced the error toast
     }
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <AttendanceFilters
-        filters={filters}
-        onFiltersChange={(updater) => {
-          const next = typeof updater === "function" ? updater(filters) : updater;
-          applyFilters(next);
-        }}
-        employees={employees}
-        onAddRecord={openCreate}
-      />
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+      <div className="shrink-0 space-y-4">
+        <AttendanceFilters
+          filters={filters}
+          onFiltersChange={(updater) => {
+            const next = typeof updater === "function" ? updater(filters) : updater;
+            applyFilters(next);
+          }}
+          employees={employees}
+          onAddRecord={openCreate}
+        />
 
-      {feedback && <FeedbackBanner type={feedback.type} text={feedback.text} />}
+        <AttendanceSheet
+          open={formOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              closeForm();
+            }
+          }}
+          editingId={editingId}
+          employees={employees}
+          form={form}
+          onFormChange={setForm}
+          saving={saving}
+          onSubmit={handleSubmit}
+          onCancel={closeForm}
+        />
 
-      <AttendanceSheet
-        open={formOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            closeForm();
-          }
-        }}
-        editingId={editingId}
-        employees={employees}
-        form={form}
-        onFormChange={setForm}
-        saving={saving}
-        onSubmit={handleSubmit}
-        onCancel={closeForm}
-      />
-
-      <p className="text-muted-foreground text-sm">
-        {isPending ? "Loading…" : `${total} record${total === 1 ? "" : "s"}`}
-      </p>
+        <p className="text-muted-foreground text-sm">
+          {isPending ? "Loading…" : `${items.length} record${items.length === 1 ? "" : "s"}`}
+        </p>
+      </div>
 
       <AttendanceTable
+        className="min-h-0 flex-1"
         items={items}
         loading={isPending}
         onEdit={openEdit}
         onMarkStatus={handleMarkStatus}
         onDelete={handleDelete}
+        resetDeps={[filters.from, filters.to, filters.employeeId, filters.status]}
       />
     </div>
   );

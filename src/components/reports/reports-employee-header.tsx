@@ -1,6 +1,5 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { SerializedEmployeeReport } from "@/lib/admin/reports-serialize";
 
 type ReportsEmployeeHeaderProps = {
@@ -8,23 +7,27 @@ type ReportsEmployeeHeaderProps = {
 };
 
 export function ReportsEmployeeHeader({ report }: ReportsEmployeeHeaderProps) {
+  const meta = [
+    report.employee.email,
+    report.employee.designation,
+    report.employee.department,
+  ].filter(Boolean);
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{report.employee.fullName}</CardTitle>
-      </CardHeader>
-      <CardContent className="-mt-2">
-        <p className="text-muted-foreground text-sm">
-          {report.employee.employeeCode} · {report.employee.email}
-          {report.employee.designation ? ` · ${report.employee.designation}` : ""}
-          {report.employee.department ? ` · ${report.employee.department}` : ""}
-          {!report.employee.isActive && <span className="ml-2 text-amber-700">(inactive)</span>}
-        </p>
-        <p className="mt-2 text-muted-foreground text-sm">
-          {report.range.from} to {report.range.to} · {report.summary.shiftDaysInRange} shift days in
-          range
-        </p>
-      </CardContent>
-    </Card>
+    <div className="space-y-3">
+      <div className="space-y-1">
+        <h2 className="text-lg font-semibold tracking-tight">{report.employee.fullName}</h2>
+        {meta.length > 0 ? (
+          <p className="text-muted-foreground text-sm">{meta.join(" · ")}</p>
+        ) : null}
+        {!report.employee.isActive ? (
+          <p className="text-amber-700 text-sm">Inactive employee</p>
+        ) : null}
+      </div>
+      <p className="text-muted-foreground text-sm">
+        {report.range.from} to {report.range.to} · {report.summary.shiftDaysInRange} shift days in
+        range
+      </p>
+    </div>
   );
 }

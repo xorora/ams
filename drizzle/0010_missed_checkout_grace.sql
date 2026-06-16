@@ -1,0 +1,1 @@
+ALTER TABLE "attendance_days" ADD COLUMN IF NOT EXISTS "is_missed_checkout" boolean DEFAULT false NOT NULL;

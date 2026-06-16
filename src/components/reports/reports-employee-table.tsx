@@ -1,15 +1,8 @@
 "use client";
 
+import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { type ColumnDef, DataTable } from "@/components/ui/table";
 import {
   attendanceStatusBadgeVariant,
   formatAttendanceStatus,
@@ -18,78 +11,148 @@ import {
   formatShiftDuration,
 } from "@/lib/admin/display";
 import type { SerializedEmployeeReport } from "@/lib/admin/reports-serialize";
+import { formatLateFinePkr } from "@/lib/attendance/late-fines-utils";
 
 type ReportsEmployeeTableProps = {
   days: SerializedEmployeeReport["days"];
+  resetDeps?: readonly unknown[];
+  className?: string;
 };
 
-export function ReportsEmployeeTable({ days }: ReportsEmployeeTableProps) {
-  return (
-    <Card className="py-0">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Shift date</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Check-in</TableHead>
-            <TableHead>Check-out</TableHead>
-            <TableHead>Overtime</TableHead>
-            <TableHead>Flags</TableHead>
-            <TableHead>Break</TableHead>
-            <TableHead>Source</TableHead>
-            <TableHead>Notes</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {days.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={9} className="text-muted-foreground">
-                No attendance records in this range.
-              </TableCell>
-            </TableRow>
-          ) : (
-            days.map((day) => (
-              <TableRow key={day.shiftDate}>
-                <TableCell className="font-mono text-xs">{day.shiftDate}</TableCell>
-                <TableCell>
-                  <Badge variant={attendanceStatusBadgeVariant(day.status)} className="capitalize">
-                    {formatAttendanceStatus(day.status)}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-xs">{formatPktIso(day.checkInAt)}</TableCell>
-                <TableCell className="text-xs">{formatPktIso(day.checkOutAt)}</TableCell>
-                <TableCell className="text-xs">
-                  {day.overtimeSeconds != null && day.overtimeSeconds > 0 ? (
-                    <div>
-                      <div>{formatShiftDuration(day.overtimeSeconds)}</div>
-                      {day.overtimeStartedAt && (
-                        <div className="text-muted-foreground">
-                          {formatPktIso(day.overtimeStartedAt)}
-                          {day.overtimeEndedAt ? ` → ${formatPktIso(day.overtimeEndedAt)}` : ""}
-                        </div>
-                      )}
+type ReportDayRow = SerializedEmployeeReport["days"][number];
+
+function formatFlags(day: ReportDayRow): string {
+  const flags: string[] = [];
+  if (day.isLate) {
+    flags.push("Late");
+  }
+  if (day.isEarlyLeave) {
+    flags.push("Early");
+  }
+  if (day.isMissedCheckout) {
+    flags.push("No checkout");
+  }
+  return flags.length > 0 ? flags.join(", ") : "—";
+}
+
+export function ReportsEmployeeTable({ days, resetDeps, className }: ReportsEmployeeTableProps) {
+  const columns = useMemo<ColumnDef<ReportDayRow>[]>(
+    () => [
+      {
+        accessorKey: "shiftDate",
+        header: "Shift date",
+        cell: ({ row }) => <span className="font-mono text-xs">{row.original.shiftDate}</span>,
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => (
+          <Badge variant={attendanceStatusBadgeVariant(row.original.status)} className="capitalize">
+            {formatAttendanceStatus(row.original.status)}
+          </Badge>
+        ),
+      },
+      {
+        id: "checkInAt",
+        accessorFn: (row) => formatPktIso(row.checkInAt),
+        header: "Check-in",
+        cell: ({ row }) => <span className="text-xs">{formatPktIso(row.original.checkInAt)}</span>,
+      },
+      {
+        id: "checkOutAt",
+        accessorFn: (row) => formatPktIso(row.checkOutAt),
+        header: "Check-out",
+        cell: ({ row }) => <span className="text-xs">{formatPktIso(row.original.checkOutAt)}</span>,
+      },
+      {
+        id: "overtime",
+        accessorFn: (row) =>
+          row.overtimeSeconds != null && row.overtimeSeconds > 0
+            ? formatShiftDuration(row.overtimeSeconds)
+            : "—",
+        header: "Overtime",
+        cell: ({ row }) => {
+          const day = row.original;
+          return (
+            <span className="text-xs">
+              {day.overtimeSeconds != null && day.overtimeSeconds > 0 ? (
+                <div>
+                  <div>{formatShiftDuration(day.overtimeSeconds)}</div>
+                  {day.overtimeStartedAt && (
+                    <div className="text-muted-foreground">
+                      {formatPktIso(day.overtimeStartedAt)}
+                      {day.overtimeEndedAt ? ` → ${formatPktIso(day.overtimeEndedAt)}` : ""}
                     </div>
-                  ) : (
-                    "—"
                   )}
-                </TableCell>
-                <TableCell className="text-xs">
-                  {day.isLate && <span className="mr-1 text-amber-700">Late</span>}
-                  {day.isEarlyLeave && <span className="text-amber-700">Early</span>}
-                  {!day.isLate && !day.isEarlyLeave && "—"}
-                </TableCell>
-                <TableCell className="text-xs">
-                  {formatBreakDuration(day.totalBreakSeconds)}
-                </TableCell>
-                <TableCell className="text-xs capitalize">{day.source}</TableCell>
-                <TableCell className="max-w-[200px] truncate text-xs text-muted-foreground">
-                  {day.notes ?? "—"}
-                </TableCell>
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </Card>
+                </div>
+              ) : (
+                "—"
+              )}
+            </span>
+          );
+        },
+      },
+      {
+        id: "lateFine",
+        accessorFn: (row) => row.lateFinePkr,
+        header: "Late fine",
+        meta: { align: "right" },
+        cell: ({ row }) => (
+          <span className="text-xs tabular-nums">
+            {row.original.lateFinePkr > 0 ? formatLateFinePkr(row.original.lateFinePkr) : "—"}
+          </span>
+        ),
+      },
+      {
+        id: "flags",
+        accessorFn: (row) => formatFlags(row),
+        header: "Flags",
+        cell: ({ row }) => (
+          <span className="text-xs">
+            {row.original.isLate && <span className="mr-1 text-amber-700">Late</span>}
+            {row.original.isEarlyLeave && <span className="mr-1 text-amber-700">Early</span>}
+            {row.original.isMissedCheckout && <span className="text-destructive">No checkout</span>}
+            {!row.original.isLate &&
+              !row.original.isEarlyLeave &&
+              !row.original.isMissedCheckout &&
+              "—"}
+          </span>
+        ),
+      },
+      {
+        id: "break",
+        accessorFn: (row) => formatBreakDuration(row.totalBreakSeconds),
+        header: "Break",
+        cell: ({ row }) => (
+          <span className="text-xs">{formatBreakDuration(row.original.totalBreakSeconds)}</span>
+        ),
+      },
+      {
+        accessorKey: "source",
+        header: "Source",
+        cell: ({ row }) => <span className="text-xs capitalize">{row.original.source}</span>,
+      },
+      {
+        accessorKey: "notes",
+        header: "Notes",
+        accessorFn: (row) => row.notes ?? "—",
+        cell: ({ row }) => (
+          <span className="block max-w-[200px] truncate text-xs text-muted-foreground">
+            {row.original.notes ?? "—"}
+          </span>
+        ),
+      },
+    ],
+    [],
+  );
+
+  return (
+    <DataTable
+      className={className}
+      columns={columns}
+      data={days}
+      emptyMessage="No attendance records in this range."
+      resetDeps={resetDeps}
+    />
   );
 }

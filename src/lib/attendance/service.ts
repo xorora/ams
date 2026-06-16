@@ -2,9 +2,14 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { attendanceDays, breakSessions, employees } from "@/db/schema";
 import { isWeekendDate } from "@/lib/leave/working-days";
-import { formatLateCheckInDeadline } from "./constants";
+import { EXPECTED_CHECK_OUT_TIME_PKT } from "./constants";
 import type { Coordinates } from "./coords";
 import { requireActiveEmployee, requireWithinGeofence } from "./employee-access";
+import {
+  buildLateCheckInMessage,
+  countMonthlyLatesBeforeCheckIn,
+  getEmployeeMonthlyLateSummary,
+} from "./late-fines";
 import {
   computeOvertimeSnapshot,
   getDefaultOvertimeStart,
@@ -53,6 +58,7 @@ function toDaySnapshot(row: typeof attendanceDays.$inferSelect): AttendanceDaySn
     checkOutAt: row.checkOutAt,
     isLate: row.isLate,
     isEarlyLeave: row.isEarlyLeave,
+    isMissedCheckout: row.isMissedCheckout,
     overtimeStartedAt: row.overtimeStartedAt,
     overtimeEndedAt: row.overtimeEndedAt,
     overtimeSeconds: row.overtimeSeconds,
@@ -138,7 +144,10 @@ export async function getTodayStatus(
   const shiftDate = getShiftDate(now);
   const { day, sessions, rawDay } = await loadShiftAttendance(employeeId, shiftDate);
   const resolvedDay = rawDay && day ? await ensureOvertimeStarted(rawDay, now) : day;
-  const status = buildTodayStatus(resolvedDay, sessions, now);
+  const monthlyLate = await getEmployeeMonthlyLateSummary(employeeId, shiftDate, {
+    includeTodayLate: true,
+  });
+  const status = buildTodayStatus(resolvedDay, sessions, monthlyLate, now);
 
   const [employee] = await db
     .select({ isActive: employees.isActive })
@@ -191,6 +200,9 @@ export async function checkIn(
   }
 
   const isLate = lateFlagForCheckIn(now, shiftDate);
+  const priorMonthlyLates = isLate
+    ? await countMonthlyLatesBeforeCheckIn(employeeId, shiftDate)
+    : 0;
 
   if (day) {
     await db
@@ -219,9 +231,7 @@ export async function checkIn(
   }
 
   const status = await getTodayStatus(employeeId);
-  const message = isLate
-    ? `Checked in. You are marked late (after ${formatLateCheckInDeadline()}).`
-    : "Checked in successfully.";
+  const message = buildLateCheckInMessage(priorMonthlyLates, isLate);
 
   return { ok: true, data: { message, status: status.data } };
 }
@@ -248,6 +258,14 @@ export async function checkOut(
     return failure(409, "ALREADY_CHECKED_OUT", "You have already checked out for this shift.");
   }
 
+  if (day.isMissedCheckout) {
+    return failure(
+      409,
+      "MISSED_CHECKOUT",
+      "This shift was marked absent for missed check-out and can no longer be updated.",
+    );
+  }
+
   if (getActiveBreak(sessions)) {
     return failure(400, "BREAK_ACTIVE", "End your break before checking out.");
   }
@@ -257,7 +275,7 @@ export async function checkOut(
     return failure(
       409,
       "EARLY_LEAVE_CONFIRM_REQUIRED",
-      "Checking out now is before 03:00 PKT and will be marked as early leave. Confirm to proceed.",
+      `Checking out now is before ${EXPECTED_CHECK_OUT_TIME_PKT} and will be marked as early leave. Confirm to proceed.`,
     );
   }
 
@@ -280,7 +298,7 @@ export async function checkOut(
   const status = await getTodayStatus(employeeId);
   const overtime = computeOvertimeSnapshot({ ...day, checkOutAt: now, overtimeEndedAt: now }, now);
   const message = early
-    ? "Checked out. Early leave recorded (before 03:00 PKT)."
+    ? `Checked out. Early leave recorded (before ${EXPECTED_CHECK_OUT_TIME_PKT}).`
     : overtime.elapsedSeconds > 0
       ? `Checked out. Overtime recorded (${Math.ceil(overtime.elapsedSeconds / 60)} min).`
       : "Checked out successfully.";

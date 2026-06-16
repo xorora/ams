@@ -1,23 +1,15 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
 type ReportStatCardProps = {
   label: string;
-  value: number;
+  value: number | string;
 };
 
 export function ReportStatCard({ label, value }: ReportStatCardProps) {
   return (
-    <Card size="sm">
-      <CardHeader>
-        <CardTitle className="text-muted-foreground text-xs uppercase tracking-wide">
-          {label}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="-mt-2">
-        <p className="text-2xl font-semibold tabular-nums">{value}</p>
-      </CardContent>
-    </Card>
+    <div className="min-w-0 space-y-1">
+      <p className="text-muted-foreground text-xs">{label}</p>
+      <p className="truncate text-lg font-semibold tabular-nums">{value}</p>
+    </div>
   );
 }

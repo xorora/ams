@@ -23,12 +23,13 @@ export default async function AdminEmployeeReportPage({ params, searchParams }: 
   const loadError = reportResult.ok ? null : reportResult.message;
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-8">
-      <div>
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-6xl flex-1 flex-col gap-6 overflow-hidden p-8">
+      <div className="shrink-0">
         <h1 className="text-2xl font-semibold">Employee report</h1>
       </div>
 
       <ReportsEmployeeView
+        className="min-h-0 flex-1"
         employeeId={employeeId}
         from={from}
         to={to}

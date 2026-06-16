@@ -2,6 +2,7 @@ import { addDays, subDays } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import {
   BUSINESS_TIMEZONE,
+  CHECK_OUT_GRACE_MINUTES,
   EXPECTED_CHECK_OUT_HOUR,
   EXPECTED_CHECK_OUT_MINUTE,
   LATE_CHECK_IN_HOUR,
@@ -70,6 +71,12 @@ export function getExpectedCheckOutAt(shiftDate: string): Date {
   });
 }
 
+/** Expected check-out + grace — last on-time check-out (03:15 PKT). */
+export function getLateCheckOutDeadline(shiftDate: string): Date {
+  const expected = getExpectedCheckOutAt(shiftDate);
+  return new Date(expected.getTime() + CHECK_OUT_GRACE_MINUTES * 60_000);
+}
+
 /** Late when check-in is strictly after the grace deadline on the shift date. */
 export function isLateCheckIn(checkInAt: Date, shiftDate: string): boolean {
   return checkInAt.getTime() > getLateCheckInDeadline(shiftDate).getTime();
@@ -78,6 +85,11 @@ export function isLateCheckIn(checkInAt: Date, shiftDate: string): boolean {
 /** Early leave when check-out is strictly before 03:00 PKT the morning after shift date. */
 export function isEarlyLeave(checkOutAt: Date, shiftDate: string): boolean {
   return checkOutAt.getTime() < getExpectedCheckOutAt(shiftDate).getTime();
+}
+
+/** Open shift past the check-out grace deadline — eligible for missed check-out absent mark. */
+export function isPastMissedCheckOutDeadline(at: Date, shiftDate: string): boolean {
+  return at.getTime() > getLateCheckOutDeadline(shiftDate).getTime();
 }
 
 /**

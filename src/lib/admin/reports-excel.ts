@@ -1,13 +1,11 @@
-import { formatInTimeZone } from "date-fns-tz";
 import ExcelJS from "exceljs";
+import { formatPktDateTime as formatPktDateTimeDisplay } from "@/lib/admin/display";
 import { BUSINESS_TIMEZONE } from "@/lib/attendance/constants";
+import { formatLateFinePkr } from "@/lib/attendance/late-fines";
 import type { EmployeeReport, SummaryReport } from "./reports-service";
 
 function formatPktDateTime(value: Date | null): string {
-  if (!value) {
-    return "";
-  }
-  return formatInTimeZone(value, BUSINESS_TIMEZONE, "yyyy-MM-dd HH:mm");
+  return formatPktDateTimeDisplay(value, "");
 }
 
 function formatBreakSeconds(seconds: number): string {
@@ -35,6 +33,8 @@ export async function buildSummaryExcel(report: SummaryReport): Promise<Buffer> 
   summarySheet.addRow(["Absent", report.totals.absent]);
   summarySheet.addRow(["Leave", report.totals.leave]);
   summarySheet.addRow(["Late check-ins", report.totals.late]);
+  summarySheet.addRow(["Fined late check-ins", report.totals.fineableLates]);
+  summarySheet.addRow(["Late fines", formatLateFinePkr(report.totals.lateFinePkr)]);
   summarySheet.addRow(["Early check-outs", report.totals.earlyLeave]);
 
   const detailSheet = workbook.addWorksheet("By employee");
@@ -49,6 +49,8 @@ export async function buildSummaryExcel(report: SummaryReport): Promise<Buffer> 
     { header: "Absent", key: "absent", width: 10 },
     { header: "Leave", key: "leave", width: 10 },
     { header: "Late", key: "late", width: 8 },
+    { header: "Fined lates", key: "fineableLates", width: 12 },
+    { header: "Late fines", key: "lateFines", width: 14 },
     { header: "Early leave", key: "early", width: 12 },
   ];
 
@@ -64,6 +66,8 @@ export async function buildSummaryExcel(report: SummaryReport): Promise<Buffer> 
       absent: row.totals.absent,
       leave: row.totals.leave,
       late: row.totals.late,
+      fineableLates: row.totals.fineableLates,
+      lateFines: row.totals.lateFinePkr > 0 ? formatLateFinePkr(row.totals.lateFinePkr) : "",
       early: row.totals.earlyLeave,
     });
   }
@@ -79,6 +83,8 @@ export async function buildSummaryExcel(report: SummaryReport): Promise<Buffer> 
     absent: report.totals.absent,
     leave: report.totals.leave,
     late: report.totals.late,
+    fineableLates: report.totals.fineableLates,
+    lateFines: report.totals.lateFinePkr > 0 ? formatLateFinePkr(report.totals.lateFinePkr) : "",
     early: report.totals.earlyLeave,
   });
   detailSheet.getRow(1).font = { bold: true };
@@ -112,6 +118,8 @@ export async function buildEmployeeExcel(report: EmployeeReport): Promise<Buffer
   infoSheet.addRow(["Absent", report.summary.absent]);
   infoSheet.addRow(["Leave", report.summary.leave]);
   infoSheet.addRow(["Late check-ins", report.summary.late]);
+  infoSheet.addRow(["Fined late check-ins", report.summary.fineableLates]);
+  infoSheet.addRow(["Late fines", formatLateFinePkr(report.summary.lateFinePkr)]);
   infoSheet.addRow(["Early check-outs", report.summary.earlyLeave]);
 
   const daysSheet = workbook.addWorksheet("Attendance");
@@ -125,7 +133,9 @@ export async function buildEmployeeExcel(report: EmployeeReport): Promise<Buffer
     { header: "Overtime end (PKT)", key: "overtimeEnd", width: 18 },
     { header: "Overtime elapsed", key: "overtimeElapsed", width: 14 },
     { header: "Late", key: "late", width: 8 },
+    { header: "Late fine", key: "lateFine", width: 12 },
     { header: "Early leave", key: "early", width: 12 },
+    { header: "Missed checkout", key: "missedCheckout", width: 16 },
     { header: "Break", key: "break", width: 12 },
     { header: "Notes", key: "notes", width: 32 },
   ];
@@ -141,7 +151,9 @@ export async function buildEmployeeExcel(report: EmployeeReport): Promise<Buffer
       overtimeEnd: formatPktDateTime(day.overtimeEndedAt),
       overtimeElapsed: day.overtimeSeconds != null ? formatBreakSeconds(day.overtimeSeconds) : "",
       late: day.isLate ? "Yes" : "No",
+      lateFine: day.lateFinePkr > 0 ? formatLateFinePkr(day.lateFinePkr) : "",
       early: day.isEarlyLeave ? "Yes" : "No",
+      missedCheckout: day.isMissedCheckout ? "Yes" : "No",
       break: formatBreakSeconds(day.totalBreakSeconds),
       notes: day.notes ?? "",
     });

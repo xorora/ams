@@ -98,6 +98,7 @@ export const attendanceDays = pgTable(
     checkOutLng: real("check_out_lng"),
     isLate: boolean("is_late").notNull().default(false),
     isEarlyLeave: boolean("is_early_leave").notNull().default(false),
+    isMissedCheckout: boolean("is_missed_checkout").notNull().default(false),
     overtimeStartedAt: timestamp("overtime_started_at", { withTimezone: true }),
     overtimeEndedAt: timestamp("overtime_ended_at", { withTimezone: true }),
     overtimeSeconds: integer("overtime_seconds"),

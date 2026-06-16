@@ -3,15 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import { FeedbackBanner } from "@/components/admin/feedback-banner";
 import { ReportDateToolbar } from "@/components/reports/report-date-toolbar";
 import { ReportsEmployeeHeader } from "@/components/reports/reports-employee-header";
 import { ReportsEmployeeStats } from "@/components/reports/reports-employee-stats";
 import { ReportsEmployeeTable } from "@/components/reports/reports-employee-table";
 import { reportDateQuery } from "@/lib/admin/query-params";
 import type { SerializedEmployeeReport } from "@/lib/admin/reports-serialize";
-
-type ApiError = { error: string; code?: string };
+import { downloadResponseBlob, toastAsync, toastError } from "@/lib/toast";
+import { cn } from "@/lib/utils";
 
 type ReportsEmployeeViewProps = {
   employeeId: string;
@@ -19,6 +18,7 @@ type ReportsEmployeeViewProps = {
   to: string;
   report: SerializedEmployeeReport | null;
   loadError: string | null;
+  className?: string;
 };
 
 export function ReportsEmployeeView({
@@ -27,15 +27,13 @@ export function ReportsEmployeeView({
   to: initialTo,
   report,
   loadError,
+  className,
 }: ReportsEmployeeViewProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [from, setFrom] = useState(initialFrom);
   const [to, setTo] = useState(initialTo);
   const [exporting, setExporting] = useState(false);
-  const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(
-    loadError ? { type: "error", text: loadError } : null,
-  );
 
   useEffect(() => {
     setFrom(initialFrom);
@@ -44,7 +42,7 @@ export function ReportsEmployeeView({
 
   useEffect(() => {
     if (loadError) {
-      setFeedback({ type: "error", text: loadError });
+      toastError(loadError);
     }
   }, [loadError]);
 
@@ -56,7 +54,7 @@ export function ReportsEmployeeView({
 
   async function handleExport() {
     setExporting(true);
-    setFeedback(null);
+
     try {
       const params = new URLSearchParams({
         scope: "employee",
@@ -64,63 +62,58 @@ export function ReportsEmployeeView({
         from,
         to,
       });
-      const res = await fetch(`/api/admin/reports/export?${params.toString()}`);
-      if (!res.ok) {
-        const err = (await res.json()) as ApiError;
-        throw new Error(err.error ?? "Export failed");
-      }
-      const blob = await res.blob();
-      const disposition = res.headers.get("Content-Disposition");
-      const fallback = `attendance-employee_${from}_${to}.xlsx`;
-      const match = disposition?.match(/filename="([^"]+)"/);
-      const filename = match?.[1] ?? fallback;
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = filename;
-      anchor.click();
-      URL.revokeObjectURL(url);
-      setFeedback({ type: "success", text: "Excel file downloaded." });
-    } catch (error) {
-      setFeedback({
-        type: "error",
-        text: error instanceof Error ? error.message : "Export failed",
-      });
+      await toastAsync(
+        fetch(`/api/admin/reports/export?${params.toString()}`).then((response) =>
+          downloadResponseBlob(response, `attendance-employee_${from}_${to}.xlsx`),
+        ),
+        {
+          loading: "Exporting Excel file…",
+          success: "Excel file downloaded.",
+        },
+      );
+    } catch {
+      // toastAsync already surfaced the error toast
     } finally {
       setExporting(false);
     }
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <ReportDateToolbar
-        from={from}
-        to={to}
-        onFromChange={setFrom}
-        onToChange={setTo}
-        onRefresh={handleRefresh}
-        onExport={() => void handleExport()}
-        loading={isPending}
-        exporting={exporting}
-        fromInputId="employee-from"
-        toInputId="employee-to"
-      />
-
-      {feedback && <FeedbackBanner type={feedback.type} text={feedback.text} />}
+    <div className={cn("flex min-h-0 flex-1 flex-col gap-4 overflow-hidden", className)}>
+      <div className="shrink-0">
+        <ReportDateToolbar
+          from={from}
+          to={to}
+          onFromChange={setFrom}
+          onToChange={setTo}
+          onRefresh={handleRefresh}
+          onExport={() => void handleExport()}
+          loading={isPending}
+          exporting={exporting}
+          fromInputId="employee-from"
+          toInputId="employee-to"
+        />
+      </div>
 
       {isPending ? (
-        <p className="text-muted-foreground text-sm">Loading report…</p>
+        <p className="shrink-0 text-muted-foreground text-sm">Loading report…</p>
       ) : report ? (
         <>
-          <ReportsEmployeeHeader report={report} />
-          <ReportsEmployeeStats summary={report.summary} />
-          <ReportsEmployeeTable days={report.days} />
+          <div className="shrink-0 space-y-4 border-b pb-4">
+            <ReportsEmployeeHeader report={report} />
+            <ReportsEmployeeStats summary={report.summary} />
+          </div>
+          <ReportsEmployeeTable
+            days={report.days}
+            className="min-h-0 flex-1"
+            resetDeps={[from, to, employeeId]}
+          />
         </>
       ) : null}
 
       <Link
         href={`/admin/reports${reportDateQuery(from, to)}`}
-        className="text-primary text-sm underline-offset-4 hover:underline"
+        className="shrink-0 text-primary text-sm underline-offset-4 hover:underline"
       >
         ← Back to summary report
       </Link>

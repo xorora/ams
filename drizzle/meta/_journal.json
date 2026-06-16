@@ -71,6 +71,13 @@
       "when": 1781560032408,
       "tag": "0009_flowery_stick",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1781621533014,
+      "tag": "0010_missed_checkout_grace",
+      "breakpoints": true
     }
   ]
 }

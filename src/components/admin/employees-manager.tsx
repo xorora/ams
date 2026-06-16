@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import { FeedbackBanner } from "@/components/admin/feedback-banner";
 import { EmployeeFilters } from "@/components/employee/employee-filters";
 import {
   type EmployeeFormValues,
@@ -23,6 +22,7 @@ import {
 import { DEFAULT_PROBATION_PERIOD_MONTHS, getTodayPkt } from "@/lib/admin/probation";
 import { employeesListQuery } from "@/lib/admin/query-params";
 import type { SerializedEmployee } from "@/lib/admin/serialize";
+import { toastAsync, toastError } from "@/lib/toast";
 
 type EmployeesManagerProps = {
   employees: SerializedEmployee[];
@@ -34,9 +34,6 @@ export function EmployeesManager({ employees, search, includeInactive }: Employe
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [searchInput, setSearchInput] = useState(search);
-  const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(
-    null,
-  );
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<EmployeeFormValues>(emptyEmployeeForm);
@@ -73,14 +70,12 @@ export function EmployeesManager({ employees, search, includeInactive }: Employe
     setEditingId(null);
     setForm(emptyEmployeeForm);
     setFormOpen(true);
-    setFeedback(null);
   }
 
   function openEdit(employee: SerializedEmployee) {
     setEditingId(employee.id);
     setForm(employeeToForm(employee));
     setFormOpen(true);
-    setFeedback(null);
   }
 
   function closeForm() {
@@ -92,14 +87,14 @@ export function EmployeesManager({ employees, search, includeInactive }: Employe
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setSaving(true);
-    setFeedback(null);
     try {
       const periodMonths = Number.parseInt(form.probationPeriodMonths, 10);
       if (
         form.probationEnabled &&
         (!Number.isFinite(periodMonths) || periodMonths < 1 || periodMonths > 24)
       ) {
-        throw new Error("Probation period must be between 1 and 24 months.");
+        toastError("Probation period must be between 1 and 24 months.");
+        return;
       }
 
       const payload = form.probationCompleted
@@ -128,36 +123,34 @@ export function EmployeesManager({ employees, search, includeInactive }: Employe
               : DEFAULT_PROBATION_PERIOD_MONTHS,
           };
 
-      const result = editingId
-        ? await updateEmployeeAction(editingId, payload)
-        : await createEmployeeAction(payload);
-
-      if (!result.ok) {
-        throw new Error(result.error);
-      }
-
-      setFeedback({
-        type: "success",
-        text: editingId ? "Employee updated." : "Employee created.",
-      });
+      await toastAsync(
+        (editingId ? updateEmployeeAction(editingId, payload) : createEmployeeAction(payload)).then(
+          (result) => {
+            if (!result.ok) {
+              throw new Error(result.error);
+            }
+          },
+        ),
+        {
+          loading: editingId ? "Updating employee…" : "Creating employee…",
+          success: editingId ? "Employee updated." : "Employee created.",
+        },
+      );
       closeForm();
       startTransition(() => router.refresh());
-    } catch (error) {
-      setFeedback({
-        type: "error",
-        text: error instanceof Error ? error.message : "Save failed",
-      });
+    } catch {
+      // toastAsync already surfaced the error toast
     } finally {
       setSaving(false);
     }
   }
 
   async function handleDeactivate(id: string, name: string) {
-    setFeedback(null);
     try {
       const preview = await getEmployeeDeactivationPreviewAction(id);
       if (!preview.ok) {
-        throw new Error(preview.error);
+        toastError(preview.error);
+        return;
       }
 
       const { hasOpenShift, openShiftState } = preview.data;
@@ -170,29 +163,28 @@ export function EmployeesManager({ employees, search, includeInactive }: Employe
         return;
       }
 
-      const result = await deactivateEmployeeAction(id, {
-        closeOpenShift: hasOpenShift,
-      });
-      if (!result.ok) {
-        throw new Error(result.error);
-      }
-      setFeedback({
-        type: "success",
-        text: hasOpenShift
-          ? "Employee deactivated and open shift closed."
-          : "Employee deactivated.",
-      });
+      await toastAsync(
+        deactivateEmployeeAction(id, {
+          closeOpenShift: hasOpenShift,
+        }).then((result) => {
+          if (!result.ok) {
+            throw new Error(result.error);
+          }
+        }),
+        {
+          loading: "Deactivating employee…",
+          success: hasOpenShift
+            ? "Employee deactivated and open shift closed."
+            : "Employee deactivated.",
+        },
+      );
       startTransition(() => router.refresh());
-    } catch (error) {
-      setFeedback({
-        type: "error",
-        text: error instanceof Error ? error.message : "Deactivate failed",
-      });
+    } catch {
+      // toastAsync already surfaced the error toast
     }
   }
 
   async function handleStartProbation(id: string, name: string): Promise<boolean> {
-    setFeedback(null);
     if (
       !window.confirm(
         `Start a ${DEFAULT_PROBATION_PERIOD_MONTHS}-month probation period for ${name}?`,
@@ -203,18 +195,20 @@ export function EmployeesManager({ employees, search, includeInactive }: Employe
 
     setProbationActionPending(true);
     try {
-      const result = await startEmployeeProbationAction(id);
-      if (!result.ok) {
-        throw new Error(result.error);
-      }
-      setFeedback({ type: "success", text: "Probation started." });
+      await toastAsync(
+        startEmployeeProbationAction(id).then((result) => {
+          if (!result.ok) {
+            throw new Error(result.error);
+          }
+        }),
+        {
+          loading: "Starting probation…",
+          success: "Probation started.",
+        },
+      );
       startTransition(() => router.refresh());
       return true;
-    } catch (error) {
-      setFeedback({
-        type: "error",
-        text: error instanceof Error ? error.message : "Start probation failed",
-      });
+    } catch {
       return false;
     } finally {
       setProbationActionPending(false);
@@ -222,25 +216,26 @@ export function EmployeesManager({ employees, search, includeInactive }: Employe
   }
 
   async function handleEndProbation(id: string, name: string): Promise<boolean> {
-    setFeedback(null);
     if (!window.confirm(`End probation for ${name}?`)) {
       return false;
     }
 
     setProbationActionPending(true);
     try {
-      const result = await endEmployeeProbationAction(id);
-      if (!result.ok) {
-        throw new Error(result.error);
-      }
-      setFeedback({ type: "success", text: "Probation ended." });
+      await toastAsync(
+        endEmployeeProbationAction(id).then((result) => {
+          if (!result.ok) {
+            throw new Error(result.error);
+          }
+        }),
+        {
+          loading: "Ending probation…",
+          success: "Probation ended.",
+        },
+      );
       startTransition(() => router.refresh());
       return true;
-    } catch (error) {
-      setFeedback({
-        type: "error",
-        text: error instanceof Error ? error.message : "End probation failed",
-      });
+    } catch {
       return false;
     } finally {
       setProbationActionPending(false);
@@ -288,56 +283,59 @@ export function EmployeesManager({ employees, search, includeInactive }: Employe
   }
 
   async function handleReactivate(id: string) {
-    setFeedback(null);
     try {
-      const result = await reactivateEmployeeAction(id);
-      if (!result.ok) {
-        throw new Error(result.error);
-      }
-      setFeedback({ type: "success", text: "Employee reactivated." });
+      await toastAsync(
+        reactivateEmployeeAction(id).then((result) => {
+          if (!result.ok) {
+            throw new Error(result.error);
+          }
+        }),
+        {
+          loading: "Reactivating employee…",
+          success: "Employee reactivated.",
+        },
+      );
       startTransition(() => router.refresh());
-    } catch (error) {
-      setFeedback({
-        type: "error",
-        text: error instanceof Error ? error.message : "Reactivate failed",
-      });
+    } catch {
+      // toastAsync already surfaced the error toast
     }
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <EmployeeFilters
-        search={searchInput}
-        onSearchChange={setSearchInput}
-        includeInactive={includeInactive}
-        onIncludeInactiveChange={(value) => {
-          setSearchInput(searchInput);
-          navigateFilters(searchInput, value);
-        }}
-        onAddEmployee={openCreate}
-      />
+    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+      <div className="shrink-0 space-y-4">
+        <EmployeeFilters
+          search={searchInput}
+          onSearchChange={setSearchInput}
+          includeInactive={includeInactive}
+          onIncludeInactiveChange={(value) => {
+            setSearchInput(searchInput);
+            navigateFilters(searchInput, value);
+          }}
+          onAddEmployee={openCreate}
+        />
 
-      {feedback && <FeedbackBanner type={feedback.type} text={feedback.text} />}
-
-      <EmployeeSheet
-        open={formOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            closeForm();
-          }
-        }}
-        editingId={editingId}
-        form={form}
-        onFormChange={setForm}
-        saving={saving}
-        onSubmit={handleSubmit}
-        onCancel={closeForm}
-        onStartProbation={editingId ? handleSheetStartProbation : undefined}
-        onEndProbation={editingId ? handleSheetEndProbation : undefined}
-        probationActionPending={probationActionPending}
-      />
+        <EmployeeSheet
+          open={formOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              closeForm();
+            }
+          }}
+          editingId={editingId}
+          form={form}
+          onFormChange={setForm}
+          saving={saving}
+          onSubmit={handleSubmit}
+          onCancel={closeForm}
+          onStartProbation={editingId ? handleSheetStartProbation : undefined}
+          onEndProbation={editingId ? handleSheetEndProbation : undefined}
+          probationActionPending={probationActionPending}
+        />
+      </div>
 
       <EmployeeTable
+        className="min-h-0 flex-1"
         employees={employees}
         loading={isPending}
         onEdit={openEdit}
@@ -345,6 +343,7 @@ export function EmployeesManager({ employees, search, includeInactive }: Employe
         onReactivate={handleReactivate}
         onStartProbation={handleStartProbation}
         onEndProbation={handleEndProbation}
+        resetDeps={[search, includeInactive]}
       />
     </div>
   );

@@ -1,74 +1,143 @@
 "use client";
 
-import Link from "next/link";
-import { Card } from "@/components/ui/card";
+import { MoreHorizontalIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useMemo } from "react";
+import { Button } from "@/components/ui/button";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { type ColumnDef, DataTable } from "@/components/ui/table";
 import type { SummaryReport } from "@/lib/admin/reports-service";
+import { formatLateFinePkr } from "@/lib/attendance/late-fines-utils";
 
 type ReportsSummaryTableProps = {
   report: SummaryReport;
+  className?: string;
 };
 
-export function ReportsSummaryTable({ report }: ReportsSummaryTableProps) {
+type SummaryEmployeeRow = SummaryReport["employees"][number];
+
+export function ReportsSummaryTable({ report, className }: ReportsSummaryTableProps) {
+  const router = useRouter();
+
+  const columns = useMemo<ColumnDef<SummaryEmployeeRow>[]>(
+    () => [
+      {
+        id: "employee",
+        accessorFn: (row) => row.fullName,
+        header: "Employee",
+        cell: ({ row }) => row.original.fullName,
+      },
+      {
+        id: "designation",
+        accessorFn: (row) => row.designation ?? "—",
+        header: "Designation",
+        cell: ({ row }) => (
+          <span className="text-muted-foreground">{row.original.designation ?? "—"}</span>
+        ),
+      },
+      {
+        id: "department",
+        accessorFn: (row) => row.department ?? "—",
+        header: "Department",
+        cell: ({ row }) => (
+          <span className="text-muted-foreground">{row.original.department ?? "—"}</span>
+        ),
+      },
+      {
+        id: "records",
+        accessorFn: (row) => row.totals.records,
+        header: "Records",
+        meta: { align: "right" },
+        cell: ({ row }) => <span className="tabular-nums">{row.original.totals.records}</span>,
+      },
+      {
+        id: "present",
+        accessorFn: (row) => row.totals.present,
+        header: "Present",
+        meta: { align: "right" },
+        cell: ({ row }) => <span className="tabular-nums">{row.original.totals.present}</span>,
+      },
+      {
+        id: "absent",
+        accessorFn: (row) => row.totals.absent,
+        header: "Absent",
+        meta: { align: "right" },
+        cell: ({ row }) => <span className="tabular-nums">{row.original.totals.absent}</span>,
+      },
+      {
+        id: "leave",
+        accessorFn: (row) => row.totals.leave,
+        header: "Leave",
+        meta: { align: "right" },
+        cell: ({ row }) => <span className="tabular-nums">{row.original.totals.leave}</span>,
+      },
+      {
+        id: "late",
+        accessorFn: (row) => row.totals.late,
+        header: "Late",
+        meta: { align: "right" },
+        cell: ({ row }) => <span className="tabular-nums">{row.original.totals.late}</span>,
+      },
+      {
+        id: "lateFine",
+        accessorFn: (row) => row.totals.lateFinePkr,
+        header: "Late fines",
+        meta: { align: "right" },
+        cell: ({ row }) => (
+          <span className="tabular-nums">
+            {row.original.totals.lateFinePkr > 0
+              ? formatLateFinePkr(row.original.totals.lateFinePkr)
+              : "—"}
+          </span>
+        ),
+      },
+      {
+        id: "earlyLeave",
+        accessorFn: (row) => row.totals.earlyLeave,
+        header: "Early",
+        meta: { align: "right" },
+        cell: ({ row }) => <span className="tabular-nums">{row.original.totals.earlyLeave}</span>,
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => (
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={<Button variant="ghost" size="icon-sm" aria-label="Open actions menu" />}
+            >
+              <MoreHorizontalIcon />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() =>
+                  router.push(
+                    `/admin/reports/${row.original.employeeId}?from=${report.range.from}&to=${report.range.to}`,
+                  )
+                }
+              >
+                View report
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ),
+      },
+    ],
+    [report.range.from, report.range.to, router],
+  );
+
   return (
-    <Card className="py-0">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Employee</TableHead>
-            <TableHead>Designation</TableHead>
-            <TableHead>Department</TableHead>
-            <TableHead className="text-right">Records</TableHead>
-            <TableHead className="text-right">Present</TableHead>
-            <TableHead className="text-right">Absent</TableHead>
-            <TableHead className="text-right">Leave</TableHead>
-            <TableHead className="text-right">Late</TableHead>
-            <TableHead className="text-right">Early</TableHead>
-            <TableHead>Detail</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {report.employees.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={10} className="text-muted-foreground">
-                No active employees found.
-              </TableCell>
-            </TableRow>
-          ) : (
-            report.employees.map((row) => (
-              <TableRow key={row.employeeId}>
-                <TableCell>
-                  <div>{row.fullName}</div>
-                  <div className="text-muted-foreground text-xs">{row.employeeCode}</div>
-                </TableCell>
-                <TableCell className="text-muted-foreground">{row.designation ?? "—"}</TableCell>
-                <TableCell className="text-muted-foreground">{row.department ?? "—"}</TableCell>
-                <TableCell className="text-right tabular-nums">{row.totals.records}</TableCell>
-                <TableCell className="text-right tabular-nums">{row.totals.present}</TableCell>
-                <TableCell className="text-right tabular-nums">{row.totals.absent}</TableCell>
-                <TableCell className="text-right tabular-nums">{row.totals.leave}</TableCell>
-                <TableCell className="text-right tabular-nums">{row.totals.late}</TableCell>
-                <TableCell className="text-right tabular-nums">{row.totals.earlyLeave}</TableCell>
-                <TableCell>
-                  <Link
-                    href={`/admin/reports/${row.employeeId}?from=${report.range.from}&to=${report.range.to}`}
-                    className="text-primary text-sm underline-offset-4 hover:underline"
-                  >
-                    View
-                  </Link>
-                </TableCell>
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </Card>
+    <DataTable
+      className={className}
+      columns={columns}
+      data={report.employees}
+      emptyMessage="No active employees found."
+      resetDeps={[report.range.from, report.range.to]}
+    />
   );
 }

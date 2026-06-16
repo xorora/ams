@@ -1,11 +1,14 @@
 "use client";
 
-import { formatInTimeZone } from "date-fns-tz";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { formatShiftDuration } from "@/lib/admin/display";
-import { BUSINESS_TIMEZONE } from "@/lib/attendance/constants";
+import { formatPktDateTime, formatPktTime, formatShiftDuration } from "@/lib/admin/display";
+import {
+  formatLateFinePkr,
+  LATE_FINE_AMOUNT_PKR,
+  MONTHLY_LATE_ALLOWANCE,
+} from "@/lib/attendance/late-fines-utils";
 import type { SerializedTodayStatus } from "@/lib/attendance/serialize";
 import type { WorkState } from "@/lib/attendance/status";
 
@@ -93,16 +96,18 @@ export function EmployeeStatusCard({ status }: EmployeeStatusCardProps) {
         )}
         {status.attendanceDay?.checkInAt && (
           <p className="mt-3 text-muted-foreground text-sm">
-            Check-in: {formatInTimeZone(status.attendanceDay.checkInAt, BUSINESS_TIMEZONE, "HH:mm")}
+            Check-in: {formatPktTime(status.attendanceDay.checkInAt)}
             {status.attendanceDay.isLate ? " (late)" : ""}
           </p>
         )}
         {status.attendanceDay?.checkOutAt && (
           <p className="text-muted-foreground text-sm">
-            Check-out:{" "}
-            {formatInTimeZone(status.attendanceDay.checkOutAt, BUSINESS_TIMEZONE, "HH:mm")}
+            Check-out: {formatPktTime(status.attendanceDay.checkOutAt)}
             {status.attendanceDay.isEarlyLeave ? " (early)" : ""}
           </p>
+        )}
+        {status.attendanceDay?.isMissedCheckout && (
+          <p className="text-destructive text-sm">Marked absent — missed check-out</p>
         )}
 
         {hasOvertime && (
@@ -119,14 +124,12 @@ export function EmployeeStatusCard({ status }: EmployeeStatusCardProps) {
             </div>
             {status.overtime.startedAt && (
               <p className="mt-1 text-amber-800 text-sm">
-                Started:{" "}
-                {formatInTimeZone(status.overtime.startedAt, BUSINESS_TIMEZONE, "yyyy-MM-dd HH:mm")}
+                Started: {formatPktDateTime(status.overtime.startedAt)}
               </p>
             )}
             {status.overtime.endedAt && (
               <p className="text-amber-800 text-sm">
-                Ended:{" "}
-                {formatInTimeZone(status.overtime.endedAt, BUSINESS_TIMEZONE, "yyyy-MM-dd HH:mm")}
+                Ended: {formatPktDateTime(status.overtime.endedAt)}
               </p>
             )}
             <p className="mt-1 font-mono font-semibold text-amber-900 tabular-nums">
@@ -141,6 +144,24 @@ export function EmployeeStatusCard({ status }: EmployeeStatusCardProps) {
             {formatShiftDuration(status.breakRemainingSeconds)}
           </p>
         )}
+
+        <div className="mt-3 rounded-lg border px-3 py-2">
+          <p className="font-medium text-sm">Monthly late check-ins</p>
+          <p className="mt-1 text-muted-foreground text-sm">
+            {status.monthlyLate.lateCount} late this month · {status.monthlyLate.freeLatesRemaining}{" "}
+            of {MONTHLY_LATE_ALLOWANCE} free remaining
+          </p>
+          {status.monthlyLate.totalFinePkr > 0 && (
+            <p className="mt-1 text-amber-800 text-sm">
+              Fines so far: {formatLateFinePkr(status.monthlyLate.totalFinePkr)}
+            </p>
+          )}
+          {status.monthlyLate.freeLatesRemaining === 0 && status.monthlyLate.totalFinePkr === 0 && (
+            <p className="mt-1 text-amber-800 text-sm">
+              Next late check-in will incur a {formatLateFinePkr(LATE_FINE_AMOUNT_PKR)} fine.
+            </p>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

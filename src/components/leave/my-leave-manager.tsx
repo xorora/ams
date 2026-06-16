@@ -1,33 +1,33 @@
 "use client";
 
 import { useState } from "react";
-import { FeedbackBanner } from "@/components/admin/feedback-banner";
 import { LeaveBalanceCards } from "@/components/leave/leave-balance-cards";
+import { LeaveDetailSheet } from "@/components/leave/leave-detail-sheet";
 import { emptyLeaveForm, type LeaveFormValues, LeaveSheet } from "@/components/leave/leave-sheet";
 import { LeaveTable } from "@/components/leave/leave-table";
 import { Button } from "@/components/ui/button";
 import { cancelLeaveRequestAction, submitLeaveRequestAction } from "@/lib/leave/actions";
 import type { SerializedLeaveRequest } from "@/lib/leave/serialize";
 import type { LeaveBalance } from "@/lib/leave/types";
+import { toastAsync } from "@/lib/toast";
+import { cn } from "@/lib/utils";
 
 type MyLeaveManagerProps = {
   balances: LeaveBalance[];
   requests: SerializedLeaveRequest[];
+  className?: string;
 };
 
-export function MyLeaveManager({ balances, requests }: MyLeaveManagerProps) {
-  const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(
-    null,
-  );
+export function MyLeaveManager({ balances, requests, className }: MyLeaveManagerProps) {
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState<LeaveFormValues>(emptyLeaveForm);
   const [saving, setSaving] = useState(false);
   const [actionPending, setActionPending] = useState(false);
+  const [viewRequest, setViewRequest] = useState<SerializedLeaveRequest | null>(null);
 
   function openApply() {
     setForm(emptyLeaveForm());
     setFormOpen(true);
-    setFeedback(null);
   }
 
   function closeForm() {
@@ -38,28 +38,28 @@ export function MyLeaveManager({ balances, requests }: MyLeaveManagerProps) {
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setSaving(true);
-    setFeedback(null);
 
     try {
-      const result = await submitLeaveRequestAction({
-        leaveType: form.leaveType,
-        startDate: form.startDate,
-        endDate: form.endDate,
-        reason: form.reason,
-        medicalCertificateNote: form.medicalCertificateNote || null,
-      });
-
-      if (!result.ok) {
-        throw new Error(result.error);
-      }
-
-      setFeedback({ type: "success", text: "Leave request submitted successfully." });
+      await toastAsync(
+        submitLeaveRequestAction({
+          leaveType: form.leaveType,
+          startDate: form.startDate,
+          endDate: form.endDate,
+          reason: form.reason,
+          medicalCertificateNote: form.medicalCertificateNote || null,
+        }).then((result) => {
+          if (!result.ok) {
+            throw new Error(result.error);
+          }
+        }),
+        {
+          loading: "Submitting leave request…",
+          success: "Leave request submitted successfully.",
+        },
+      );
       closeForm();
-    } catch (error) {
-      setFeedback({
-        type: "error",
-        text: error instanceof Error ? error.message : "Failed to submit leave request.",
-      });
+    } catch {
+      // toastAsync already surfaced the error toast
     } finally {
       setSaving(false);
     }
@@ -71,44 +71,62 @@ export function MyLeaveManager({ balances, requests }: MyLeaveManagerProps) {
     }
 
     setActionPending(true);
-    setFeedback(null);
 
     try {
-      const result = await cancelLeaveRequestAction(id);
-      if (!result.ok) {
-        throw new Error(result.error);
-      }
-      setFeedback({ type: "success", text: "Leave request cancelled." });
-    } catch (error) {
-      setFeedback({
-        type: "error",
-        text: error instanceof Error ? error.message : "Failed to cancel leave request.",
-      });
+      await toastAsync(
+        cancelLeaveRequestAction(id).then((result) => {
+          if (!result.ok) {
+            throw new Error(result.error);
+          }
+        }),
+        {
+          loading: "Cancelling leave request…",
+          success: "Leave request cancelled.",
+        },
+      );
+    } catch {
+      // toastAsync already surfaced the error toast
     } finally {
       setActionPending(false);
     }
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      {feedback ? <FeedbackBanner type={feedback.type} text={feedback.text} /> : null}
-
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h2 className="font-medium">Leave balance</h2>
-          <p className="text-muted-foreground text-sm">Your entitlements for the current year.</p>
+    <div className={cn("flex min-h-0 flex-1 flex-col gap-6 overflow-hidden", className)}>
+      <div className="shrink-0 space-y-6">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h2 className="font-medium">Leave balance</h2>
+            <p className="text-muted-foreground text-sm">Your entitlements for the current year.</p>
+          </div>
+          <Button type="button" onClick={openApply}>
+            Apply for leave
+          </Button>
         </div>
-        <Button type="button" onClick={openApply}>
-          Apply for leave
-        </Button>
+
+        <LeaveBalanceCards balances={balances} />
       </div>
 
-      <LeaveBalanceCards balances={balances} />
-
-      <div>
-        <h2 className="mb-4 font-medium">My requests</h2>
-        <LeaveTable requests={requests} onCancel={handleCancel} actionPending={actionPending} />
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+        <h2 className="shrink-0 font-medium">My requests</h2>
+        <LeaveTable
+          className="min-h-0 flex-1"
+          requests={requests}
+          onView={setViewRequest}
+          onCancel={handleCancel}
+          actionPending={actionPending}
+        />
       </div>
+
+      <LeaveDetailSheet
+        open={viewRequest !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setViewRequest(null);
+          }
+        }}
+        request={viewRequest}
+      />
 
       <LeaveSheet
         open={formOpen}

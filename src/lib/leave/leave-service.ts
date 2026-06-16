@@ -1,11 +1,12 @@
 import { formatInTimeZone } from "date-fns-tz";
 import { and, desc, eq, gte, lte, type SQL } from "drizzle-orm";
 import { db } from "@/db";
-import { attendanceDays, employees, leaveRequests } from "@/db/schema";
+import { attendanceDays, companies, employees, leaveRequests } from "@/db/schema";
 import { isCurrentlyOnProbation } from "@/lib/admin/probation";
 import { adminFailure, type ServiceFailure, type ServiceSuccess } from "@/lib/admin/types";
 import { BUSINESS_TIMEZONE } from "@/lib/attendance/constants";
 import { LEAVE_ENTITLEMENTS } from "./constants";
+import type { LeaveApplicationPdfData } from "./leave-pdf";
 import type { LeaveBalance, LeaveRequestStatus, LeaveType } from "./types";
 import {
   countCalendarDays,
@@ -152,6 +153,62 @@ async function loadLeaveItem(id: string): Promise<ServiceFailure | ServiceSucces
   }
 
   return { ok: true, data: mapLeaveRow(row, employee) };
+}
+
+export async function getLeaveRequestForPdf(
+  id: string,
+  companyId?: string,
+): Promise<ServiceFailure | ServiceSuccess<LeaveApplicationPdfData>> {
+  const [row] = await db.select().from(leaveRequests).where(eq(leaveRequests.id, id)).limit(1);
+  if (!row) {
+    return adminFailure(404, "LEAVE_NOT_FOUND", "Leave request not found.");
+  }
+
+  const [employee] = await db
+    .select()
+    .from(employees)
+    .where(eq(employees.id, row.employeeId))
+    .limit(1);
+  if (!employee) {
+    return adminFailure(404, "EMPLOYEE_NOT_FOUND", "Employee not found.");
+  }
+
+  if (companyId && employee.companyId !== companyId) {
+    return adminFailure(403, "FORBIDDEN", "Leave request is not in the selected company.");
+  }
+
+  const [company] = await db
+    .select({ name: companies.name })
+    .from(companies)
+    .where(eq(companies.id, employee.companyId))
+    .limit(1);
+
+  if (!company) {
+    return adminFailure(404, "COMPANY_NOT_FOUND", "Employee company not found.");
+  }
+
+  const leaveYear = Number.parseInt(row.startDate.slice(0, 4), 10);
+  const balancesResult = await getLeaveBalances(row.employeeId, leaveYear);
+  if (!balancesResult.ok) {
+    return balancesResult;
+  }
+
+  return {
+    ok: true,
+    data: {
+      companyName: company.name,
+      employeeName: employee.fullName,
+      employeeCode: employee.employeeCode,
+      designation: employee.designation,
+      department: employee.department,
+      startDate: row.startDate,
+      endDate: row.endDate,
+      daysCount: row.daysCount,
+      leaveType: row.leaveType,
+      reason: row.reason,
+      balances: balancesResult.data,
+    },
+  };
 }
 
 function buildListConditions(filters: ListLeaveFilters): SQL[] {

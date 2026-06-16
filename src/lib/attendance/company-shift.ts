@@ -3,6 +3,7 @@ import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import {
   BUSINESS_TIMEZONE,
   CHECK_IN_GRACE_MINUTES,
+  CHECK_OUT_GRACE_MINUTES,
   EXPECTED_CHECK_IN_HOUR,
   EXPECTED_CHECK_OUT_HOUR,
   EXPECTED_CHECK_OUT_MINUTE,
@@ -15,6 +16,7 @@ export type CompanyShiftConfig = {
   expectedCheckInHour: number;
   expectedCheckInMinute: number;
   checkInGraceMinutes: number;
+  checkOutGraceMinutes: number;
   expectedCheckOutHour: number;
   expectedCheckOutMinute: number;
   /** When true, expected check-out is on the calendar day after shiftDate. */
@@ -31,6 +33,7 @@ export const COMPANY_SHIFT_BY_SLUG: Record<CompanySlug, CompanyShiftConfig> = {
     expectedCheckInHour: EXPECTED_CHECK_IN_HOUR,
     expectedCheckInMinute: 0,
     checkInGraceMinutes: CHECK_IN_GRACE_MINUTES,
+    checkOutGraceMinutes: CHECK_OUT_GRACE_MINUTES,
     expectedCheckOutHour: EXPECTED_CHECK_OUT_HOUR,
     expectedCheckOutMinute: EXPECTED_CHECK_OUT_MINUTE,
     checkOutNextDay: true,
@@ -40,6 +43,7 @@ export const COMPANY_SHIFT_BY_SLUG: Record<CompanySlug, CompanyShiftConfig> = {
     expectedCheckInHour: 9,
     expectedCheckInMinute: 0,
     checkInGraceMinutes: 15,
+    checkOutGraceMinutes: 15,
     expectedCheckOutHour: 17,
     expectedCheckOutMinute: 0,
     checkOutNextDay: false,
@@ -101,6 +105,11 @@ export function getExpectedCheckOutAt(shiftDate: string, config: CompanyShiftCon
     minute: config.expectedCheckOutMinute,
     second: 0,
   });
+}
+
+export function getLateCheckOutDeadline(shiftDate: string, config: CompanyShiftConfig): Date {
+  const expected = getExpectedCheckOutAt(shiftDate, config);
+  return new Date(expected.getTime() + config.checkOutGraceMinutes * 60_000);
 }
 
 export function isLateCheckInForCompany(
