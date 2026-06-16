@@ -24,9 +24,14 @@ export type LeaveApplicationPdfData = {
   balances: LeaveBalance[];
 };
 
-const PAGE_MARGIN = 48;
+const PAGE_MARGIN = 56;
 const PAGE_WIDTH = 595.28;
 const CONTENT_WIDTH = PAGE_WIDTH - PAGE_MARGIN * 2;
+
+const FIELD_ROW_GAP = 24;
+const CHECKBOX_ROW_GAP = 20;
+const TABLE_ROW_HEIGHT = 24;
+const TABLE_CELL_PADDING = 8;
 
 function drawMultilineLineField(
   doc: PDFKit.PDFDocument,
@@ -48,23 +53,23 @@ function drawMultilineLineField(
   const displayValue = value.trim() || " ";
   const textHeight = doc.heightOfString(displayValue, {
     width: valueWidth,
-    lineGap: 2,
+    lineGap: 4,
   });
-  const blockHeight = Math.max(12, textHeight);
+  const blockHeight = Math.max(14, textHeight);
 
   doc.text(displayValue, valueX, y, {
     width: valueWidth,
-    lineGap: 2,
+    lineGap: 4,
   });
 
   doc
     .strokeColor("#111111")
     .lineWidth(0.5)
-    .moveTo(valueX, y + blockHeight + 4)
-    .lineTo(valueX + valueWidth, y + blockHeight + 4)
+    .moveTo(valueX, y + blockHeight + 6)
+    .lineTo(valueX + valueWidth, y + blockHeight + 6)
     .stroke();
 
-  return y + blockHeight + 14;
+  return y + blockHeight + 20;
 }
 
 function drawLineField(
@@ -89,11 +94,11 @@ function drawLineField(
   doc
     .strokeColor("#111111")
     .lineWidth(0.5)
-    .moveTo(valueX, y + 12)
-    .lineTo(valueX + valueWidth, y + 12)
+    .moveTo(valueX, y + 14)
+    .lineTo(valueX + valueWidth, y + 14)
     .stroke();
 
-  return y + 18;
+  return y + FIELD_ROW_GAP;
 }
 
 function drawBlankLineField(
@@ -112,7 +117,7 @@ function drawCheckbox(
   label: string,
   checked: boolean,
 ): number {
-  const size = 9;
+  const size = 10;
   doc.strokeColor("#111111").lineWidth(0.75).rect(x, y, size, size).stroke();
   if (checked) {
     doc
@@ -125,8 +130,8 @@ function drawCheckbox(
     .font("Helvetica")
     .fontSize(8)
     .fillColor("#111111")
-    .text(label, x + size + 4, y + 1, { lineBreak: false });
-  return x + size + 4 + doc.widthOfString(label) + 10;
+    .text(label, x + size + 6, y + 1, { lineBreak: false });
+  return x + size + 6 + doc.widthOfString(label) + 14;
 }
 
 function drawSignatureLine(
@@ -139,14 +144,14 @@ function drawSignatureLine(
   doc
     .strokeColor("#111111")
     .lineWidth(0.5)
-    .moveTo(x, y + 18)
-    .lineTo(x + width, y + 18)
+    .moveTo(x, y + 22)
+    .lineTo(x + width, y + 22)
     .stroke();
   doc
     .font("Helvetica")
     .fontSize(8)
     .fillColor("#111111")
-    .text(label, x, y + 22, {
+    .text(label, x, y + 26, {
       width,
       align: "center",
       lineBreak: false,
@@ -161,7 +166,7 @@ function drawHrTable(doc: PDFKit.PDFDocument, y: number, balances: LeaveBalance[
     CONTENT_WIDTH * 0.22,
   ];
   const headers = ["", "Leaves Allowed", "Leave/s Availed", "Leave/s Balance"];
-  const rowHeight = 18;
+  const rowHeight = TABLE_ROW_HEIGHT;
   let x = PAGE_MARGIN;
 
   doc.font("Helvetica-Bold").fontSize(8).fillColor("#111111");
@@ -171,8 +176,8 @@ function drawHrTable(doc: PDFKit.PDFDocument, y: number, balances: LeaveBalance[
       .lineWidth(0.5)
       .rect(x, y, colWidths[i] ?? 0, rowHeight)
       .stroke();
-    doc.text(headers[i] ?? "", x + 4, y + 5, {
-      width: (colWidths[i] ?? 0) - 8,
+    doc.text(headers[i] ?? "", x + TABLE_CELL_PADDING, y + TABLE_CELL_PADDING, {
+      width: (colWidths[i] ?? 0) - TABLE_CELL_PADDING * 2,
       align: i === 0 ? "left" : "center",
       lineBreak: false,
     });
@@ -201,8 +206,8 @@ function drawHrTable(doc: PDFKit.PDFDocument, y: number, balances: LeaveBalance[
         .font(i === 0 ? "Helvetica-Bold" : "Helvetica")
         .fontSize(8)
         .fillColor("#111111");
-      doc.text(cells[i] ?? "", x + 4, currentY + 5, {
-        width: (colWidths[i] ?? 0) - 8,
+      doc.text(cells[i] ?? "", x + TABLE_CELL_PADDING, currentY + TABLE_CELL_PADDING, {
+        width: (colWidths[i] ?? 0) - TABLE_CELL_PADDING * 2,
         align: i === 0 ? "left" : "center",
         lineBreak: false,
       });
@@ -212,7 +217,7 @@ function drawHrTable(doc: PDFKit.PDFDocument, y: number, balances: LeaveBalance[
     currentY += rowHeight;
   }
 
-  return currentY + 10;
+  return currentY + 16;
 }
 
 export function leaveApplicationPdfFilename(data: LeaveApplicationPdfData): string {
@@ -246,7 +251,7 @@ export async function buildLeaveApplicationPdf(data: LeaveApplicationPdfData): P
         align: "center",
         lineBreak: false,
       });
-    y += 20;
+    y += 28;
 
     doc
       .font("Helvetica")
@@ -256,7 +261,7 @@ export async function buildLeaveApplicationPdf(data: LeaveApplicationPdfData): P
         align: "center",
         lineBreak: false,
       });
-    y += 16;
+    y += 22;
 
     doc
       .font("Helvetica-Bold")
@@ -266,7 +271,7 @@ export async function buildLeaveApplicationPdf(data: LeaveApplicationPdfData): P
         align: "right",
         lineBreak: false,
       });
-    y += 10;
+    y += 14;
     doc
       .font("Helvetica-Oblique")
       .fontSize(8)
@@ -275,7 +280,7 @@ export async function buildLeaveApplicationPdf(data: LeaveApplicationPdfData): P
         align: "right",
         lineBreak: false,
       });
-    y += 18;
+    y += 24;
 
     y = drawLineField(doc, "Name:", data.employeeName, y);
 
@@ -294,8 +299,8 @@ export async function buildLeaveApplicationPdf(data: LeaveApplicationPdfData): P
     doc
       .strokeColor("#111111")
       .lineWidth(0.5)
-      .moveTo(PAGE_MARGIN + 72, y + 12)
-      .lineTo(PAGE_MARGIN + half, y + 12)
+      .moveTo(PAGE_MARGIN + 72, y + 14)
+      .lineTo(PAGE_MARGIN + half, y + 14)
       .stroke();
 
     doc
@@ -314,10 +319,10 @@ export async function buildLeaveApplicationPdf(data: LeaveApplicationPdfData): P
     doc
       .strokeColor("#111111")
       .lineWidth(0.5)
-      .moveTo(PAGE_MARGIN + half + 16 + 72, y + 12)
-      .lineTo(PAGE_MARGIN + CONTENT_WIDTH, y + 12)
+      .moveTo(PAGE_MARGIN + half + 16 + 72, y + 14)
+      .lineTo(PAGE_MARGIN + CONTENT_WIDTH, y + 14)
       .stroke();
-    y += 18;
+    y += FIELD_ROW_GAP;
 
     doc
       .font("Helvetica-Bold")
@@ -330,8 +335,8 @@ export async function buildLeaveApplicationPdf(data: LeaveApplicationPdfData): P
     doc
       .strokeColor("#111111")
       .lineWidth(0.5)
-      .moveTo(PAGE_MARGIN + 72, y + 12)
-      .lineTo(PAGE_MARGIN + 170, y + 12)
+      .moveTo(PAGE_MARGIN + 72, y + 14)
+      .lineTo(PAGE_MARGIN + 170, y + 14)
       .stroke();
 
     doc
@@ -345,8 +350,8 @@ export async function buildLeaveApplicationPdf(data: LeaveApplicationPdfData): P
     doc
       .strokeColor("#111111")
       .lineWidth(0.5)
-      .moveTo(PAGE_MARGIN + 198, y + 12)
-      .lineTo(PAGE_MARGIN + 300, y + 12)
+      .moveTo(PAGE_MARGIN + 198, y + 14)
+      .lineTo(PAGE_MARGIN + 300, y + 14)
       .stroke();
 
     doc
@@ -360,10 +365,10 @@ export async function buildLeaveApplicationPdf(data: LeaveApplicationPdfData): P
     doc
       .strokeColor("#111111")
       .lineWidth(0.5)
-      .moveTo(PAGE_MARGIN + 372, y + 12)
-      .lineTo(PAGE_MARGIN + CONTENT_WIDTH, y + 12)
+      .moveTo(PAGE_MARGIN + 372, y + 14)
+      .lineTo(PAGE_MARGIN + CONTENT_WIDTH, y + 14)
       .stroke();
-    y += 20;
+    y += 26;
 
     doc
       .font("Helvetica-Bold")
@@ -373,19 +378,19 @@ export async function buildLeaveApplicationPdf(data: LeaveApplicationPdfData): P
     doc
       .strokeColor("#111111")
       .lineWidth(0.5)
-      .moveTo(PAGE_MARGIN, y + 11)
-      .lineTo(PAGE_MARGIN + 72, y + 11)
+      .moveTo(PAGE_MARGIN, y + 13)
+      .lineTo(PAGE_MARGIN + 72, y + 13)
       .stroke();
-    y += 16;
+    y += 20;
 
     for (const row of PAPER_LEAVE_TYPE_ROWS) {
       let x = PAGE_MARGIN;
       for (const label of row) {
         x = drawCheckbox(doc, x, y, label, label === selectedPaperType);
       }
-      y += 16;
+      y += CHECKBOX_ROW_GAP;
     }
-    y += 4;
+    y += 8;
 
     y = drawMultilineLineField(doc, "Reason for Leave:", data.reason, y, { labelWidth: 108 });
     y = drawBlankLineField(doc, "Contact # During Leave:", y, { labelWidth: 108 });
@@ -398,10 +403,10 @@ export async function buildLeaveApplicationPdf(data: LeaveApplicationPdfData): P
       });
     }
 
-    const sigWidth = CONTENT_WIDTH / 2 - 8;
-    drawSignatureLine(doc, "Employee Signature", PAGE_MARGIN, y + 6, sigWidth);
-    drawSignatureLine(doc, "HOD Signature", PAGE_MARGIN + sigWidth + 16, y + 6, sigWidth);
-    y += 44;
+    const sigWidth = CONTENT_WIDTH / 2 - 12;
+    drawSignatureLine(doc, "Employee Signature", PAGE_MARGIN, y + 10, sigWidth);
+    drawSignatureLine(doc, "HOD Signature", PAGE_MARGIN + sigWidth + 24, y + 10, sigWidth);
+    y += 52;
 
     doc
       .strokeColor("#111111")
@@ -409,27 +414,27 @@ export async function buildLeaveApplicationPdf(data: LeaveApplicationPdfData): P
       .moveTo(PAGE_MARGIN, y)
       .lineTo(PAGE_MARGIN + CONTENT_WIDTH, y)
       .stroke();
-    y += 12;
+    y += 16;
 
     doc.font("Helvetica-Bold").fontSize(10).text("For Human Resource Department", PAGE_MARGIN, y, {
       width: CONTENT_WIDTH,
       align: "center",
       lineBreak: false,
     });
-    y += 18;
+    y += 22;
 
     y = drawHrTable(doc, y, data.balances);
 
     drawCheckbox(doc, PAGE_MARGIN, y, "Paid", false);
-    drawCheckbox(doc, PAGE_MARGIN + 80, y, "Unpaid", false);
-    y += 24;
+    drawCheckbox(doc, PAGE_MARGIN + 90, y, "Unpaid", false);
+    y += 32;
 
     for (const row of PAPER_SIGNATURE_ROWS) {
-      const colWidth = CONTENT_WIDTH / row.length - 8;
+      const colWidth = CONTENT_WIDTH / row.length - 12;
       row.forEach((label, index) => {
-        drawSignatureLine(doc, label, PAGE_MARGIN + index * (colWidth + 8), y, colWidth);
+        drawSignatureLine(doc, label, PAGE_MARGIN + index * (colWidth + 12), y, colWidth);
       });
-      y += 38;
+      y += 46;
     }
 
     doc.end();

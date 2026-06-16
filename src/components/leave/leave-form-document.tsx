@@ -29,7 +29,7 @@ export type LeaveFormValues = {
 
 function PaperLine({ children, className }: { children?: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("min-h-6 border-black border-b pb-0.5 text-sm leading-6", className)}>
+    <div className={cn("min-h-7 border-black border-b pb-1 text-sm leading-7", className)}>
       {children}
     </div>
   );
@@ -57,7 +57,7 @@ function PaperReasonField({
 
   if (readOnly) {
     return (
-      <div className="min-h-6 border-black border-b pb-0.5 text-sm leading-6 whitespace-pre-wrap">
+      <div className="min-h-7 border-black border-b pb-1 text-sm leading-7 whitespace-pre-wrap">
         {value.trim() || "\u00A0"}
       </div>
     );
@@ -70,7 +70,7 @@ function PaperReasonField({
       rows={1}
       value={value}
       onChange={(event) => onChange?.(event.target.value)}
-      className="min-h-6 w-full resize-none overflow-hidden border-0 border-black border-b bg-transparent px-0 py-0 text-sm leading-6 outline-none"
+      className="min-h-7 w-full resize-none overflow-hidden border-0 border-black border-b bg-transparent px-0 py-0 text-sm leading-7 outline-none"
     />
   );
 }
@@ -188,7 +188,7 @@ export function LeaveFormDocument({
   return (
     <div
       className={cn(
-        "mx-auto w-full max-w-[820px] border border-black bg-white px-8 py-6 font-[Arial,Helvetica,sans-serif] text-black shadow-sm",
+        "mx-auto w-full max-w-[820px] border border-black bg-white px-12 py-8 font-[Arial,Helvetica,sans-serif] text-black shadow-sm",
         className,
       )}
     >
@@ -197,7 +197,7 @@ export function LeaveFormDocument({
         <p className="mt-1 text-sm">HEAD OFFICE, {companyName}, Lahore</p>
       </div>
 
-      <div className="mt-3 flex items-start justify-end gap-8 text-xs">
+      <div className="mt-4 flex items-start justify-end gap-8 text-xs">
         <div className="text-right">
           <div>
             <span className="font-semibold">Print Date:</span> {printDate}
@@ -206,7 +206,7 @@ export function LeaveFormDocument({
         </div>
       </div>
 
-      <div className="mt-5 space-y-3 text-sm">
+      <div className="mt-7 space-y-5 text-sm">
         <div className="grid grid-cols-[72px_1fr] items-end gap-x-3">
           <span className="font-semibold">Name:</span>
           <PaperLine>{employeeName}</PaperLine>
@@ -256,9 +256,9 @@ export function LeaveFormDocument({
 
         <div>
           <p className="font-semibold underline underline-offset-2">Type of Leave:</p>
-          <div className="mt-2 space-y-2">
+          <div className="mt-3 space-y-3">
             {PAPER_LEAVE_TYPE_ROWS.map((row) => (
-              <div key={row.join("-")} className="flex flex-wrap gap-x-4 gap-y-2">
+              <div key={row.join("-")} className="flex flex-wrap gap-x-6 gap-y-3">
                 {row.map((label) => {
                   const systemType = PAPER_LEAVE_TYPE_TO_SYSTEM[label];
                   const checked = selectedPaperType === label;
@@ -336,32 +336,32 @@ export function LeaveFormDocument({
           <PaperLine>{"\u00A0"}</PaperLine>
         </div>
 
-        <div className="grid grid-cols-2 gap-8 pt-4">
+        <div className="grid grid-cols-2 gap-10 pt-6">
           <div>
-            <PaperLine className="min-h-8">{"\u00A0"}</PaperLine>
-            <p className="mt-1 text-center text-xs">Employee Signature</p>
+            <PaperLine className="min-h-10">{"\u00A0"}</PaperLine>
+            <p className="mt-2 text-center text-xs">Employee Signature</p>
           </div>
           <div>
-            <PaperLine className="min-h-8">{"\u00A0"}</PaperLine>
-            <p className="mt-1 text-center text-xs">HOD Signature</p>
+            <PaperLine className="min-h-10">{"\u00A0"}</PaperLine>
+            <p className="mt-2 text-center text-xs">HOD Signature</p>
           </div>
         </div>
       </div>
 
-      <div className="mt-8 border-black border-t pt-4">
+      <div className="mt-10 border-black border-t pt-6">
         <h2 className="text-center font-bold text-sm">For Human Resource Department</h2>
 
-        <table className="mt-4 w-full border-collapse text-xs">
+        <table className="mt-5 w-full border-collapse text-xs">
           <thead>
             <tr>
-              <th className="border border-black px-2 py-1 text-left font-semibold" />
-              <th className="border border-black px-2 py-1 text-center font-semibold">
+              <th className="border border-black px-3 py-2 text-left font-semibold" />
+              <th className="border border-black px-3 py-2 text-center font-semibold">
                 Leaves Allowed
               </th>
-              <th className="border border-black px-2 py-1 text-center font-semibold">
+              <th className="border border-black px-3 py-2 text-center font-semibold">
                 Leave/s Availed
               </th>
-              <th className="border border-black px-2 py-1 text-center font-semibold">
+              <th className="border border-black px-3 py-2 text-center font-semibold">
                 Leave/s Balance
               </th>
             </tr>
@@ -371,14 +371,14 @@ export function LeaveFormDocument({
               const balance = balanceFor(type);
               return (
                 <tr key={label}>
-                  <td className="border border-black px-2 py-1 font-semibold">{label}</td>
-                  <td className="border border-black px-2 py-1 text-center tabular-nums">
+                  <td className="border border-black px-3 py-2 font-semibold">{label}</td>
+                  <td className="border border-black px-3 py-2 text-center tabular-nums">
                     {balance?.entitled ?? "—"}
                   </td>
-                  <td className="border border-black px-2 py-1 text-center tabular-nums">
+                  <td className="border border-black px-3 py-2 text-center tabular-nums">
                     {balance?.used ?? "—"}
                   </td>
-                  <td className="border border-black px-2 py-1 text-center tabular-nums">
+                  <td className="border border-black px-3 py-2 text-center tabular-nums">
                     {balance?.remaining ?? "—"}
                   </td>
                 </tr>
@@ -387,25 +387,25 @@ export function LeaveFormDocument({
           </tbody>
         </table>
 
-        <div className="mt-4 flex items-center gap-6 text-xs">
+        <div className="mt-5 flex items-center gap-8 text-xs">
           <PaperCheckbox checked={false} label="Paid" disabled />
           <PaperCheckbox checked={false} label="Unpaid" disabled />
         </div>
 
-        <div className="mt-6 space-y-8">
+        <div className="mt-8 space-y-10">
           {PAPER_SIGNATURE_ROWS.map((row) => (
             <div
               key={row.join("-")}
               className={cn(
-                "grid gap-6",
+                "grid gap-8",
                 row.length === 2 && "grid-cols-2",
                 row.length === 3 && "grid-cols-3",
               )}
             >
               {row.map((label) => (
                 <div key={label}>
-                  <PaperLine className="min-h-8">{"\u00A0"}</PaperLine>
-                  <p className="mt-1 text-center text-[11px]">{label}</p>
+                  <PaperLine className="min-h-10">{"\u00A0"}</PaperLine>
+                  <p className="mt-2 text-center text-[11px]">{label}</p>
                 </div>
               ))}
             </div>
