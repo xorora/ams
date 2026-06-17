@@ -61,19 +61,17 @@ if ($null -eq $python) {
     throw "Python 3.9+ not found."
 }
 
-Push-Location $AppDir
-try {
-    if ($CheckOnly) {
-        & $python.Command @($python.Args + @("-m", "ebio_sync.updater", "--check"))
-    }
-    else {
-        & $python.Command @($python.Args + @("-m", "ebio_sync.updater", "--apply"))
-    }
+# Run the updater without changing into the install dir — that would lock files
+# during the directory swap on Windows.
+$env:PYTHONPATH = $AppDir
 
-    if ($LASTEXITCODE -ne 0) {
-        throw "Update command failed (exit $LASTEXITCODE)."
-    }
+if ($CheckOnly) {
+    & $python.Command @($python.Args + @("-m", "ebio_sync.updater", "--check"))
 }
-finally {
-    Pop-Location
+else {
+    & $python.Command @($python.Args + @("-m", "ebio_sync.updater", "--apply"))
+}
+
+if ($LASTEXITCODE -ne 0) {
+    throw "Update command failed (exit $LASTEXITCODE)."
 }

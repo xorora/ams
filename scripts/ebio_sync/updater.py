@@ -25,6 +25,7 @@ APP_DIR = PROGRAM_DATA_DIR / "app"
 STAGING_DIR = PROGRAM_DATA_DIR / "app_staging"
 BACKUP_DIR = PROGRAM_DATA_DIR / "app_backup"
 UPDATES_DIR = PROGRAM_DATA_DIR / "updates"
+APPLY_SWAP_SCRIPT = PROGRAM_DATA_DIR / "apply_update_swap.ps1"
 RESTART_SCRIPT = PROGRAM_DATA_DIR / "restart_service.ps1"
 
 MANIFEST_PATH = "/api/sync-agent/manifest"
@@ -196,6 +197,82 @@ def _swap_app_directories(staging_dir: Path) -> None:
         shutil.rmtree(BACKUP_DIR, ignore_errors=True)
 
 
+def _write_apply_swap_script() -> None:
+    root = str(PROGRAM_DATA_DIR).replace("'", "''")
+    script = f"""
+$ErrorActionPreference = "Stop"
+$Root = '{root}'
+$App = Join-Path $Root "app"
+$Staging = Join-Path $Root "app_staging"
+$Backup = Join-Path $Root "app_backup"
+
+# Let the updater process release file handles before renaming app/.
+Start-Sleep -Seconds 3
+
+try {{
+    Stop-Service -Name AMSBioSync -Force -ErrorAction SilentlyContinue
+}} catch {{
+    Write-Host "Stop-Service: $_"
+}}
+
+Start-Sleep -Seconds 2
+
+if (-not (Test-Path -LiteralPath $Staging -PathType Container)) {{
+    Write-Error "Staging directory not found: $Staging"
+    exit 1
+}}
+
+if (Test-Path -LiteralPath $Backup -PathType Container) {{
+    Remove-Item -LiteralPath $Backup -Recurse -Force
+}}
+
+if (Test-Path -LiteralPath $App -PathType Container) {{
+    Rename-Item -LiteralPath $App -NewName "app_backup"
+}}
+
+Rename-Item -LiteralPath $Staging -NewName "app"
+
+if (Test-Path -LiteralPath $Backup -PathType Container) {{
+    Remove-Item -LiteralPath $Backup -Recurse -Force
+}}
+
+try {{
+    Start-Service -Name AMSBioSync -ErrorAction Stop
+}} catch {{
+    Write-Host "Start-Service: $_"
+}}
+"""
+    APPLY_SWAP_SCRIPT.write_text(script.strip() + "\n", encoding="utf-8")
+
+
+def schedule_apply_swap() -> None:
+    """Finish install in a detached process after this Python process exits."""
+    if sys.platform != "win32":
+        _swap_app_directories(STAGING_DIR)
+        return
+
+    _write_apply_swap_script()
+    creationflags = 0
+    if hasattr(subprocess, "DETACHED_PROCESS"):
+        creationflags |= subprocess.DETACHED_PROCESS
+    if hasattr(subprocess, "CREATE_NEW_PROCESS_GROUP"):
+        creationflags |= subprocess.CREATE_NEW_PROCESS_GROUP
+
+    subprocess.Popen(
+        [
+            "powershell",
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(APPLY_SWAP_SCRIPT),
+        ],
+        creationflags=creationflags,
+        close_fds=True,
+    )
+    LOG.info("Scheduled background directory swap for update install.")
+
+
 def _write_restart_script() -> None:
     script = f"""
 $ErrorActionPreference = "Stop"
@@ -252,9 +329,9 @@ def apply_update(cfg: Config, manifest: dict[str, Any]) -> bool:
 
     _extract_bundle(bundle_path, STAGING_DIR)
     _install_requirements(STAGING_DIR)
-    _swap_app_directories(STAGING_DIR)
+    schedule_apply_swap()
 
-    LOG.info("Update %s installed successfully.", remote_version)
+    LOG.info("Update %s staged successfully.", remote_version)
     return True
 
 
@@ -285,7 +362,7 @@ def check_and_apply(cfg: Config, *, restart: bool = True) -> bool:
         return False
 
     apply_update(cfg, manifest)
-    if restart:
+    if restart and sys.platform != "win32":
         schedule_service_restart()
     return True
 
@@ -344,9 +421,14 @@ def main(argv: list[str] | None = None) -> int:
 
         remote_version = str(manifest["version"])
         apply_update(cfg, manifest)
-        if not args.no_restart:
-            schedule_service_restart()
-        print(f"Updated to v{remote_version}.")
+        if sys.platform == "win32":
+            print(
+                f"Update v{remote_version} staged; finishing install in the background."
+            )
+        else:
+            if not args.no_restart:
+                schedule_service_restart()
+            print(f"Updated to v{remote_version}.")
         return 0
 
     parser.print_help()
