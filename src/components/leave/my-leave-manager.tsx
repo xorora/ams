@@ -19,6 +19,7 @@ type MyLeaveManagerProps = {
   employeeName: string;
   designation?: string | null;
   department?: string | null;
+  canApply?: boolean;
   className?: string;
 };
 
@@ -29,6 +30,7 @@ export function MyLeaveManager({
   employeeName,
   designation,
   department,
+  canApply = true,
   className,
 }: MyLeaveManagerProps) {
   const [formOpen, setFormOpen] = useState(false);
@@ -105,19 +107,23 @@ export function MyLeaveManager({
 
   return (
     <div className={cn("flex min-h-0 flex-1 flex-col gap-6 overflow-hidden", className)}>
-      <div className="shrink-0 space-y-6">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h2 className="font-medium">Leave balance</h2>
-            <p className="text-muted-foreground text-sm">Your entitlements for the current year.</p>
+      {canApply ? (
+        <div className="shrink-0 space-y-6">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="font-medium">Leave balance</h2>
+              <p className="text-muted-foreground text-sm">
+                Your entitlements for the current year.
+              </p>
+            </div>
+            <Button type="button" onClick={openApply}>
+              Apply for leave
+            </Button>
           </div>
-          <Button type="button" onClick={openApply}>
-            Apply for leave
-          </Button>
-        </div>
 
-        <LeaveBalanceCards balances={balances} />
-      </div>
+          <LeaveBalanceCards balances={balances} />
+        </div>
+      ) : null}
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
         <h2 className="shrink-0 font-medium">My requests</h2>
@@ -144,20 +150,22 @@ export function MyLeaveManager({
         balances={balances}
       />
 
-      <LeaveSheet
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        form={form}
-        onFormChange={setForm}
-        saving={saving}
-        onSubmit={handleSubmit}
-        onCancel={closeForm}
-        companyName={companyName}
-        employeeName={employeeName}
-        designation={designation}
-        department={department}
-        balances={balances}
-      />
+      {canApply ? (
+        <LeaveSheet
+          open={formOpen}
+          onOpenChange={setFormOpen}
+          form={form}
+          onFormChange={setForm}
+          saving={saving}
+          onSubmit={handleSubmit}
+          onCancel={closeForm}
+          companyName={companyName}
+          employeeName={employeeName}
+          designation={designation}
+          department={department}
+          balances={balances}
+        />
+      ) : null}
     </div>
   );
 }

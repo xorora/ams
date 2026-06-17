@@ -15,6 +15,7 @@ type ReportDateToolbarProps = {
   exporting: boolean;
   fromInputId: string;
   toInputId: string;
+  showExport?: boolean;
 };
 
 export function ReportDateToolbar({
@@ -28,6 +29,7 @@ export function ReportDateToolbar({
   exporting,
   fromInputId,
   toInputId,
+  showExport = true,
 }: ReportDateToolbarProps) {
   return (
     <div className="flex flex-wrap items-end gap-3">
@@ -47,9 +49,11 @@ export function ReportDateToolbar({
       <Button type="button" variant="outline" onClick={onRefresh} disabled={loading}>
         Refresh
       </Button>
-      <Button type="button" onClick={onExport} disabled={exporting || loading}>
-        {exporting ? "Exporting…" : "Download Excel"}
-      </Button>
+      {showExport ? (
+        <Button type="button" onClick={onExport} disabled={exporting || loading}>
+          {exporting ? "Exporting…" : "Download Excel"}
+        </Button>
+      ) : null}
     </div>
   );
 }

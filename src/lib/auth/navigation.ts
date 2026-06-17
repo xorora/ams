@@ -31,14 +31,22 @@ export function getPostAuthRedirect(user: Session["user"]): string {
 
 export function getNavItemsForUser(
   user: Session["user"],
-  options?: { canAccessLeave?: boolean },
+  options?: { hasLinkedEmployee?: boolean },
 ): NavItem[] {
   const items: NavItem[] = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true },
   ];
 
-  if (options?.canAccessLeave) {
-    items.push({ href: "/leave", label: "Leave", icon: CalendarOff, exact: true });
+  if (options?.hasLinkedEmployee) {
+    items.push(
+      {
+        href: "/attendance/history",
+        label: "Attendance history",
+        icon: CalendarDays,
+        exact: true,
+      },
+      { href: "/leave", label: "Leave", icon: CalendarOff, exact: true },
+    );
   }
 
   if (user.role === "admin") {

@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { EmployeeDashboard } from "@/components/attendance/employee-dashboard";
+import { NewEmployeeCodeToast } from "@/components/auth/new-employee-code-toast";
 import { type SerializedTodayStatus, serializeTodayStatus } from "@/lib/attendance/serialize";
 import { getTodayStatus } from "@/lib/attendance/service";
 import { hasLinkedEmployee } from "@/lib/auth/attendance-access";
@@ -10,7 +12,7 @@ export default async function DashboardPage() {
   const session = await requireSession();
 
   if (needsEmployeeRegistration(session.user)) {
-    redirect("/");
+    redirect("/register");
   }
   const employeeId = session.user.employeeId;
   const canCheckIn = hasLinkedEmployee(session);
@@ -25,6 +27,9 @@ export default async function DashboardPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 p-8">
+      <Suspense fallback={null}>
+        <NewEmployeeCodeToast />
+      </Suspense>
       <div>
         <h1 className="text-2xl font-semibold">Dashboard</h1>
         <p className="mt-1 text-muted-foreground text-sm">

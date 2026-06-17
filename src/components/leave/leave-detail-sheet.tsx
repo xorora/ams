@@ -1,7 +1,9 @@
 "use client";
 
 import { LeaveFormDocument } from "@/components/leave/leave-form-document";
+import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { leaveStatusBadgeVariant, leaveStatusLabel } from "@/lib/leave/display";
 import type { SerializedLeaveRequest } from "@/lib/leave/serialize";
 import type { LeaveBalance } from "@/lib/leave/types";
 
@@ -32,7 +34,22 @@ export function LeaveDetailSheet({
         </SheetHeader>
 
         {request ? (
-          <div className="flex-1 overflow-y-auto px-1 pb-4">
+          <div className="flex-1 space-y-4 overflow-y-auto px-1 pb-4">
+            <div className="space-y-2 rounded-lg border bg-muted/30 p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-muted-foreground text-sm">Status</span>
+                <Badge variant={leaveStatusBadgeVariant(request.status)}>
+                  {leaveStatusLabel(request.status)}
+                </Badge>
+              </div>
+              {request.reviewNotes ? (
+                <p className="text-sm">
+                  <span className="text-muted-foreground">Review notes: </span>
+                  {request.reviewNotes}
+                </p>
+              ) : null}
+            </div>
+
             <LeaveFormDocument
               mode="view"
               companyName={companyName}

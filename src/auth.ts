@@ -1,13 +1,19 @@
 import { eq } from "drizzle-orm";
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import Google from "next-auth/providers/google";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { authenticateWithCredentials } from "@/lib/auth/credentials-auth";
+import { resolveUserOnSignIn } from "@/lib/auth/resolve-user";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   providers: [
+    Google({
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    }),
     Credentials({
       credentials: {
         employeeCode: { label: "Employee code", type: "text" },
@@ -57,15 +63,29 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     strategy: "jwt",
   },
   callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
+    signIn({ profile, account }) {
+      if (account?.provider === "google") {
+        return profile?.email_verified === true;
+      }
+      return true;
+    },
+    async jwt({ token, user, account, profile }) {
+      if (account?.provider === "google" && profile?.email && profile.sub) {
+        const dbUser = await resolveUserOnSignIn({
+          email: profile.email,
+          name: profile.name,
+          image: profile.picture,
+          googleSubject: profile.sub,
+        });
+
+        token.id = dbUser.id;
+        token.role = dbUser.role;
+        token.employeeId = dbUser.employeeId;
+      } else if (user) {
         token.id = user.id;
         token.role = user.role;
         token.employeeId = user.employeeId ?? null;
-        return token;
-      }
-
-      if (typeof token.id === "string") {
+      } else if (typeof token.id === "string") {
         const [dbUser] = await db
           .select({ role: users.role, employeeId: users.employeeId })
           .from(users)

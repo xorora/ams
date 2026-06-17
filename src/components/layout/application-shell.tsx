@@ -12,7 +12,7 @@ import { isPublicPath } from "@/lib/auth/navigation";
 
 type ApplicationShellProps = {
   user: Session["user"] | null | undefined;
-  canAccessLeave?: boolean;
+  hasLinkedEmployee?: boolean;
   companies?: CompanyOption[];
   selectedCompanyId?: string | null;
   children: React.ReactNode;
@@ -20,7 +20,7 @@ type ApplicationShellProps = {
 
 export function ApplicationShell({
   user,
-  canAccessLeave = false,
+  hasLinkedEmployee = false,
   companies = [],
   selectedCompanyId = null,
   children,
@@ -40,7 +40,7 @@ export function ApplicationShell({
   return (
     <TooltipProvider>
       <SidebarProvider className="h-svh overflow-hidden">
-        <AppSidebar user={user} canAccessLeave={canAccessLeave} />
+        <AppSidebar user={user} hasLinkedEmployee={hasLinkedEmployee} />
         <SidebarInset className="h-svh overflow-hidden">
           <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
             <SidebarTrigger className="-ml-1" />

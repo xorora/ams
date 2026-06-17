@@ -18,35 +18,10 @@ export default async function LeavePage() {
     return null;
   }
 
-  const canAccess = await canEmployeeAccessLeave(session.user);
-
-  if (!canAccess) {
-    const employeeResult = await getEmployee(employeeId);
-    const probationLabel = employeeResult.ok
-      ? getProbationStatusLabel(employeeResult.data)
-      : "On probation";
-
-    return (
-      <div className="mx-auto flex h-full min-h-0 w-full max-w-6xl flex-1 flex-col gap-6 overflow-hidden p-8">
-        <div>
-          <h1 className="text-2xl font-semibold">Leave</h1>
-          <p className="mt-1 text-muted-foreground text-sm">
-            Apply for annual, casual, and sick leave once your probation period is complete.
-          </p>
-        </div>
-
-        <Alert>
-          <AlertDescription>
-            Leave applications are not available during your probationary period. Current status:{" "}
-            <span className="font-medium">{probationLabel}</span>.
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
+  const canApply = await canEmployeeAccessLeave(session.user);
 
   const [balancesResult, requestsResult, employeeResult] = await Promise.all([
-    getLeaveBalances(employeeId),
+    canApply ? getLeaveBalances(employeeId) : Promise.resolve({ ok: true as const, data: [] }),
     listLeaveRequests({ employeeId }),
     getEmployee(employeeId),
   ]);
@@ -54,6 +29,7 @@ export default async function LeavePage() {
   const balances = balancesResult.ok ? balancesResult.data : [];
   const requests = requestsResult.data.map(serializeLeaveRequest);
   const employee = employeeResult.ok ? employeeResult.data : null;
+  const probationLabel = employee ? getProbationStatusLabel(employee) : "On probation";
   const [company] = employee
     ? await db
         .select({ name: companies.name })
@@ -67,10 +43,20 @@ export default async function LeavePage() {
       <div className="shrink-0">
         <h1 className="text-2xl font-semibold">Leave</h1>
         <p className="mt-1 text-muted-foreground text-sm">
-          Apply for leave and track your balance. Annual leave: 14 working days; casual leave: 10
-          days (approval required); sick leave: 8 days (approval and medical certificate required).
+          {canApply
+            ? "Apply for leave and track your balance. Annual leave: 14 working days; casual leave: 10 days (approval required); sick leave: 8 days (approval and medical certificate required)."
+            : "Track your leave request statuses. Applications are available after your probation period is complete."}
         </p>
       </div>
+
+      {!canApply ? (
+        <Alert>
+          <AlertDescription>
+            Leave applications are not available during your probationary period. Current status:{" "}
+            <span className="font-medium">{probationLabel}</span>.
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       <MyLeaveManager
         balances={balances}
@@ -79,6 +65,7 @@ export default async function LeavePage() {
         employeeName={employee?.fullName ?? session.user.name ?? "Employee"}
         designation={employee?.designation}
         department={employee?.department}
+        canApply={canApply}
         className="min-h-0 flex-1"
       />
     </div>

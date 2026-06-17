@@ -14,11 +14,11 @@ import { getNavItemsForUser } from "@/lib/auth/navigation";
 
 type AppSidebarProps = {
   user: Session["user"];
-  canAccessLeave?: boolean;
+  hasLinkedEmployee?: boolean;
 };
 
-export function AppSidebar({ user, canAccessLeave = false }: AppSidebarProps) {
-  const navItems = getNavItemsForUser(user, { canAccessLeave });
+export function AppSidebar({ user, hasLinkedEmployee = false }: AppSidebarProps) {
+  const navItems = getNavItemsForUser(user, { hasLinkedEmployee });
   const roleLabel = user.role === "admin" ? "Admin" : "Employee";
 
   return (

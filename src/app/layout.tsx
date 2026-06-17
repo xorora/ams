@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { DM_Sans, Space_Mono } from "next/font/google";
+import type { Session } from "next-auth";
 import { auth } from "@/auth";
 import { ApplicationShell } from "@/components/layout/application-shell";
 import { getCompanies, getSelectedCompanyId } from "@/lib/admin/selected-company";
-import { canEmployeeAccessLeave } from "@/lib/leave/access";
+import { hasLinkedEmployee } from "@/lib/auth/attendance-access";
 import "./globals.css";
 
 const fontSans = DM_Sans({
@@ -28,7 +29,9 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await auth();
-  const canAccessLeave = session?.user ? await canEmployeeAccessLeave(session.user) : false;
+  const linkedEmployee = session?.user
+    ? hasLinkedEmployee({ user: session.user } as Session)
+    : false;
   const isAdmin = session?.user?.role === "admin";
   const companies = isAdmin ? await getCompanies() : [];
   const selectedCompanyId = isAdmin ? await getSelectedCompanyId() : null;
@@ -38,7 +41,7 @@ export default async function RootLayout({
       <body className="min-h-svh font-sans">
         <ApplicationShell
           user={session?.user}
-          canAccessLeave={canAccessLeave}
+          hasLinkedEmployee={linkedEmployee}
           companies={companies}
           selectedCompanyId={selectedCompanyId}
         >

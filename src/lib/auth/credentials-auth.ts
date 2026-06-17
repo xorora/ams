@@ -1,7 +1,8 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { companies, employees, users } from "@/db/schema";
+import { employees, users } from "@/db/schema";
 import { defaultProbationValues } from "@/lib/admin/probation";
+import { getDefaultCompanyId } from "@/lib/auth/company";
 import { hashPassword, validatePassword, verifyPassword } from "@/lib/auth/password";
 
 export type CredentialsAuthInput = {
@@ -43,20 +44,6 @@ async function resolveBootstrapRole(email: string): Promise<"admin" | "employee"
     .where(eq(users.role, "admin"))
     .limit(1);
   return adminUser ? "employee" : "admin";
-}
-
-async function getDefaultCompanyId(): Promise<string> {
-  const [defaultCompany] = await db
-    .select({ id: companies.id })
-    .from(companies)
-    .where(eq(companies.slug, "xorora"))
-    .limit(1);
-
-  if (!defaultCompany) {
-    throw new Error("Default company is not configured.");
-  }
-
-  return defaultCompany.id;
 }
 
 async function assertEmployeeAvailable(

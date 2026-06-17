@@ -9,6 +9,7 @@ export default auth((req) => {
 
   const isProtectedPage =
     pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/attendance") ||
     pathname.startsWith("/leave") ||
     pathname.startsWith("/admin");
 
@@ -21,7 +22,17 @@ export default auth((req) => {
   }
 
   if (pathname === "/register") {
-    return NextResponse.redirect(new URL("/", req.nextUrl.origin));
+    if (!isLoggedIn) {
+      const signInUrl = new URL("/", req.nextUrl.origin);
+      signInUrl.searchParams.set("callbackUrl", "/register");
+      return NextResponse.redirect(signInUrl);
+    }
+
+    if (user && !needsEmployeeRegistration(user)) {
+      return NextResponse.redirect(new URL(getPostAuthRedirect(user), req.nextUrl.origin));
+    }
+
+    return NextResponse.next();
   }
 
   if (pathname === "/admin" && isLoggedIn && user) {
@@ -40,7 +51,10 @@ export default auth((req) => {
 
   if (user && needsEmployeeRegistration(user)) {
     const mustRegister =
-      pathname.startsWith("/dashboard") || pathname.startsWith("/leave") || isAttendanceApi;
+      pathname.startsWith("/dashboard") ||
+      pathname.startsWith("/attendance") ||
+      pathname.startsWith("/leave") ||
+      isAttendanceApi;
     if (mustRegister) {
       if (pathname.startsWith("/api/")) {
         return NextResponse.json(
@@ -48,7 +62,7 @@ export default auth((req) => {
           { status: 403 },
         );
       }
-      return NextResponse.redirect(new URL("/", req.nextUrl.origin));
+      return NextResponse.redirect(new URL("/register", req.nextUrl.origin));
     }
   }
 
@@ -66,6 +80,7 @@ export const config = {
     "/",
     "/register",
     "/dashboard/:path*",
+    "/attendance/:path*",
     "/leave",
     "/leave/:path*",
     "/admin",
