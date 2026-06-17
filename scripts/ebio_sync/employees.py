@@ -63,6 +63,11 @@ SELECT source_emp_id, card_no, employee_id, match_method, match_score
 FROM biometric_employee_mappings
 """
 
+DELETE_MAPPING_BY_SOURCE_SQL = """
+DELETE FROM biometric_employee_mappings
+WHERE source_emp_id = %(source_emp_id)s
+"""
+
 
 @dataclass(frozen=True)
 class NeonEmployee:
@@ -107,6 +112,7 @@ class NeonContext:
     by_card: dict[str, NeonEmployee]
     by_normalized_name: dict[str, list[NeonEmployee]]
     mappings_by_source: dict[int, PersistedMapping]
+    mappings_by_card: dict[str, PersistedMapping]
     company_ids: dict[str, str]
     taken_emails: set[str]
     taken_codes: set[str]
@@ -187,7 +193,8 @@ def _load_neon_context(pg_conn, cfg: Config) -> NeonContext:
 
         missing = [slug for slug in slugs if slug not in company_ids]
         if missing:
-            raise RuntimeError(f"Company slug(s) not found in Neon: {', '.join(missing)}")
+            raise RuntimeError(
+                f"Company slug(s) not found in Neon: {', '.join(missing)}")
 
         cur.execute(LOAD_EMPLOYEES_SQL, (slugs,))
         employees: list[NeonEmployee] = []
@@ -203,7 +210,8 @@ def _load_neon_context(pg_conn, cfg: Config) -> NeonContext:
                 employee_code=str(row[1]),
                 full_name=str(row[2]),
                 email=str(row[3]).lower(),
-                machine_card_no=str(row[4]).strip() if row[4] is not None else None,
+                machine_card_no=str(row[4]).strip(
+                ) if row[4] is not None else None,
                 company_slug=str(row[5]),
                 normalized_name=normalize_name(str(row[2])),
             )
@@ -217,6 +225,7 @@ def _load_neon_context(pg_conn, cfg: Config) -> NeonContext:
 
         cur.execute(LOAD_MAPPINGS_SQL)
         mappings_by_source: dict[int, PersistedMapping] = {}
+        mappings_by_card: dict[str, PersistedMapping] = {}
         for row in cur.fetchall():
             mapping = PersistedMapping(
                 source_emp_id=int(row[0]),
@@ -226,6 +235,7 @@ def _load_neon_context(pg_conn, cfg: Config) -> NeonContext:
                 match_score=float(row[4]) if row[4] is not None else None,
             )
             mappings_by_source[mapping.source_emp_id] = mapping
+            mappings_by_card[mapping.card_no] = mapping
 
     return NeonContext(
         employees=employees,
@@ -233,6 +243,7 @@ def _load_neon_context(pg_conn, cfg: Config) -> NeonContext:
         by_card=by_card,
         by_normalized_name=by_normalized_name,
         mappings_by_source=mappings_by_source,
+        mappings_by_card=mappings_by_card,
         company_ids=company_ids,
         taken_emails=taken_emails,
         taken_codes=taken_codes,
@@ -283,7 +294,8 @@ def match_machine_employee(
             mapping.employee_id,
         )
 
-    exact = _pick_exact_name_match(machine, ctx.by_normalized_name.get(normalized, []))
+    exact = _pick_exact_name_match(
+        machine, ctx.by_normalized_name.get(normalized, []))
     if exact is not None:
         return MatchOutcome(exact.id, "exact_name", None)
 
@@ -350,7 +362,8 @@ def _create_neon_employee(
         cur.execute(CREATE_EMPLOYEE_SQL, params)
         row = cur.fetchone()
         if row is None:
-            raise RuntimeError(f"Failed to create employee for source_emp_id={machine.source_emp_id}")
+            raise RuntimeError(
+                f"Failed to create employee for source_emp_id={machine.source_emp_id}")
         employee_id = str(row[0])
 
     pg_conn.commit()
@@ -375,7 +388,8 @@ def _create_neon_employee(
     ctx.employees.append(created)
     ctx.by_id[employee_id] = created
     ctx.by_card[machine.card_no] = created
-    ctx.by_normalized_name.setdefault(created.normalized_name, []).append(created)
+    ctx.by_normalized_name.setdefault(
+        created.normalized_name, []).append(created)
     return employee_id
 
 
@@ -390,10 +404,55 @@ def _update_machine_card_no(
         return True
 
     with pg_conn.cursor() as cur:
-        cur.execute(UPDATE_CARD_SQL, {"employee_id": employee_id, "card_no": card_no})
+        cur.execute(UPDATE_CARD_SQL, {
+                    "employee_id": employee_id, "card_no": card_no})
         updated = bool(cur.rowcount and cur.rowcount > 0)
     pg_conn.commit()
     return updated
+
+
+def _resolve_card_mapping_conflict(
+    machine: MachineEmployee,
+    ctx: NeonContext,
+    active_source_emp_ids: set[int],
+    pg_conn,
+    *,
+    dry_run: bool,
+) -> bool:
+    """Clear stale card mappings. Return False when two active employees share a card."""
+    existing = ctx.mappings_by_card.get(machine.card_no)
+    if existing is None or existing.source_emp_id == machine.source_emp_id:
+        return True
+
+    if existing.source_emp_id in active_source_emp_ids:
+        LOG.error(
+            "Card %s is assigned to two active machine employees "
+            "(source_emp_id=%s and %s); skipping %r.",
+            machine.card_no,
+            existing.source_emp_id,
+            machine.source_emp_id,
+            machine.emp_name,
+        )
+        return False
+
+    LOG.warning(
+        "Replacing stale mapping for card %s (source_emp_id=%s -> %s, %r).",
+        machine.card_no,
+        existing.source_emp_id,
+        machine.source_emp_id,
+        machine.emp_name,
+    )
+    if not dry_run:
+        with pg_conn.cursor() as cur:
+            cur.execute(
+                DELETE_MAPPING_BY_SOURCE_SQL,
+                {"source_emp_id": existing.source_emp_id},
+            )
+        pg_conn.commit()
+
+    ctx.mappings_by_source.pop(existing.source_emp_id, None)
+    ctx.mappings_by_card.pop(machine.card_no, None)
+    return True
 
 
 def _upsert_mapping(
@@ -438,6 +497,11 @@ def sync_employees(
     """Match or create machine employees in Neon and persist biometric mappings."""
     ctx = _load_neon_context(pg_conn, cfg)
     machine_rows = fetch_employees(access_conn)
+    active_source_emp_ids: set[int] = set()
+    for row in machine_rows:
+        machine = _parse_machine_row(row)
+        if machine is not None:
+            active_source_emp_ids.add(machine.source_emp_id)
 
     processed = 0
     stats: dict[str, int] = {
@@ -459,8 +523,10 @@ def sync_employees(
         try:
             outcome = match_machine_employee(machine, ctx, cfg)
             if outcome is None:
-                employee_id = _create_neon_employee(machine, ctx, cfg, pg_conn, dry_run=dry_run)
-                outcome = MatchOutcome(employee_id, "created", None, created=True)
+                employee_id = _create_neon_employee(
+                    machine, ctx, cfg, pg_conn, dry_run=dry_run)
+                outcome = MatchOutcome(
+                    employee_id, "created", None, created=True)
 
             existing = ctx.by_id.get(outcome.employee_id)
             needs_card_update = (
@@ -502,17 +568,37 @@ def sync_employees(
                         ctx.by_id[updated.id] = updated
                         ctx.by_card[machine.card_no] = updated
 
+            if not _resolve_card_mapping_conflict(
+                machine,
+                ctx,
+                active_source_emp_ids,
+                pg_conn,
+                dry_run=dry_run,
+            ):
+                stats["skipped"] += 1
+                continue
+
             _upsert_mapping(machine, outcome, pg_conn, dry_run=dry_run)
-            ctx.mappings_by_source[machine.source_emp_id] = PersistedMapping(
+            old_mapping = ctx.mappings_by_source.get(machine.source_emp_id)
+            if old_mapping is not None and old_mapping.card_no != machine.card_no:
+                ctx.mappings_by_card.pop(old_mapping.card_no, None)
+            mapping = PersistedMapping(
                 source_emp_id=machine.source_emp_id,
                 card_no=machine.card_no,
                 employee_id=outcome.employee_id,
                 match_method=outcome.match_method,
                 match_score=outcome.match_score,
             )
+            ctx.mappings_by_source[machine.source_emp_id] = mapping
+            ctx.mappings_by_card[machine.card_no] = mapping
             stats[outcome.match_method] += 1
             processed += 1
         except Exception:
+            try:
+                pg_conn.rollback()
+            except Exception:
+                LOG.debug("Rollback after employee sync failure.",
+                          exc_info=True)
             LOG.exception(
                 "Failed to sync machine employee source_emp_id=%s (%r).",
                 machine.source_emp_id,
