@@ -1,4 +1,8 @@
-import { getExpectedCheckOutAt } from "./rules";
+import {
+  type CompanyShiftConfig,
+  getCompanyShiftConfig,
+  getExpectedCheckOutAt,
+} from "./company-shift";
 
 export type OvertimeDayFields = {
   shiftDate: string;
@@ -16,16 +20,23 @@ export type OvertimeSnapshot = {
   elapsedSeconds: number;
 };
 
-export function getDefaultOvertimeStart(shiftDate: string): Date {
-  return getExpectedCheckOutAt(shiftDate);
+export function getDefaultOvertimeStart(
+  shiftDate: string,
+  config: CompanyShiftConfig = getCompanyShiftConfig("xorora"),
+): Date {
+  return getExpectedCheckOutAt(shiftDate, config);
 }
 
-export function isInOvertimePeriod(day: OvertimeDayFields, now: Date = new Date()): boolean {
+export function isInOvertimePeriod(
+  day: OvertimeDayFields,
+  now: Date = new Date(),
+  config: CompanyShiftConfig = getCompanyShiftConfig("xorora"),
+): boolean {
   if (!day.checkInAt) {
     return false;
   }
 
-  const threshold = getDefaultOvertimeStart(day.shiftDate);
+  const threshold = getDefaultOvertimeStart(day.shiftDate, config);
   if (day.checkOutAt) {
     return day.checkOutAt.getTime() > threshold.getTime();
   }
@@ -36,6 +47,7 @@ export function isInOvertimePeriod(day: OvertimeDayFields, now: Date = new Date(
 export function computeOvertimeSnapshot(
   day: OvertimeDayFields,
   now: Date = new Date(),
+  config: CompanyShiftConfig = getCompanyShiftConfig("xorora"),
 ): OvertimeSnapshot {
   const empty: OvertimeSnapshot = {
     isActive: false,
@@ -48,7 +60,7 @@ export function computeOvertimeSnapshot(
     return empty;
   }
 
-  const defaultStart = getDefaultOvertimeStart(day.shiftDate);
+  const defaultStart = getDefaultOvertimeStart(day.shiftDate, config);
   const hasActiveOvertime = !day.checkOutAt && now.getTime() > defaultStart.getTime();
   const hasCompletedOvertime =
     day.checkOutAt != null && day.checkOutAt.getTime() > defaultStart.getTime();
@@ -96,8 +108,9 @@ export function overtimeFieldsOnCheckout(
   shiftDate: string,
   checkOutAt: Date,
   existingStartedAt: Date | null,
+  config: CompanyShiftConfig = getCompanyShiftConfig("xorora"),
 ): OvertimePersistFields | null {
-  const defaultStart = getDefaultOvertimeStart(shiftDate);
+  const defaultStart = getDefaultOvertimeStart(shiftDate, config);
   if (checkOutAt.getTime() <= defaultStart.getTime()) {
     return null;
   }
@@ -120,6 +133,7 @@ export function overtimeFieldsFromTimes(
   checkInAt: Date | null,
   checkOutAt: Date | null,
   existing: Pick<OvertimeDayFields, "overtimeStartedAt" | "overtimeEndedAt" | "overtimeSeconds">,
+  config: CompanyShiftConfig = getCompanyShiftConfig("xorora"),
 ): {
   overtimeStartedAt: Date | null;
   overtimeEndedAt: Date | null;
@@ -137,6 +151,7 @@ export function overtimeFieldsFromTimes(
     shiftDate,
     checkOutAt,
     existing.overtimeStartedAt ?? null,
+    config,
   );
   if (!computed) {
     return {

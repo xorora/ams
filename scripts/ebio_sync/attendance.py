@@ -50,8 +50,8 @@ COMPANY_SHIFT_BY_SLUG: dict[str, CompanyShiftConfig] = {
     "crest-led": CompanyShiftConfig(
         expected_check_in_hour=9,
         expected_check_in_minute=0,
-        check_in_grace_minutes=15,
-        check_out_grace_minutes=15,
+        check_in_grace_minutes=CHECK_IN_GRACE_MINUTES,
+        check_out_grace_minutes=CHECK_OUT_GRACE_MINUTES,
         expected_check_out_hour=17,
         expected_check_out_minute=0,
         check_out_next_day=False,

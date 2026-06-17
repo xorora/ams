@@ -2,15 +2,16 @@
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { EXPECTED_CHECK_OUT_TIME_PKT } from "@/lib/attendance/constants";
 
 type EmployeeEarlyCheckoutAlertProps = {
+  expectedCheckOutTime: string;
   acting: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 };
 
 export function EmployeeEarlyCheckoutAlert({
+  expectedCheckOutTime,
   acting,
   onConfirm,
   onCancel,
@@ -19,8 +20,7 @@ export function EmployeeEarlyCheckoutAlert({
     <Alert className="border-amber-300 bg-amber-50 text-amber-950">
       <AlertTitle>Early check-out</AlertTitle>
       <AlertDescription>
-        You are checking out before {EXPECTED_CHECK_OUT_TIME_PKT}. This will be recorded as early
-        leave.
+        You are checking out before {expectedCheckOutTime}. This will be recorded as early leave.
       </AlertDescription>
       <div className="mt-4 flex flex-wrap gap-2 px-4 pb-4">
         <Button variant="destructive" disabled={acting} onClick={onConfirm}>

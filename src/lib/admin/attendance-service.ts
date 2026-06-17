@@ -1,8 +1,12 @@
 import { and, desc, eq, gte, lte, type SQL } from "drizzle-orm";
 import { db } from "@/db";
-import { attendanceDays, employees } from "@/db/schema";
+import { attendanceDays, companies, employees } from "@/db/schema";
+import {
+  getCompanyShiftConfig,
+  isEarlyLeaveForCompany,
+  isLateCheckInForCompany,
+} from "@/lib/attendance/company-shift";
 import { overtimeFieldsFromTimes, overtimeFieldsOnCheckout } from "@/lib/attendance/overtime";
-import { isEarlyLeave, isLateCheckIn } from "@/lib/attendance/rules";
 import { adminFailure, type ServiceFailure, type ServiceSuccess } from "./types";
 
 export type { EmployeeRecord } from "./employees-service";
@@ -107,6 +111,17 @@ async function getActiveEmployee(
     return adminFailure(404, "EMPLOYEE_NOT_FOUND", "Employee not found.");
   }
   return { ok: true, data: employee };
+}
+
+async function getEmployeeShiftConfig(employeeId: string) {
+  const [row] = await db
+    .select({ slug: companies.slug })
+    .from(employees)
+    .innerJoin(companies, eq(employees.companyId, companies.id))
+    .where(eq(employees.id, employeeId))
+    .limit(1);
+
+  return getCompanyShiftConfig(row?.slug ?? "xorora");
 }
 
 function mapAttendanceRow(
@@ -281,11 +296,16 @@ export async function createAttendance(
   }
 
   const status = input.status ?? (checkInAt ? "present" : "absent");
-  const isLate = checkInAt ? isLateCheckIn(checkInAt, shiftDateResult.data) : false;
+  const shiftConfig = await getEmployeeShiftConfig(input.employeeId);
+  const isLate = checkInAt
+    ? isLateCheckInForCompany(checkInAt, shiftDateResult.data, shiftConfig)
+    : false;
   const earlyLeave =
-    checkOutAt && checkInAt ? isEarlyLeave(checkOutAt, shiftDateResult.data) : false;
+    checkOutAt && checkInAt
+      ? isEarlyLeaveForCompany(checkOutAt, shiftDateResult.data, shiftConfig)
+      : false;
   const overtime = checkOutAt
-    ? overtimeFieldsOnCheckout(shiftDateResult.data, checkOutAt, null)
+    ? overtimeFieldsOnCheckout(shiftDateResult.data, checkOutAt, null, shiftConfig)
     : null;
   const now = new Date();
 
@@ -323,6 +343,7 @@ export async function updateAttendance(
   }
 
   const row = current.data;
+  const shiftConfig = await getEmployeeShiftConfig(row.employeeId);
   const now = new Date();
   const updates: Partial<typeof attendanceDays.$inferInsert> = {
     source: "manual",
@@ -377,13 +398,13 @@ export async function updateAttendance(
   if (input.isLate !== undefined) {
     updates.isLate = input.isLate;
   } else if (input.checkInAt !== undefined && nextCheckIn) {
-    updates.isLate = isLateCheckIn(nextCheckIn, row.shiftDate);
+    updates.isLate = isLateCheckInForCompany(nextCheckIn, row.shiftDate, shiftConfig);
   }
 
   if (input.isEarlyLeave !== undefined) {
     updates.isEarlyLeave = input.isEarlyLeave;
   } else if (input.checkOutAt !== undefined && nextCheckOut) {
-    updates.isEarlyLeave = isEarlyLeave(nextCheckOut, row.shiftDate);
+    updates.isEarlyLeave = isEarlyLeaveForCompany(nextCheckOut, row.shiftDate, shiftConfig);
   }
 
   const overtimeStartedAt = parseOptionalDate(input.overtimeStartedAt);
@@ -403,11 +424,17 @@ export async function updateAttendance(
     return adminFailure(400, "INVALID_OVERTIME", "Overtime duration cannot be negative.");
   }
 
-  const autoOvertime = overtimeFieldsFromTimes(row.shiftDate, nextCheckIn, nextCheckOut, {
-    overtimeStartedAt: row.overtimeStartedAt,
-    overtimeEndedAt: row.overtimeEndedAt,
-    overtimeSeconds: row.overtimeSeconds,
-  });
+  const autoOvertime = overtimeFieldsFromTimes(
+    row.shiftDate,
+    nextCheckIn,
+    nextCheckOut,
+    {
+      overtimeStartedAt: row.overtimeStartedAt,
+      overtimeEndedAt: row.overtimeEndedAt,
+      overtimeSeconds: row.overtimeSeconds,
+    },
+    shiftConfig,
+  );
 
   let nextOvertimeStart = autoOvertime.overtimeStartedAt;
   let nextOvertimeEnd = autoOvertime.overtimeEndedAt;

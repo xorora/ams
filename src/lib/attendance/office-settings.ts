@@ -8,7 +8,8 @@ import { parseOfficeGeofenceFromEnv } from "./office-env";
 export type { OfficeGeofenceResult };
 
 /**
- * Office geofence from `office_settings` (single row). Seeds from env on first use when empty.
+ * Shared office geofence from `office_settings` (single row for both companies).
+ * Seeds from env on first use when empty.
  */
 export async function getOfficeGeofence(): Promise<OfficeGeofenceResult> {
   const [row] = await db.select().from(officeSettings).limit(1);

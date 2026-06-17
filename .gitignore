@@ -40,6 +40,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# sync-agent build output (generated during next build)
+/generated/
+
 # typescript
 *.tsbuildinfo
 AttendanceTracker11.8_Ebio

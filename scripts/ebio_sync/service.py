@@ -17,6 +17,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
+import time
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -49,7 +50,8 @@ def configure_service_logging(*, verbose: bool = False) -> None:
     LOG_DIR.mkdir(parents=True, exist_ok=True)
 
     level = logging.DEBUG if verbose else logging.INFO
-    formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s")
+    formatter = logging.Formatter(
+        "%(asctime)s %(levelname)s %(name)s %(message)s")
 
     root = logging.getLogger("ebio_sync")
     root.setLevel(level)
@@ -91,11 +93,14 @@ if sys.platform == "win32":
     def _run_sync_loop(stop_event, cfg: Config) -> None:
         """Run ``pipeline.run_once`` repeatedly until *stop_event* is signaled."""
         interval_sec = max(5, cfg.sync_interval)
+        update_interval_sec = max(300, cfg.update_interval)
         full = False
+        last_update_check = 0.0
 
         LOG.info(
-            "Service loop started | interval=%ss | mdb=%s | tz=%s | log=%s",
+            "Service loop started | interval=%ss | update_check=%ss | mdb=%s | tz=%s | log=%s",
             interval_sec,
+            update_interval_sec,
             cfg.mdb_path,
             cfg.tz.key,
             LOG_FILE,
@@ -106,6 +111,21 @@ if sys.platform == "win32":
                 LOG.info("Stop requested before sync pass; exiting loop.")
                 break
 
+            now = time.time()
+            if cfg.update_url and now - last_update_check >= update_interval_sec:
+                last_update_check = now
+                try:
+                    from ebio_sync.updater import check_and_apply
+
+                    if check_and_apply(cfg, restart=True):
+                        LOG.info(
+                            "Update applied; exiting loop for service restart.")
+                        break
+                except Exception as exc:  # noqa: BLE001 - keep the service alive
+                    LOG.exception("Update check failed.")
+                    _log_event_error(
+                        f"{SERVICE_NAME}: update check failed: {exc}")
+
             try:
                 LOG.info("Starting sync pass (full=%s).", full)
                 results = run_once(cfg, full=full, dry_run=False)
@@ -115,7 +135,8 @@ if sys.platform == "win32":
                 LOG.exception("Sync pass failed.")
                 _log_event_error(f"{SERVICE_NAME}: sync pass failed: {exc}")
 
-            rc = win32event.WaitForSingleObject(stop_event, interval_sec * 1000)
+            rc = win32event.WaitForSingleObject(
+                stop_event, interval_sec * 1000)
             if rc == win32event.WAIT_OBJECT_0:
                 LOG.info("Stop signal received; exiting sync loop.")
                 break
@@ -144,7 +165,8 @@ if sys.platform == "win32":
             try:
                 self.main()
             except Exception as exc:
-                _log_event_error(f"{SERVICE_NAME} terminated unexpectedly: {exc}")
+                _log_event_error(
+                    f"{SERVICE_NAME} terminated unexpectedly: {exc}")
                 LOG.exception("Service main loop exited with error.")
                 raise
             finally:

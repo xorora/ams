@@ -2,9 +2,18 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { attendanceDays, breakSessions, employees } from "@/db/schema";
 import { isWeekendDate } from "@/lib/leave/working-days";
-import { EXPECTED_CHECK_OUT_TIME_PKT } from "./constants";
+import {
+  getCompanyShiftConfig,
+  getShiftDateForCompany,
+  getShiftScheduleLabels,
+  isEarlyLeaveForCompany,
+} from "./company-shift";
 import type { Coordinates } from "./coords";
-import { requireActiveEmployee, requireWithinGeofence } from "./employee-access";
+import {
+  getEmployeeCompanySlug,
+  requireActiveEmployee,
+  requireWithinGeofence,
+} from "./employee-access";
 import {
   buildLateCheckInMessage,
   countMonthlyLatesBeforeCheckIn,
@@ -22,8 +31,6 @@ import {
   canStartBreak,
   computeTotalBreakSeconds,
   getActiveBreak,
-  getShiftDate,
-  isEarlyLeave,
 } from "./rules";
 import {
   type AttendanceDaySnapshot,
@@ -94,16 +101,17 @@ async function loadShiftAttendance(employeeId: string, shiftDate: string) {
 async function ensureOvertimeStarted(
   day: typeof attendanceDays.$inferSelect,
   now: Date,
+  shiftConfig: ReturnType<typeof getCompanyShiftConfig>,
 ): Promise<AttendanceDaySnapshot> {
   const snapshot = toDaySnapshot(day);
 
   if (
     day.checkInAt &&
     !day.checkOutAt &&
-    isInOvertimePeriod(snapshot, now) &&
+    isInOvertimePeriod(snapshot, now, shiftConfig) &&
     !day.overtimeStartedAt
   ) {
-    const overtimeStartedAt = getDefaultOvertimeStart(day.shiftDate);
+    const overtimeStartedAt = getDefaultOvertimeStart(day.shiftDate, shiftConfig);
     await db
       .update(attendanceDays)
       .set({ overtimeStartedAt, updatedAt: now })
@@ -137,17 +145,23 @@ async function guardEmployeeAndGeofence(
   return { ok: true, data: { employee: employeeResult.employee } };
 }
 
+async function loadEmployeeShiftConfig(employeeId: string) {
+  const companySlug = await getEmployeeCompanySlug(employeeId);
+  return getCompanyShiftConfig(companySlug ?? "xorora");
+}
+
 export async function getTodayStatus(
   employeeId: string,
 ): Promise<ServiceSuccess<TodayStatusPayload>> {
   const now = new Date();
-  const shiftDate = getShiftDate(now);
+  const shiftConfig = await loadEmployeeShiftConfig(employeeId);
+  const shiftDate = getShiftDateForCompany(now, shiftConfig);
   const { day, sessions, rawDay } = await loadShiftAttendance(employeeId, shiftDate);
-  const resolvedDay = rawDay && day ? await ensureOvertimeStarted(rawDay, now) : day;
+  const resolvedDay = rawDay && day ? await ensureOvertimeStarted(rawDay, now, shiftConfig) : day;
   const monthlyLate = await getEmployeeMonthlyLateSummary(employeeId, shiftDate, {
     includeTodayLate: true,
   });
-  const status = buildTodayStatus(resolvedDay, sessions, monthlyLate, now);
+  const status = buildTodayStatus(resolvedDay, sessions, monthlyLate, shiftConfig, now);
 
   const [employee] = await db
     .select({ isActive: employees.isActive })
@@ -184,7 +198,8 @@ export async function checkIn(
   }
 
   const now = new Date();
-  const shiftDate = getShiftDate(now);
+  const shiftConfig = await loadEmployeeShiftConfig(employeeId);
+  const shiftDate = getShiftDateForCompany(now, shiftConfig);
   if (isWeekendDate(shiftDate)) {
     return weekendOffFailure();
   }
@@ -199,7 +214,7 @@ export async function checkIn(
     return failure(409, "SHIFT_COMPLETE", "This shift is already complete.");
   }
 
-  const isLate = lateFlagForCheckIn(now, shiftDate);
+  const isLate = lateFlagForCheckIn(now, shiftDate, shiftConfig);
   const priorMonthlyLates = isLate
     ? await countMonthlyLatesBeforeCheckIn(employeeId, shiftDate)
     : 0;
@@ -247,7 +262,9 @@ export async function checkOut(
   }
 
   const now = new Date();
-  const shiftDate = getShiftDate(now);
+  const shiftConfig = await loadEmployeeShiftConfig(employeeId);
+  const shiftSchedule = getShiftScheduleLabels(shiftConfig);
+  const shiftDate = getShiftDateForCompany(now, shiftConfig);
   const { day, sessions } = await loadShiftAttendance(employeeId, shiftDate);
 
   if (!day?.checkInAt) {
@@ -270,12 +287,12 @@ export async function checkOut(
     return failure(400, "BREAK_ACTIVE", "End your break before checking out.");
   }
 
-  const early = isEarlyLeave(now, day.shiftDate);
+  const early = isEarlyLeaveForCompany(now, day.shiftDate, shiftConfig);
   if (early && !options?.confirmEarlyLeave) {
     return failure(
       409,
       "EARLY_LEAVE_CONFIRM_REQUIRED",
-      `Checking out now is before ${EXPECTED_CHECK_OUT_TIME_PKT} and will be marked as early leave. Confirm to proceed.`,
+      `Checking out now is before ${shiftSchedule.expectedCheckOutTime} and will be marked as early leave. Confirm to proceed.`,
     );
   }
 
@@ -286,7 +303,7 @@ export async function checkOut(
       checkOutLat: coords.lat,
       checkOutLng: coords.lng,
       isEarlyLeave: early,
-      ...(overtimeFieldsOnCheckout(day.shiftDate, now, day.overtimeStartedAt) ?? {
+      ...(overtimeFieldsOnCheckout(day.shiftDate, now, day.overtimeStartedAt, shiftConfig) ?? {
         overtimeStartedAt: null,
         overtimeEndedAt: null,
         overtimeSeconds: null,
@@ -296,9 +313,13 @@ export async function checkOut(
     .where(eq(attendanceDays.id, day.id));
 
   const status = await getTodayStatus(employeeId);
-  const overtime = computeOvertimeSnapshot({ ...day, checkOutAt: now, overtimeEndedAt: now }, now);
+  const overtime = computeOvertimeSnapshot(
+    { ...day, checkOutAt: now, overtimeEndedAt: now },
+    now,
+    shiftConfig,
+  );
   const message = early
-    ? `Checked out. Early leave recorded (before ${EXPECTED_CHECK_OUT_TIME_PKT}).`
+    ? `Checked out. Early leave recorded (before ${shiftSchedule.expectedCheckOutTime}).`
     : overtime.elapsedSeconds > 0
       ? `Checked out. Overtime recorded (${Math.ceil(overtime.elapsedSeconds / 60)} min).`
       : "Checked out successfully.";
@@ -316,7 +337,8 @@ export async function startBreak(
   }
 
   const now = new Date();
-  const shiftDate = getShiftDate(now);
+  const shiftConfig = await loadEmployeeShiftConfig(employeeId);
+  const shiftDate = getShiftDateForCompany(now, shiftConfig);
   const { day, sessions } = await loadShiftAttendance(employeeId, shiftDate);
 
   if (!day?.checkInAt) {
@@ -351,7 +373,8 @@ export async function endBreak(
   }
 
   const now = new Date();
-  const shiftDate = getShiftDate(now);
+  const shiftConfig = await loadEmployeeShiftConfig(employeeId);
+  const shiftDate = getShiftDateForCompany(now, shiftConfig);
   const { day, sessions } = await loadShiftAttendance(employeeId, shiftDate);
 
   if (!day?.checkInAt) {

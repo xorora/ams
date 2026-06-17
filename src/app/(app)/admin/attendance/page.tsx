@@ -52,8 +52,9 @@ export default async function AdminAttendancePage({ searchParams }: PageProps) {
       <div className="shrink-0">
         <h1 className="text-2xl font-semibold">Attendance</h1>
         <p className="mt-1 text-muted-foreground text-sm">
-          Shift dates follow the night-shift model (keyed by 6 PM check-in date in PKT). Times below
-          are shown in Asia/Karachi.
+          Shift dates and expected times depend on the selected company (Xorora night shift vs Crest
+          LED day shift). Geofence, break limits, late fines, and other HR rules are shared. Times
+          below are shown in Asia/Karachi.
         </p>
       </div>
 

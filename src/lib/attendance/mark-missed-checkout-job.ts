@@ -1,14 +1,9 @@
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { attendanceDays, breakSessions } from "@/db/schema";
+import { attendanceDays, breakSessions, companies, employees } from "@/db/schema";
+import { getCompanyShiftConfig, isPastMissedCheckOutDeadlineForCompany } from "./company-shift";
 import { shouldAutoMarkMissedCheckout } from "./mark-absent-eligibility";
-import {
-  type BreakSessionInput,
-  computeTotalBreakSeconds,
-  getActiveBreak,
-  getAutoAbsentShiftDate,
-  isPastMissedCheckOutDeadline,
-} from "./rules";
+import { type BreakSessionInput, computeTotalBreakSeconds, getActiveBreak } from "./rules";
 
 export type MarkMissedCheckoutJobResult = {
   shiftDate: string;
@@ -71,12 +66,6 @@ async function closeActiveBreak(
 export async function runMarkMissedCheckoutJob(
   runAt: Date = new Date(),
 ): Promise<MarkMissedCheckoutJobResult> {
-  const shiftDate = getAutoAbsentShiftDate(runAt);
-
-  if (!isPastMissedCheckOutDeadline(runAt, shiftDate)) {
-    return { shiftDate, marked: 0, skipped: 0 };
-  }
-
   const openDays = await db
     .select({
       id: attendanceDays.id,
@@ -88,20 +77,25 @@ export async function runMarkMissedCheckoutJob(
       source: attendanceDays.source,
       isMissedCheckout: attendanceDays.isMissedCheckout,
       notes: attendanceDays.notes,
+      companySlug: companies.slug,
     })
     .from(attendanceDays)
-    .where(
-      and(
-        eq(attendanceDays.shiftDate, shiftDate),
-        isNotNull(attendanceDays.checkInAt),
-        isNull(attendanceDays.checkOutAt),
-      ),
-    );
+    .innerJoin(employees, eq(attendanceDays.employeeId, employees.id))
+    .innerJoin(companies, eq(employees.companyId, companies.id))
+    .where(and(isNotNull(attendanceDays.checkInAt), isNull(attendanceDays.checkOutAt)));
 
   let marked = 0;
   let skipped = 0;
+  const shiftDates = new Set<string>();
 
   for (const day of openDays) {
+    shiftDates.add(day.shiftDate);
+    const config = getCompanyShiftConfig(day.companySlug);
+    if (!isPastMissedCheckOutDeadlineForCompany(runAt, day.shiftDate, config)) {
+      skipped += 1;
+      continue;
+    }
+
     if (!shouldAutoMarkMissedCheckout(day)) {
       skipped += 1;
       continue;
@@ -136,5 +130,9 @@ export async function runMarkMissedCheckoutJob(
     marked += 1;
   }
 
-  return { shiftDate, marked, skipped };
+  return {
+    shiftDate: [...shiftDates].sort().join(", ") || "none",
+    marked,
+    skipped,
+  };
 }

@@ -39,9 +39,11 @@ the **AMS Biometric Sync** Windows service (`AMSBioSync`).
 | --- | --- |
 | Service name | `AMSBioSync` |
 | Display name | AMS Biometric Sync |
+| Installed app | `%ProgramData%\AMSBioSync\app\` |
 | Config | `%ProgramData%\AMSBioSync\.env` |
 | Logs | `%ProgramData%\AMSBioSync\logs\sync.log` |
-| Default interval | 15 minutes (`EBIO_SYNC_INTERVAL=900`) |
+| Default sync interval | 15 minutes (`EBIO_SYNC_INTERVAL=900`) |
+| Default update check | 6 hours (`EBIO_UPDATE_INTERVAL=21600`) |
 
 The service runs as **Local System** by default. If it cannot read
 `attendance_db.mdb` (e.g. the file is under a user Desktop), open
@@ -57,7 +59,56 @@ py -m ebio_sync.service stop
 py -m ebio_sync.service remove
 ```
 
-Remove `%ProgramData%\AMSBioSync` manually if you no longer need config or logs.
+Remove `%ProgramData%\AMSBioSync` manually if you no longer need config, logs, or the installed app.
+
+## Auto-updates
+
+After the initial manual install, Windows machines keep themselves up to date.
+
+1. Each Vercel deploy packages `scripts/` into `generated/sync-agent/bundle.zip`
+2. The service checks `GET /api/sync-agent/manifest` on a fixed schedule
+3. If the remote version is newer, it downloads the bundle, verifies sha256, swaps
+   `%ProgramData%\AMSBioSync\app\`, reinstalls Python deps if needed, and restarts
+   the `AMSBioSync` service
+
+### AMS (Vercel) setup
+
+Add to your Vercel environment variables:
+
+| Variable | Purpose |
+| --- | --- |
+| `EBIO_UPDATE_TOKEN` | Shared secret for bundle downloads (generate with `openssl rand -base64 32`) |
+
+The manifest endpoint is public. The bundle endpoint requires
+`Authorization: Bearer <EBIO_UPDATE_TOKEN>`.
+
+### Windows machine config
+
+`install.ps1` writes these into `%ProgramData%\AMSBioSync\.env`:
+
+| Variable | Purpose |
+| --- | --- |
+| `EBIO_UPDATE_URL` | AMS production URL, e.g. `https://ams.xorora.com` |
+| `EBIO_UPDATE_TOKEN` | Same value as on Vercel |
+| `EBIO_UPDATE_INTERVAL` | Seconds between update checks (default `21600`) |
+
+### Manual update commands
+
+```powershell
+cd $env:ProgramData\AMSBioSync\app
+.\update.ps1 -CheckOnly
+.\update.ps1
+```
+
+Or:
+
+```powershell
+py -m ebio_sync.updater --check
+py -m ebio_sync.updater --apply
+```
+
+Bump `ebio_sync/__init__.py` `__version__` whenever sync logic changes so deployed
+bundles are detected as newer.
 
 ## Manual CLI (debugging)
 
@@ -110,6 +161,11 @@ Environment variables (see `.env.example`):
 | `EBIO_NAME_MATCH_THRESHOLD` | no | `85` | Fuzzy name match minimum score (0–100) |
 | `EBIO_BATCH_SIZE` | no | `500` | Rows per upsert batch |
 | `EBIO_VERBOSE` | no | — | `1`/`true`/`yes` for debug service logging |
+| `EBIO_UPDATE_URL` | yes* | — | AMS production URL for auto-updates |
+| `EBIO_UPDATE_TOKEN` | yes* | — | Shared secret (must match Vercel `EBIO_UPDATE_TOKEN`) |
+| `EBIO_UPDATE_INTERVAL` | no | `21600` | Seconds between update checks |
+
+\* Required for auto-updates after the initial install.
 
 Config file search order: `%ProgramData%\AMSBioSync\.env` then `scripts/.env`.
 Already-set environment variables are not overwritten by `.env` files.
@@ -138,7 +194,8 @@ Incremental watermark on `MAX(source_punch_id)` in Neon. Upserts use
 ### Attendance derivation
 
 After relink, linked punches are grouped by `(employee_id, shift_date)` using
-**per-company shift rules**:
+**per-company shift rules**. Geofence, grace periods, break limits, late fines, and
+other HR policies are the same for both companies — only expected shift times differ:
 
 | Company | Shift | Expected in | Expected out | Shift-date boundary |
 | --- | --- | --- | --- | --- |
@@ -155,6 +212,8 @@ are never overwritten.
 ```
 scripts/
   install.ps1           # interactive Windows service installer
+  update.ps1            # manual update check/apply
+  package-bundle.mjs    # packages app for Vercel deploy (run via bun run build)
   ebio_sync.py          # thin CLI wrapper
   requirements.txt
   ebio_sync/
@@ -164,6 +223,7 @@ scripts/
     punches.py          # punch sync + relink
     attendance.py       # attendance_days derivation
     pipeline.py         # orchestrates one sync pass
+    updater.py          # download + apply remote updates
     service.py          # Windows service (pywin32)
 ```
 

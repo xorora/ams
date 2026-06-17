@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { employees } from "@/db/schema";
+import { companies, employees } from "@/db/schema";
 import type { Coordinates } from "./coords";
 import { isWithinOfficeRadius } from "./geofence";
 import { getOfficeGeofence } from "./office-settings";
@@ -41,6 +41,17 @@ export async function requireActiveEmployee(
   }
 
   return { ok: true, employee };
+}
+
+export async function getEmployeeCompanySlug(employeeId: string): Promise<string | null> {
+  const [row] = await db
+    .select({ slug: companies.slug })
+    .from(employees)
+    .innerJoin(companies, eq(employees.companyId, companies.id))
+    .where(eq(employees.id, employeeId))
+    .limit(1);
+
+  return row?.slug ?? null;
 }
 
 export async function requireWithinGeofence(

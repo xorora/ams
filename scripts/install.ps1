@@ -4,8 +4,9 @@
     Interactive installer for the AMS Biometric Sync Windows service.
 
 .DESCRIPTION
-    Prompts for configuration, writes %ProgramData%\AMSBioSync\.env, installs Python
-    dependencies, and registers + starts the AMSBioSync Windows service.
+    Prompts for configuration, copies the sync app to %ProgramData%\AMSBioSync\app\,
+    writes %ProgramData%\AMSBioSync\.env, installs Python dependencies, and registers
+    + starts the AMSBioSync Windows service.
 
     Run from an elevated (Administrator) PowerShell session:
 
@@ -18,10 +19,18 @@ $ErrorActionPreference = "Stop"
 
 $ScriptDir = $PSScriptRoot
 $ProgramDataDir = Join-Path $env:ProgramData "AMSBioSync"
+$AppDir = Join-Path $ProgramDataDir "app"
 $EnvFile = Join-Path $ProgramDataDir ".env"
 $LogDir = Join-Path $ProgramDataDir "logs"
-$RequirementsFile = Join-Path $ScriptDir "requirements.txt"
+$RequirementsFile = Join-Path $AppDir "requirements.txt"
 $ServiceModule = "ebio_sync.service"
+
+$AppPaths = @(
+    "ebio_sync",
+    "ebio_sync.py",
+    "requirements.txt",
+    "update.ps1"
+)
 
 function Test-Administrator {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
@@ -148,6 +157,39 @@ function Get-ServiceStatusSafe([string]$ServiceName) {
     return $service
 }
 
+function Copy-AppFiles {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SourceDir,
+
+        [Parameter(Mandatory = $true)]
+        [string]$TargetDir
+    )
+
+    if (Test-Path -LiteralPath $TargetDir) {
+        Remove-Item -LiteralPath $TargetDir -Recurse -Force
+    }
+    New-Item -ItemType Directory -Force -Path $TargetDir | Out-Null
+
+    foreach ($relativePath in $AppPaths) {
+        $sourcePath = Join-Path $SourceDir $relativePath
+        $targetPath = Join-Path $TargetDir $relativePath
+
+        if (-not (Test-Path -LiteralPath $sourcePath)) {
+            throw "Required app file not found: $sourcePath"
+        }
+
+        if ((Get-Item -LiteralPath $sourcePath).PSIsContainer) {
+            Copy-Item -LiteralPath $sourcePath -Destination $targetPath -Recurse -Force
+            Get-ChildItem -LiteralPath $targetPath -Recurse -Directory -Filter "__pycache__" |
+                Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+            continue
+        }
+
+        Copy-Item -LiteralPath $sourcePath -Destination $targetPath -Force
+    }
+}
+
 if (-not (Test-Administrator)) {
     Write-Error @"
 This installer must run as Administrator (required to register a Windows service).
@@ -163,11 +205,12 @@ Right-click PowerShell -> Run as administrator, then:
 Write-Host ""
 Write-Host "AMS Biometric Sync - Service Installer" -ForegroundColor Green
 Write-Host "=====================================" -ForegroundColor Green
-Write-Info "Scripts directory: $ScriptDir"
+Write-Info "Source directory:  $ScriptDir"
+Write-Info "Install directory: $AppDir"
 Write-Info "Config directory:  $ProgramDataDir"
 
-if (-not (Test-Path -LiteralPath $RequirementsFile)) {
-    throw "requirements.txt not found: $RequirementsFile"
+if (-not (Test-Path -LiteralPath (Join-Path $ScriptDir "requirements.txt"))) {
+    throw "requirements.txt not found in $ScriptDir"
 }
 
 $python = Resolve-PythonCommand
@@ -183,16 +226,20 @@ $defaultMdbPath = "C:\Users\shara\Desktop\AMT\attendance_db.mdb"
 $defaultMdbPassword = "attendance@123"
 $defaultTimezone = "Asia/Karachi"
 $defaultSyncInterval = "900"
+$defaultUpdateInterval = "21600"
 $defaultCompanySlugs = "xorora,crest-led"
 $defaultNameMatchThreshold = "85"
 $defaultEmailDomainXorora = "xorora.com"
 $defaultEmailDomainCrestLed = "crestled.com"
 
 $databaseUrl = Read-ConfigValue -Prompt "Neon DATABASE_URL" -Required
+$updateUrl = Read-ConfigValue -Prompt "AMS production URL for auto-updates (EBIO_UPDATE_URL)" -Default "https://ams.xorora.com" -Required
+$updateToken = Read-ConfigValue -Prompt "Shared update token (EBIO_UPDATE_TOKEN)" -Required -Secret
 $mdbPath = Read-ConfigValue -Prompt "Path to attendance_db.mdb (EBIO_MDB_PATH)" -Default $defaultMdbPath -Required
 $mdbPassword = Read-ConfigValue -Prompt "Access DB password (EBIO_MDB_PASSWORD)" -Default $defaultMdbPassword -Required -Secret
 $timezone = Read-ConfigValue -Prompt "Punch timezone (EBIO_TIMEZONE)" -Default $defaultTimezone -Required
 $syncInterval = Read-ConfigValue -Prompt "Sync interval in seconds (EBIO_SYNC_INTERVAL)" -Default $defaultSyncInterval -Required
+$updateInterval = Read-ConfigValue -Prompt "Update check interval in seconds (EBIO_UPDATE_INTERVAL)" -Default $defaultUpdateInterval -Required
 $companySlugs = Read-ConfigValue -Prompt "Company slugs, comma-separated (EBIO_COMPANY_SLUGS)" -Default $defaultCompanySlugs -Required
 $newEmployeeCompanySlug = Read-ConfigValue -Prompt "Company slug for auto-created employees (EBIO_NEW_EMPLOYEE_COMPANY_SLUG)" -Default ($companySlugs.Split(",")[0].Trim())
 $emailDomainXorora = Read-ConfigValue -Prompt "Email domain for xorora (EBIO_EMAIL_DOMAIN_XORORA)" -Default $defaultEmailDomainXorora -Required
@@ -203,11 +250,20 @@ if ($databaseUrl -notmatch '^postgres(ql)?://') {
     throw "DATABASE_URL should be a PostgreSQL connection string (postgresql://...)."
 }
 
+if ($updateUrl -notmatch '^https?://') {
+    throw "EBIO_UPDATE_URL should be an http(s) URL, e.g. https://ams.xorora.com"
+}
+
 Test-MdbPath -Path $mdbPath
 
 $parsedSyncInterval = 0
 if (-not [int]::TryParse($syncInterval, [ref]$parsedSyncInterval)) {
     throw "EBIO_SYNC_INTERVAL must be an integer (seconds)."
+}
+
+$parsedUpdateInterval = 0
+if (-not [int]::TryParse($updateInterval, [ref]$parsedUpdateInterval)) {
+    throw "EBIO_UPDATE_INTERVAL must be an integer (seconds)."
 }
 
 $parsedNameMatchThreshold = 0
@@ -225,13 +281,20 @@ New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 Write-Info "Created $ProgramDataDir"
 Write-Info "Created $LogDir"
 
+Write-Step "Installing application files"
+Copy-AppFiles -SourceDir $ScriptDir -TargetDir $AppDir
+Write-Info "Installed app to $AppDir"
+
 Write-Step "Writing configuration"
 $generatedAt = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 $envLines = New-Object System.Collections.Generic.List[string]
 $envLines.Add("# AMS Biometric Sync - generated by install.ps1 on $generatedAt")
-$envLines.Add("# Scripts source: $ScriptDir")
+$envLines.Add("# Installed app: $AppDir")
 $envLines.Add("")
 $envLines.Add((Format-EnvLine -Key "DATABASE_URL" -Value $databaseUrl))
+$envLines.Add((Format-EnvLine -Key "EBIO_UPDATE_URL" -Value $updateUrl))
+$envLines.Add((Format-EnvLine -Key "EBIO_UPDATE_TOKEN" -Value $updateToken))
+$envLines.Add((Format-EnvLine -Key "EBIO_UPDATE_INTERVAL" -Value $updateInterval))
 $envLines.Add((Format-EnvLine -Key "EBIO_MDB_PATH" -Value $mdbPath))
 $envLines.Add((Format-EnvLine -Key "EBIO_MDB_PASSWORD" -Value $mdbPassword))
 $envLines.Add((Format-EnvLine -Key "EBIO_TIMEZONE" -Value $timezone))
@@ -247,7 +310,7 @@ Set-Content -LiteralPath $EnvFile -Value $envContent -Encoding UTF8 -NoNewline
 Write-Info "Wrote $EnvFile"
 
 Write-Step "Installing Python dependencies"
-Push-Location $ScriptDir
+Push-Location $AppDir
 try {
     Invoke-Python -Python $python -ScriptArgs @("-m", "pip", "install", "-r", $RequirementsFile)
 }
@@ -256,7 +319,7 @@ finally {
 }
 
 Write-Step "Registering Windows service"
-Push-Location $ScriptDir
+Push-Location $AppDir
 try {
     $existingService = Get-ServiceStatusSafe -ServiceName "AMSBioSync"
     if ($null -ne $existingService) {
@@ -287,11 +350,15 @@ Write-Host "Installation complete." -ForegroundColor Green
 Write-Host ""
 Write-Host "  Service:     AMS Biometric Sync (AMSBioSync)" -ForegroundColor White
 Write-Host "  Status:      $statusText" -ForegroundColor White
+Write-Host "  App:         $AppDir" -ForegroundColor White
 Write-Host "  Config:      $EnvFile" -ForegroundColor White
 Write-Host "  Logs:        $(Join-Path $LogDir 'sync.log')" -ForegroundColor White
 Write-Host ""
-Write-Host "Manual test (from this scripts folder):" -ForegroundColor Yellow
+Write-Host "Manual test (from installed app directory):" -ForegroundColor Yellow
 Write-Host "  $($python.Command) $($python.Args -join ' ') ebio_sync.py --once --verbose" -ForegroundColor DarkGray
+Write-Host ""
+Write-Host "Manual update check:" -ForegroundColor Yellow
+Write-Host "  powershell -File `"$(Join-Path $AppDir 'update.ps1')`" -CheckOnly" -ForegroundColor DarkGray
 Write-Host ""
 Write-Host "Uninstall:" -ForegroundColor Yellow
 Write-Host "  $($python.Command) $($python.Args -join ' ') -m $ServiceModule remove" -ForegroundColor DarkGray

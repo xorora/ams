@@ -18,9 +18,6 @@ import {
 } from "@/lib/attendance/actions";
 import {
   BUSINESS_TIMEZONE,
-  EXPECTED_CHECK_OUT_TIME_PKT,
-  formatLateCheckInDeadline,
-  formatLateCheckOutDeadline,
   LATE_FINE_AMOUNT_PKR,
   MONTHLY_LATE_ALLOWANCE,
 } from "@/lib/attendance/constants";
@@ -185,6 +182,7 @@ export function EmployeeDashboard({ initialStatus, loadError }: EmployeeDashboar
 
       {showEarlyConfirm && !status.employeeInactive && (
         <EmployeeEarlyCheckoutAlert
+          expectedCheckOutTime={status.shiftSchedule.expectedCheckOutTime}
           acting={acting}
           onConfirm={() =>
             void runAction((coords, opts) => checkOutAction(coords, opts), {
@@ -245,10 +243,12 @@ export function EmployeeDashboard({ initialStatus, loadError }: EmployeeDashboar
           status.actions.canEndBreak) && (
           <p className="text-muted-foreground text-xs">
             Actions require your location and you must be within the office geofence. Expected
-            shift: check-in by {formatLateCheckInDeadline()} (15 min grace), check-out by{" "}
-            {formatLateCheckOutDeadline()} (15 min grace after {EXPECTED_CHECK_OUT_TIME_PKT}). Time
-            after {EXPECTED_CHECK_OUT_TIME_PKT} while still checked in is tracked as overtime.
-            Missing check-out after the grace period marks the shift absent. You get{" "}
+            shift: check-in by {status.shiftSchedule.lateCheckInDeadline} (
+            {status.shiftSchedule.checkInGraceMinutes} min grace), check-out by{" "}
+            {status.shiftSchedule.lateCheckOutDeadline} ({status.shiftSchedule.checkOutGraceMinutes}{" "}
+            min grace after {status.shiftSchedule.expectedCheckOutTime}). Time after{" "}
+            {status.shiftSchedule.expectedCheckOutTime} while still checked in is tracked as
+            overtime. Missing check-out after the grace period marks the shift absent. You get{" "}
             {MONTHLY_LATE_ALLOWANCE} free late check-ins per month; each additional late costs{" "}
             {formatLateFinePkr(LATE_FINE_AMOUNT_PKR)}.
           </p>

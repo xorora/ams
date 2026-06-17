@@ -2,12 +2,15 @@ import { formatInTimeZone } from "date-fns-tz";
 import { PKT_DATETIME_12H_FORMAT } from "@/lib/admin/display";
 import { isWeekendDate } from "@/lib/leave/working-days";
 import {
-  BUSINESS_TIMEZONE,
-  EXPECTED_CHECK_OUT_TIME_PKT,
-  formatLateCheckInDeadline,
-  formatLateCheckOutDeadline,
-  MAX_BREAK_SECONDS,
-} from "./constants";
+  type CompanyShiftConfig,
+  getExpectedCheckOutAt,
+  getShiftDateForCompany,
+  getShiftScheduleLabels,
+  isEarlyLeaveForCompany,
+  isLateCheckInForCompany,
+  isPastMissedCheckOutDeadlineForCompany,
+} from "./company-shift";
+import { BUSINESS_TIMEZONE, MAX_BREAK_SECONDS } from "./constants";
 import { buildMonthlyLateWarnings, type MonthlyLateSummary } from "./late-fines";
 import { computeOvertimeSnapshot, type OvertimeSnapshot } from "./overtime";
 import {
@@ -17,11 +20,6 @@ import {
   computeElapsedShiftSeconds,
   computeTotalBreakSeconds,
   getActiveBreak,
-  getExpectedCheckOutAt,
-  getShiftDate,
-  isEarlyLeave,
-  isLateCheckIn,
-  isPastMissedCheckOutDeadline,
 } from "./rules";
 
 export type WorkState = "not_checked_in" | "checked_in" | "on_break" | "checked_out";
@@ -44,6 +42,14 @@ export type AttendanceDaySnapshot = {
 export type TodayStatusPayload = {
   pktNow: string;
   shiftDate: string;
+  shiftSchedule: {
+    expectedCheckInTime: string;
+    expectedCheckOutTime: string;
+    lateCheckInDeadline: string;
+    lateCheckOutDeadline: string;
+    checkInGraceMinutes: number;
+    checkOutGraceMinutes: number;
+  };
   state: WorkState;
   isWeekendOff: boolean;
   employeeInactive: boolean;
@@ -86,9 +92,11 @@ export function buildTodayStatus(
   day: AttendanceDaySnapshot | null,
   breakSessions: BreakSessionInput[],
   monthlyLate: MonthlyLateSummary,
+  shiftConfig: CompanyShiftConfig,
   now: Date = new Date(),
 ): TodayStatusPayload {
-  const shiftDate = getShiftDate(now);
+  const shiftScheduleLabels = getShiftScheduleLabels(shiftConfig);
+  const shiftDate = getShiftDateForCompany(now, shiftConfig);
   const isWeekendOff = isWeekendDate(shiftDate);
   const activeBreak = getActiveBreak(breakSessions);
   const state = deriveWorkState(day, activeBreak);
@@ -102,7 +110,9 @@ export function buildTodayStatus(
   );
 
   const wouldBeEarlyLeave =
-    day?.checkInAt != null && day.checkOutAt == null && isEarlyLeave(now, day.shiftDate);
+    day?.checkInAt != null &&
+    day.checkOutAt == null &&
+    isEarlyLeaveForCompany(now, day.shiftDate, shiftConfig);
 
   const hasOpenShift = day?.checkInAt != null && day.checkOutAt == null && !day.isMissedCheckout;
 
@@ -111,46 +121,46 @@ export function buildTodayStatus(
     warnings.push("Saturday and Sunday are weekend days — the office is closed.");
   }
   if (day?.isLate) {
-    warnings.push(`You checked in late (after ${formatLateCheckInDeadline()}).`);
+    warnings.push(`You checked in late (after ${shiftScheduleLabels.lateCheckInDeadline}).`);
   }
   if (day?.isEarlyLeave) {
-    warnings.push(`You checked out early (before ${EXPECTED_CHECK_OUT_TIME_PKT}).`);
+    warnings.push(`You checked out early (before ${shiftScheduleLabels.expectedCheckOutTime}).`);
   }
   if (day?.isMissedCheckout) {
     warnings.push(
-      `This shift was marked absent because you did not check out by ${formatLateCheckOutDeadline()}.`,
+      `This shift was marked absent because you did not check out by ${shiftScheduleLabels.lateCheckOutDeadline}.`,
     );
   }
   if (wouldBeEarlyLeave && state !== "checked_out") {
     warnings.push(
-      `Checking out now would be marked as early leave (before ${EXPECTED_CHECK_OUT_TIME_PKT}).`,
+      `Checking out now would be marked as early leave (before ${shiftScheduleLabels.expectedCheckOutTime}).`,
     );
   }
 
   const overtime = day
-    ? computeOvertimeSnapshot(day, now)
+    ? computeOvertimeSnapshot(day, now, shiftConfig)
     : { isActive: false, startedAt: null, endedAt: null, elapsedSeconds: 0 };
 
   if (overtime.isActive) {
-    warnings.push(`Overtime is in progress (past ${EXPECTED_CHECK_OUT_TIME_PKT}).`);
+    warnings.push(`Overtime is in progress (past ${shiftScheduleLabels.expectedCheckOutTime}).`);
   }
   if (
     hasOpenShift &&
     day &&
-    isPastMissedCheckOutDeadline(now, day.shiftDate) &&
+    isPastMissedCheckOutDeadlineForCompany(now, day.shiftDate, shiftConfig) &&
     !day.isMissedCheckout
   ) {
     warnings.push(
-      `You missed the check-out deadline (${formatLateCheckOutDeadline()}). Check out now or this shift may be marked absent.`,
+      `You missed the check-out deadline (${shiftScheduleLabels.lateCheckOutDeadline}). Check out now or this shift may be marked absent.`,
     );
   } else if (
     hasOpenShift &&
     day &&
-    !isPastMissedCheckOutDeadline(now, day.shiftDate) &&
-    now.getTime() > getExpectedCheckOutAt(day.shiftDate).getTime()
+    !isPastMissedCheckOutDeadlineForCompany(now, day.shiftDate, shiftConfig) &&
+    now.getTime() > getExpectedCheckOutAt(day.shiftDate, shiftConfig).getTime()
   ) {
     warnings.push(
-      `Check out by ${formatLateCheckOutDeadline()} to complete your shift (15 min grace after ${EXPECTED_CHECK_OUT_TIME_PKT}).`,
+      `Check out by ${shiftScheduleLabels.lateCheckOutDeadline} to complete your shift (${shiftConfig.checkOutGraceMinutes} min grace after ${shiftScheduleLabels.expectedCheckOutTime}).`,
     );
   }
   if (breakRemainingSeconds <= 0 && state !== "checked_out") {
@@ -169,6 +179,11 @@ export function buildTodayStatus(
   return {
     pktNow: formatInTimeZone(now, BUSINESS_TIMEZONE, PKT_DATETIME_12H_FORMAT),
     shiftDate,
+    shiftSchedule: {
+      ...shiftScheduleLabels,
+      checkInGraceMinutes: shiftConfig.checkInGraceMinutes,
+      checkOutGraceMinutes: shiftConfig.checkOutGraceMinutes,
+    },
     state,
     isWeekendOff,
     employeeInactive: false,
@@ -192,6 +207,10 @@ export function buildTodayStatus(
   };
 }
 
-export function lateFlagForCheckIn(checkInAt: Date, shiftDate: string): boolean {
-  return isLateCheckIn(checkInAt, shiftDate);
+export function lateFlagForCheckIn(
+  checkInAt: Date,
+  shiftDate: string,
+  shiftConfig: CompanyShiftConfig,
+): boolean {
+  return isLateCheckInForCompany(checkInAt, shiftDate, shiftConfig);
 }

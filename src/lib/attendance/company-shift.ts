@@ -10,6 +10,9 @@ import {
   SHIFT_DATE_NOON_BOUNDARY_HOUR,
 } from "./constants";
 
+const DAY_SHIFT_CHECK_IN_HOUR = 9;
+const DAY_SHIFT_CHECK_OUT_HOUR = 17;
+
 export type CompanySlug = "xorora" | "crest-led";
 
 export type CompanyShiftConfig = {
@@ -40,16 +43,55 @@ export const COMPANY_SHIFT_BY_SLUG: Record<CompanySlug, CompanyShiftConfig> = {
     shiftDateBoundaryHour: SHIFT_DATE_NOON_BOUNDARY_HOUR,
   },
   "crest-led": {
-    expectedCheckInHour: 9,
+    expectedCheckInHour: DAY_SHIFT_CHECK_IN_HOUR,
     expectedCheckInMinute: 0,
-    checkInGraceMinutes: 15,
-    checkOutGraceMinutes: 15,
-    expectedCheckOutHour: 17,
+    checkInGraceMinutes: CHECK_IN_GRACE_MINUTES,
+    checkOutGraceMinutes: CHECK_OUT_GRACE_MINUTES,
+    expectedCheckOutHour: DAY_SHIFT_CHECK_OUT_HOUR,
     expectedCheckOutMinute: 0,
     checkOutNextDay: false,
     shiftDateBoundaryHour: 0,
   },
 };
+
+export type ShiftScheduleLabels = {
+  expectedCheckInTime: string;
+  expectedCheckOutTime: string;
+  lateCheckInDeadline: string;
+  lateCheckOutDeadline: string;
+};
+
+function formatHourMinutePkt(hour: number, minute = 0): string {
+  const local = `2000-01-01 ${pad2(hour)}:${pad2(minute)}:00`;
+  const date = fromZonedTime(local, BUSINESS_TIMEZONE);
+  return `${formatInTimeZone(date, BUSINESS_TIMEZONE, "h:mm a")} PKT`;
+}
+
+export function getShiftScheduleLabels(config: CompanyShiftConfig): ShiftScheduleLabels {
+  const lateCheckInTotalMinutes =
+    config.expectedCheckInHour * 60 + config.expectedCheckInMinute + config.checkInGraceMinutes;
+  const lateCheckOutTotalMinutes =
+    config.expectedCheckOutHour * 60 + config.expectedCheckOutMinute + config.checkOutGraceMinutes;
+
+  return {
+    expectedCheckInTime: formatHourMinutePkt(
+      config.expectedCheckInHour,
+      config.expectedCheckInMinute,
+    ),
+    expectedCheckOutTime: formatHourMinutePkt(
+      config.expectedCheckOutHour,
+      config.expectedCheckOutMinute,
+    ),
+    lateCheckInDeadline: formatHourMinutePkt(
+      Math.floor(lateCheckInTotalMinutes / 60) % 24,
+      lateCheckInTotalMinutes % 60,
+    ),
+    lateCheckOutDeadline: formatHourMinutePkt(
+      Math.floor(lateCheckOutTotalMinutes / 60) % 24,
+      lateCheckOutTotalMinutes % 60,
+    ),
+  };
+}
 
 export function getCompanyShiftConfig(slug: string): CompanyShiftConfig {
   const config = COMPANY_SHIFT_BY_SLUG[slug as CompanySlug];
@@ -126,4 +168,24 @@ export function isEarlyLeaveForCompany(
   config: CompanyShiftConfig,
 ): boolean {
   return checkOutAt.getTime() < getExpectedCheckOutAt(shiftDate, config).getTime();
+}
+
+export function isPastMissedCheckOutDeadlineForCompany(
+  at: Date,
+  shiftDate: string,
+  config: CompanyShiftConfig,
+): boolean {
+  return at.getTime() > getLateCheckOutDeadline(shiftDate, config).getTime();
+}
+
+/**
+ * Shift date to evaluate when the daily absent / missed-checkout cron runs (~04:00 PKT).
+ * Night shift uses the noon boundary; day shift uses the previous calendar date.
+ */
+export function getAutoAbsentShiftDateForCompany(runAt: Date, config: CompanyShiftConfig): string {
+  if (config.shiftDateBoundaryHour === 0) {
+    const calendarDate = formatInTimeZone(runAt, BUSINESS_TIMEZONE, "yyyy-MM-dd");
+    return shiftDateAddDays(calendarDate, -1);
+  }
+  return getShiftDateForCompany(runAt, config);
 }

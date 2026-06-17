@@ -20,11 +20,13 @@ DEFAULT_BATCH_SIZE = 500
 DEFAULT_SYNC_INTERVAL = 900
 DEFAULT_COMPANY_SLUGS = "xorora,crest-led"
 DEFAULT_NAME_MATCH_THRESHOLD = 85
+DEFAULT_UPDATE_INTERVAL = 21_600  # 6 hours
 
 ACCESS_DRIVER = "{Microsoft Access Driver (*.mdb, *.accdb)}"
 
 # ProgramData path used by the Windows service installer (see install.ps1).
-PROGRAM_DATA_DIR = Path(os.environ.get("ProgramData", r"C:\ProgramData")) / "AMSBioSync"
+PROGRAM_DATA_DIR = Path(os.environ.get(
+    "ProgramData", r"C:\ProgramData")) / "AMSBioSync"
 
 
 @dataclass
@@ -40,6 +42,9 @@ class Config:
     email_domain_xorora: str
     email_domain_crest_led: str
     name_match_threshold: int
+    update_url: str
+    update_token: str
+    update_interval: int
 
 
 def _env_file_candidates() -> list[Path]:
@@ -87,8 +92,10 @@ def build_config() -> Config:
             "On Windows run `pip install tzdata`."
         ) from exc
 
-    company_slugs_raw = os.environ.get("EBIO_COMPANY_SLUGS", DEFAULT_COMPANY_SLUGS).strip()
-    company_slugs = [s.strip() for s in company_slugs_raw.split(",") if s.strip()]
+    company_slugs_raw = os.environ.get(
+        "EBIO_COMPANY_SLUGS", DEFAULT_COMPANY_SLUGS).strip()
+    company_slugs = [s.strip()
+                     for s in company_slugs_raw.split(",") if s.strip()]
     if not company_slugs:
         company_slugs = DEFAULT_COMPANY_SLUGS.split(",")
 
@@ -97,17 +104,27 @@ def build_config() -> Config:
         mdb_path=os.environ.get("EBIO_MDB_PATH", DEFAULT_MDB_PATH).strip(),
         mdb_password=os.environ.get("EBIO_MDB_PASSWORD", DEFAULT_MDB_PASSWORD),
         tz=tz,
-        batch_size=int(os.environ.get("EBIO_BATCH_SIZE", str(DEFAULT_BATCH_SIZE))),
-        sync_interval=int(os.environ.get("EBIO_SYNC_INTERVAL", str(DEFAULT_SYNC_INTERVAL))),
+        batch_size=int(os.environ.get(
+            "EBIO_BATCH_SIZE", str(DEFAULT_BATCH_SIZE))),
+        sync_interval=int(os.environ.get(
+            "EBIO_SYNC_INTERVAL", str(DEFAULT_SYNC_INTERVAL))),
         company_slugs=company_slugs,
         new_employee_company_slug=os.environ.get(
             "EBIO_NEW_EMPLOYEE_COMPANY_SLUG", company_slugs[0]
         ).strip(),
-        email_domain_xorora=os.environ.get("EBIO_EMAIL_DOMAIN_XORORA", "xorora.com").strip(),
+        email_domain_xorora=os.environ.get(
+            "EBIO_EMAIL_DOMAIN_XORORA", "xorora.com").strip(),
         email_domain_crest_led=os.environ.get(
             "EBIO_EMAIL_DOMAIN_CREST_LED", "crestled.com"
         ).strip(),
         name_match_threshold=int(
-            os.environ.get("EBIO_NAME_MATCH_THRESHOLD", str(DEFAULT_NAME_MATCH_THRESHOLD))
+            os.environ.get("EBIO_NAME_MATCH_THRESHOLD",
+                           str(DEFAULT_NAME_MATCH_THRESHOLD))
+        ),
+        update_url=os.environ.get("EBIO_UPDATE_URL", "").strip().rstrip("/"),
+        update_token=os.environ.get("EBIO_UPDATE_TOKEN", "").strip(),
+        update_interval=int(
+            os.environ.get("EBIO_UPDATE_INTERVAL",
+                           str(DEFAULT_UPDATE_INTERVAL))
         ),
     )
