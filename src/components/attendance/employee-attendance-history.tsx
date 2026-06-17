@@ -48,7 +48,7 @@ export function EmployeeAttendanceHistory({
   }
 
   return (
-    <div className={cn("flex min-h-0 flex-1 flex-col gap-4 overflow-hidden", className)}>
+    <div className={cn("flex flex-col gap-4 md:min-h-0 md:flex-1 md:overflow-hidden", className)}>
       <div className="shrink-0">
         <ReportDateToolbar
           from={from}
@@ -78,7 +78,7 @@ export function EmployeeAttendanceHistory({
           </div>
           <ReportsEmployeeTable
             days={report.days}
-            className="min-h-0 flex-1"
+            className="md:min-h-0 md:flex-1"
             resetDeps={[from, to]}
           />
         </>

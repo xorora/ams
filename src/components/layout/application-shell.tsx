@@ -41,7 +41,7 @@ export function ApplicationShell({
     <TooltipProvider>
       <SidebarProvider className="h-svh overflow-hidden">
         <AppSidebar user={user} hasLinkedEmployee={hasLinkedEmployee} />
-        <SidebarInset className="h-svh overflow-hidden">
+        <SidebarInset className="flex h-svh min-h-0 flex-col overflow-hidden">
           <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
             <SidebarTrigger className="-ml-1" />
             {user.role === "admin" && companies.length > 0 && selectedCompanyId ? (
@@ -50,7 +50,7 @@ export function ApplicationShell({
               </div>
             ) : null}
           </header>
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">{children}</div>
         </SidebarInset>
       </SidebarProvider>
       <Toaster richColors closeButton />

@@ -106,7 +106,7 @@ export function MyLeaveManager({
   }
 
   return (
-    <div className={cn("flex min-h-0 flex-1 flex-col gap-6 overflow-hidden", className)}>
+    <div className={cn("flex flex-col gap-6 md:min-h-0 md:flex-1 md:overflow-hidden", className)}>
       {canApply ? (
         <div className="shrink-0 space-y-6">
           <div className="flex items-center justify-between gap-4">
@@ -125,10 +125,10 @@ export function MyLeaveManager({
         </div>
       ) : null}
 
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+      <div className="flex flex-col gap-4 md:min-h-0 md:flex-1 md:overflow-hidden">
         <h2 className="shrink-0 font-medium">My requests</h2>
         <LeaveTable
-          className="min-h-0 flex-1"
+          className="md:min-h-0 md:flex-1"
           requests={requests}
           onView={setViewRequest}
           onCancel={handleCancel}

@@ -50,7 +50,7 @@ export default async function AdminLeavePage({ searchParams }: PageProps) {
     activeCompanies.find((company) => company.id === companyId)?.name ?? "Company";
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-6xl flex-1 flex-col gap-6 overflow-hidden p-8">
+    <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col gap-6 p-4 md:h-full md:overflow-hidden md:p-8">
       <div className="shrink-0">
         <h1 className="text-2xl font-semibold">Leave requests</h1>
         <p className="mt-1 text-muted-foreground text-sm">

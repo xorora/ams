@@ -69,7 +69,7 @@ export function ReportsSummaryView({
   }
 
   return (
-    <div className={cn("flex min-h-0 flex-1 flex-col gap-4 overflow-hidden", className)}>
+    <div className={cn("flex flex-col gap-4 md:min-h-0 md:flex-1 md:overflow-hidden", className)}>
       <div className="shrink-0">
         <ReportDateToolbar
           from={from}
@@ -88,7 +88,7 @@ export function ReportsSummaryView({
       {isPending ? (
         <p className="shrink-0 text-muted-foreground text-sm">Loading report…</p>
       ) : report ? (
-        <ReportsSummaryTable report={report} className="min-h-0 flex-1" />
+        <ReportsSummaryTable report={report} className="md:min-h-0 md:flex-1" />
       ) : null}
     </div>
   );

@@ -39,7 +39,7 @@ export default async function LeavePage() {
     : [];
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-6xl flex-1 flex-col gap-6 overflow-hidden p-8">
+    <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col gap-6 p-4 md:h-full md:overflow-hidden md:p-8">
       <div className="shrink-0">
         <h1 className="text-2xl font-semibold">Leave</h1>
         <p className="mt-1 text-muted-foreground text-sm">
@@ -66,7 +66,7 @@ export default async function LeavePage() {
         designation={employee?.designation}
         department={employee?.department}
         canApply={canApply}
-        className="min-h-0 flex-1"
+        className="md:min-h-0 md:flex-1"
       />
     </div>
   );

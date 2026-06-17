@@ -302,7 +302,7 @@ export function EmployeesManager({ employees, search, includeInactive }: Employe
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+    <div className="flex flex-col gap-4 md:min-h-0 md:flex-1 md:overflow-hidden">
       <div className="shrink-0 space-y-4">
         <EmployeeFilters
           search={searchInput}
@@ -335,7 +335,7 @@ export function EmployeesManager({ employees, search, includeInactive }: Employe
       </div>
 
       <EmployeeTable
-        className="min-h-0 flex-1"
+        className="md:min-h-0 md:flex-1"
         employees={employees}
         loading={isPending}
         onEdit={openEdit}

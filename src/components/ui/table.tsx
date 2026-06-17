@@ -146,10 +146,10 @@ function DataTable<TData>({
   const totalItems = data.length;
 
   return (
-    <Card className={cn("flex min-h-0 flex-col gap-0 py-0", className)}>
+    <Card className={cn("flex flex-col gap-0 py-0 md:min-h-0", className)}>
       <div
         className={cn(
-          "min-h-0 flex-1 overflow-auto",
+          "md:min-h-0 md:flex-1 md:overflow-auto",
           "**:data-[slot=table-head]:sticky **:data-[slot=table-head]:top-0 **:data-[slot=table-head]:z-10",
           "[&_[data-slot=table-header]_[data-slot=table-row]]:bg-card",
           "**:data-[slot=table-head]:bg-card",

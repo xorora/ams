@@ -132,13 +132,13 @@ export function LeaveManager({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden">
+    <div className="flex flex-col gap-6 md:min-h-0 md:flex-1 md:overflow-hidden">
       <div className="shrink-0">
         <LeaveFilters filters={filters} employees={employees} onChange={applyFilters} />
       </div>
 
       <LeaveTable
-        className="min-h-0 flex-1"
+        className="md:min-h-0 md:flex-1"
         requests={requests}
         loading={isPending}
         showEmployee
