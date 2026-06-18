@@ -5,10 +5,11 @@ import { LeaveBalanceCards } from "@/components/leave/leave-balance-cards";
 import { LeaveDetailSheet } from "@/components/leave/leave-detail-sheet";
 import { emptyLeaveForm, type LeaveFormValues, LeaveSheet } from "@/components/leave/leave-sheet";
 import { LeaveTable } from "@/components/leave/leave-table";
+import { UnpaidLeaveSummaryCard } from "@/components/leave/unpaid-leave-summary-card";
 import { Button } from "@/components/ui/button";
 import { cancelLeaveRequestAction, submitLeaveRequestAction } from "@/lib/leave/actions";
 import type { SerializedLeaveRequest } from "@/lib/leave/serialize";
-import type { LeaveBalance } from "@/lib/leave/types";
+import type { LeaveBalance, UnpaidLeaveSummary } from "@/lib/leave/types";
 import { toastAsync } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +21,8 @@ type MyLeaveManagerProps = {
   designation?: string | null;
   department?: string | null;
   canApply?: boolean;
+  probationUnpaidOnly?: boolean;
+  unpaidSummary?: UnpaidLeaveSummary;
   className?: string;
 };
 
@@ -31,6 +34,8 @@ export function MyLeaveManager({
   designation,
   department,
   canApply = true,
+  probationUnpaidOnly = false,
+  unpaidSummary = { used: 0, pending: 0, total: 0 },
   className,
 }: MyLeaveManagerProps) {
   const [formOpen, setFormOpen] = useState(false);
@@ -40,7 +45,7 @@ export function MyLeaveManager({
   const [viewRequest, setViewRequest] = useState<SerializedLeaveRequest | null>(null);
 
   function openApply() {
-    setForm(emptyLeaveForm());
+    setForm(emptyLeaveForm(probationUnpaidOnly ? "unpaid" : "annual"));
     setFormOpen(true);
   }
 
@@ -56,7 +61,7 @@ export function MyLeaveManager({
     try {
       await toastAsync(
         submitLeaveRequestAction({
-          leaveType: form.leaveType,
+          leaveType: probationUnpaidOnly ? "unpaid" : form.leaveType,
           startDate: form.startDate,
           endDate: form.endDate,
           reason: form.reason,
@@ -111,17 +116,25 @@ export function MyLeaveManager({
         <div className="shrink-0 space-y-6">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h2 className="font-medium">Leave balance</h2>
+              <h2 className="font-medium">
+                {probationUnpaidOnly ? "Emergency unpaid leave" : "Leave balance"}
+              </h2>
               <p className="text-muted-foreground text-sm">
-                Your entitlements for the current year.
+                {probationUnpaidOnly
+                  ? "Track emergency unpaid leave taken during probation. Each request requires HR approval."
+                  : "Your entitlements for the current year."}
               </p>
             </div>
             <Button type="button" onClick={openApply}>
-              Apply for leave
+              {probationUnpaidOnly ? "Apply for emergency leave" : "Apply for leave"}
             </Button>
           </div>
 
-          <LeaveBalanceCards balances={balances} />
+          {probationUnpaidOnly ? (
+            <UnpaidLeaveSummaryCard summary={unpaidSummary} />
+          ) : (
+            <LeaveBalanceCards balances={balances} />
+          )}
         </div>
       ) : null}
 
@@ -164,6 +177,7 @@ export function MyLeaveManager({
           designation={designation}
           department={department}
           balances={balances}
+          probationUnpaidOnly={probationUnpaidOnly}
         />
       ) : null}
     </div>

@@ -23,14 +23,17 @@ export function LeaveBalanceCards({ balances }: LeaveBalanceCardsProps) {
                 {leaveTypeLabel(balance.leaveType)}
               </CardTitle>
             </CardHeader>
-            <CardContent className="-mt-2 space-y-1">
+            <CardContent className="-mt-2 space-y-2">
               <p className="text-2xl font-semibold tabular-nums">{balance.remaining}</p>
               <p className="text-muted-foreground text-xs">
                 {balance.remaining} of {balance.entitled} {unitLabel} remaining
               </p>
-              {balance.pending > 0 ? (
-                <p className="text-muted-foreground text-xs">{balance.pending} pending approval</p>
-              ) : null}
+              <div className="text-muted-foreground space-y-0.5 text-xs">
+                <p>
+                  Used: {balance.used} · Entitled: {balance.entitled}
+                </p>
+                {balance.pending > 0 ? <p>{balance.pending} pending approval</p> : null}
+              </div>
             </CardContent>
           </Card>
         );

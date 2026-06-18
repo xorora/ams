@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
+import { LeaveBalanceCards } from "@/components/leave/leave-balance-cards";
+import { LeaveBalancesTable } from "@/components/leave/leave-balances-table";
 import { LeaveDetailSheet } from "@/components/leave/leave-detail-sheet";
 import { LeaveFilters, type LeaveFiltersState } from "@/components/leave/leave-filters";
 import { LeaveTable } from "@/components/leave/leave-table";
@@ -13,7 +15,7 @@ import {
 } from "@/lib/leave/actions";
 import { leaveListQuery } from "@/lib/leave/query-params";
 import type { SerializedLeaveRequest } from "@/lib/leave/serialize";
-import type { LeaveBalance } from "@/lib/leave/types";
+import type { EmployeeLeaveBalanceSummary, LeaveBalance } from "@/lib/leave/types";
 import { downloadResponseBlob, toastAsync } from "@/lib/toast";
 
 type LeaveManagerProps = {
@@ -21,6 +23,7 @@ type LeaveManagerProps = {
   requests: SerializedLeaveRequest[];
   filters: LeaveFiltersState;
   companyName: string;
+  companyLeaveBalances: EmployeeLeaveBalanceSummary[];
 };
 
 export function LeaveManager({
@@ -28,6 +31,7 @@ export function LeaveManager({
   requests,
   filters: initialFilters,
   companyName,
+  companyLeaveBalances,
 }: LeaveManagerProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -131,8 +135,38 @@ export function LeaveManager({
     }
   }
 
+  const selectedEmployeeBalances =
+    initialFilters.employeeId != null
+      ? (companyLeaveBalances.find((summary) => summary.employeeId === initialFilters.employeeId)
+          ?.balances ?? [])
+      : [];
+
+  function selectEmployee(employeeId: string) {
+    applyFilters({ ...filters, employeeId });
+  }
+
   return (
     <div className="flex flex-col gap-6 md:min-h-0 md:flex-1 md:overflow-hidden">
+      <div className="shrink-0 space-y-4">
+        <div>
+          <h2 className="font-medium">Leave balances</h2>
+          <p className="text-muted-foreground text-sm">
+            Annual: 14 working days · Casual: 10 days · Sick: 8 days. Remaining / entitled per
+            employee for the current year.
+          </p>
+        </div>
+
+        {initialFilters.employeeId && selectedEmployeeBalances.length > 0 ? (
+          <LeaveBalanceCards balances={selectedEmployeeBalances} />
+        ) : null}
+
+        <LeaveBalancesTable
+          summaries={companyLeaveBalances}
+          selectedEmployeeId={initialFilters.employeeId}
+          onSelectEmployee={selectEmployee}
+        />
+      </div>
+
       <div className="shrink-0">
         <LeaveFilters filters={filters} employees={employees} onChange={applyFilters} />
       </div>

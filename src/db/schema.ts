@@ -21,7 +21,7 @@ export const attendanceStatusEnum = pgEnum("attendance_status", [
   "weekend_off",
 ]);
 export const attendanceSourceEnum = pgEnum("attendance_source", ["auto", "manual", "system"]);
-export const leaveTypeEnum = pgEnum("leave_type", ["annual", "casual", "sick"]);
+export const leaveTypeEnum = pgEnum("leave_type", ["annual", "casual", "sick", "unpaid"]);
 export const leaveRequestStatusEnum = pgEnum("leave_request_status", [
   "pending",
   "approved",

@@ -6,6 +6,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { BUSINESS_TIMEZONE } from "@/lib/attendance/constants";
 import { LEAVE_ENTITLEMENTS } from "@/lib/leave/constants";
+import { leaveTypeLabel } from "@/lib/leave/display";
 import {
   formatLeaveFormDate,
   formatLeavePrintDate,
@@ -149,6 +150,7 @@ export type LeaveFormDocumentProps = {
   daysCount?: number;
   reason?: string;
   medicalCertificateNote?: string | null;
+  probationUnpaidOnly?: boolean;
   className?: string;
 };
 
@@ -170,6 +172,7 @@ export function LeaveFormDocument({
   daysCount,
   reason,
   medicalCertificateNote,
+  probationUnpaidOnly = false,
   className,
 }: LeaveFormDocumentProps) {
   const isApply = mode === "apply";
@@ -180,6 +183,10 @@ export function LeaveFormDocument({
   const activeDays =
     isApply && form ? computeDays(form.leaveType, form.startDate, form.endDate) : (daysCount ?? 0);
   const selectedPaperType = activeLeaveType ? SYSTEM_LEAVE_TO_PAPER[activeLeaveType] : null;
+  const activeBalance =
+    isApply && form && form.leaveType !== "unpaid" ? balanceFor(form.leaveType) : undefined;
+  const exceedsBalance =
+    activeBalance != null && activeDays > 0 && activeDays > activeBalance.remaining;
 
   function balanceFor(type: LeaveType) {
     return balances.find((item) => item.leaveType === type);
@@ -254,31 +261,46 @@ export function LeaveFormDocument({
           <PaperLine>{activeDays > 0 ? String(activeDays) : "\u00A0"}</PaperLine>
         </div>
 
+        {exceedsBalance ? (
+          <p className="text-destructive text-sm">
+            Insufficient {leaveTypeLabel(form?.leaveType ?? "annual")} balance. You have{" "}
+            {activeBalance?.remaining ?? 0} day(s) remaining but requested {activeDays}.
+          </p>
+        ) : null}
+
         <div>
           <p className="font-semibold underline underline-offset-2">Type of Leave:</p>
-          <div className="mt-3 space-y-3">
-            {PAPER_LEAVE_TYPE_ROWS.map((row) => (
-              <div key={row.join("-")} className="flex flex-wrap gap-x-6 gap-y-3">
-                {row.map((label) => {
-                  const systemType = PAPER_LEAVE_TYPE_TO_SYSTEM[label];
-                  const checked = selectedPaperType === label;
-                  return (
-                    <PaperCheckbox
-                      key={label}
-                      label={label}
-                      checked={checked}
-                      disabled={!isApply || systemType == null}
-                      onToggle={
-                        isApply && systemType && form && onFormChange
-                          ? () => onFormChange((current) => ({ ...current, leaveType: systemType }))
-                          : undefined
-                      }
-                    />
-                  );
-                })}
-              </div>
-            ))}
-          </div>
+          {probationUnpaidOnly ? (
+            <p className="mt-3 text-sm">
+              Emergency unpaid leave (HR approval required). Entitled leave types are not available
+              during probation.
+            </p>
+          ) : (
+            <div className="mt-3 space-y-3">
+              {PAPER_LEAVE_TYPE_ROWS.map((row) => (
+                <div key={row.join("-")} className="flex flex-wrap gap-x-6 gap-y-3">
+                  {row.map((label) => {
+                    const systemType = PAPER_LEAVE_TYPE_TO_SYSTEM[label];
+                    const checked = selectedPaperType === label;
+                    return (
+                      <PaperCheckbox
+                        key={label}
+                        label={label}
+                        checked={checked}
+                        disabled={!isApply || systemType == null}
+                        onToggle={
+                          isApply && systemType && form && onFormChange
+                            ? () =>
+                                onFormChange((current) => ({ ...current, leaveType: systemType }))
+                            : undefined
+                        }
+                      />
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-[140px_1fr] items-start gap-x-3">
@@ -388,8 +410,12 @@ export function LeaveFormDocument({
         </table>
 
         <div className="mt-5 flex items-center gap-8 text-xs">
-          <PaperCheckbox checked={false} label="Paid" disabled />
-          <PaperCheckbox checked={false} label="Unpaid" disabled />
+          <PaperCheckbox
+            checked={activeLeaveType != null && activeLeaveType !== "unpaid"}
+            label="Paid"
+            disabled
+          />
+          <PaperCheckbox checked={activeLeaveType === "unpaid"} label="Unpaid" disabled />
         </div>
 
         <div className="mt-8 space-y-10">

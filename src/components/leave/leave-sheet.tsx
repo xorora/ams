@@ -9,10 +9,12 @@ import type { LeaveBalance } from "@/lib/leave/types";
 
 export type { LeaveFormValues };
 
-export function emptyLeaveForm(): LeaveFormValues {
+export function emptyLeaveForm(
+  leaveType: LeaveFormValues["leaveType"] = "annual",
+): LeaveFormValues {
   const today = formatInTimeZone(new Date(), BUSINESS_TIMEZONE, "yyyy-MM-dd");
   return {
-    leaveType: "annual",
+    leaveType,
     startDate: today,
     endDate: today,
     reason: "",
@@ -33,6 +35,7 @@ type LeaveSheetProps = {
   designation?: string | null;
   department?: string | null;
   balances: LeaveBalance[];
+  probationUnpaidOnly?: boolean;
 };
 
 export function LeaveSheet({
@@ -48,12 +51,15 @@ export function LeaveSheet({
   designation,
   department,
   balances,
+  probationUnpaidOnly = false,
 }: LeaveSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="flex w-full flex-col sm:max-w-[880px]">
         <SheetHeader>
-          <SheetTitle>Apply for leave</SheetTitle>
+          <SheetTitle>
+            {probationUnpaidOnly ? "Apply for emergency unpaid leave" : "Apply for leave"}
+          </SheetTitle>
         </SheetHeader>
 
         <form
@@ -70,6 +76,7 @@ export function LeaveSheet({
             balances={balances}
             form={form}
             onFormChange={onFormChange}
+            probationUnpaidOnly={probationUnpaidOnly}
           />
         </form>
 

@@ -12,7 +12,7 @@ export const PAPER_LEAVE_TYPE_TO_SYSTEM: Record<string, LeaveType> = {
   "Sick Leave": "sick",
 };
 
-export const SYSTEM_LEAVE_TO_PAPER: Record<LeaveType, string> = {
+export const SYSTEM_LEAVE_TO_PAPER: Partial<Record<LeaveType, string>> = {
   annual: "Earned",
   casual: "Casual",
   sick: "Sick Leave",

@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { SerializedEmployee } from "@/lib/admin/serialize";
+import { ENTITLED_LEAVE_TYPES } from "@/lib/leave/constants";
 import { leaveTypeLabel } from "@/lib/leave/display";
 import type { LeaveRequestStatus, LeaveType } from "@/lib/leave/types";
 
@@ -94,7 +95,7 @@ export function LeaveFilters({ filters, employees, onChange }: LeaveFiltersProps
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All types</SelectItem>
-            {(["annual", "casual", "sick"] as LeaveType[]).map((type) => (
+            {[...ENTITLED_LEAVE_TYPES, "unpaid" as const].map((type) => (
               <SelectItem key={type} value={type}>
                 {leaveTypeLabel(type)}
               </SelectItem>

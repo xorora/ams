@@ -2,12 +2,18 @@ import { formatInTimeZone } from "date-fns-tz";
 import { and, desc, eq, gte, lte, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { attendanceDays, companies, employees, leaveRequests } from "@/db/schema";
-import { isCurrentlyOnProbation } from "@/lib/admin/probation";
+import { formatProbationEndDate, isCurrentlyOnProbation } from "@/lib/admin/probation";
 import { adminFailure, type ServiceFailure, type ServiceSuccess } from "@/lib/admin/types";
 import { BUSINESS_TIMEZONE } from "@/lib/attendance/constants";
-import { LEAVE_ENTITLEMENTS } from "./constants";
+import { ENTITLED_LEAVE_TYPES, LEAVE_ENTITLEMENTS } from "./constants";
 import type { LeaveApplicationPdfData } from "./leave-pdf";
-import type { LeaveBalance, LeaveRequestStatus, LeaveType } from "./types";
+import type {
+  EmployeeLeaveBalanceSummary,
+  LeaveBalance,
+  LeaveRequestStatus,
+  LeaveType,
+  UnpaidLeaveSummary,
+} from "./types";
 import {
   countCalendarDays,
   countWorkingDays,
@@ -131,13 +137,6 @@ async function getEmployeeForLeave(
   if (!employee.isActive) {
     return adminFailure(403, "EMPLOYEE_INACTIVE", "Your employee account is inactive.");
   }
-  if (isCurrentlyOnProbation(employee)) {
-    return adminFailure(
-      403,
-      "PROBATION_ACTIVE",
-      "Leave applications are available after probation is completed.",
-    );
-  }
   return { ok: true, data: employee };
 }
 
@@ -260,6 +259,86 @@ export async function listLeaveRequests(
   };
 }
 
+type LeaveRequestForBalance = Pick<LeaveListItem, "leaveType" | "status" | "daysCount">;
+
+type LeaveRequestForUnpaidSummary = Pick<
+  LeaveListItem,
+  "leaveType" | "status" | "daysCount" | "startDate" | "endDate"
+>;
+
+export function computeUnpaidLeaveSummary(
+  requests: LeaveRequestForUnpaidSummary[],
+  probationStart: string,
+  probationEnd: string,
+): UnpaidLeaveSummary {
+  const relevant = requests.filter(
+    (request) =>
+      request.leaveType === "unpaid" &&
+      (request.status === "approved" || request.status === "pending") &&
+      request.startDate <= probationEnd &&
+      request.endDate >= probationStart,
+  );
+
+  const used = relevant
+    .filter((request) => request.status === "approved")
+    .reduce((sum, request) => sum + request.daysCount, 0);
+
+  const pending = relevant
+    .filter((request) => request.status === "pending")
+    .reduce((sum, request) => sum + request.daysCount, 0);
+
+  return { used, pending, total: used + pending };
+}
+
+export async function getUnpaidLeaveSummary(
+  employeeId: string,
+): Promise<ServiceFailure | ServiceSuccess<UnpaidLeaveSummary>> {
+  const employeeResult = await getEmployeeForLeave(employeeId);
+  if (!employeeResult.ok) {
+    return employeeResult;
+  }
+
+  const employee = employeeResult.data;
+  if (!isCurrentlyOnProbation(employee) || !employee.probationStartDate) {
+    return { ok: true, data: { used: 0, pending: 0, total: 0 } };
+  }
+
+  const probationStart = employee.probationStartDate;
+  const probationEnd = formatProbationEndDate(
+    employee.probationStartDate,
+    employee.probationPeriodMonths,
+  );
+
+  const requestsResult = await listLeaveRequests({ employeeId });
+  return {
+    ok: true,
+    data: computeUnpaidLeaveSummary(requestsResult.data, probationStart, probationEnd),
+  };
+}
+
+export function computeLeaveBalances(requests: LeaveRequestForBalance[]): LeaveBalance[] {
+  return ENTITLED_LEAVE_TYPES.map((leaveType) => {
+    const entitled = LEAVE_ENTITLEMENTS[leaveType].annualDays;
+    const relevant = requests.filter((request) => request.leaveType === leaveType);
+
+    const used = relevant
+      .filter((request) => request.status === "approved")
+      .reduce((sum, request) => sum + request.daysCount, 0);
+
+    const pending = relevant
+      .filter((request) => request.status === "pending")
+      .reduce((sum, request) => sum + request.daysCount, 0);
+
+    return {
+      leaveType,
+      entitled,
+      used,
+      pending,
+      remaining: Math.max(0, entitled - used - pending),
+    };
+  });
+}
+
 export async function getLeaveBalances(
   employeeId: string,
   year = getCurrentYear(),
@@ -270,32 +349,60 @@ export async function getLeaveBalances(
   }
 
   const requestsResult = await listLeaveRequests({ employeeId, year });
-  const requests = requestsResult.data;
+  return { ok: true, data: computeLeaveBalances(requestsResult.data) };
+}
 
-  const balances: LeaveBalance[] = (["annual", "casual", "sick"] as LeaveType[]).map(
-    (leaveType) => {
-      const entitled = LEAVE_ENTITLEMENTS[leaveType].annualDays;
-      const relevant = requests.filter((request) => request.leaveType === leaveType);
+export async function listCompanyLeaveBalances(
+  companyId: string,
+  year = getCurrentYear(),
+): Promise<ServiceSuccess<EmployeeLeaveBalanceSummary[]>> {
+  const yearStart = `${year}-01-01`;
+  const yearEnd = `${year}-12-31`;
 
-      const used = relevant
-        .filter((request) => request.status === "approved")
-        .reduce((sum, request) => sum + request.daysCount, 0);
+  const [employeeRows, requestRows] = await Promise.all([
+    db
+      .select({
+        id: employees.id,
+        employeeCode: employees.employeeCode,
+        fullName: employees.fullName,
+      })
+      .from(employees)
+      .where(and(eq(employees.companyId, companyId), eq(employees.isActive, true)))
+      .orderBy(employees.fullName),
+    db
+      .select({
+        employeeId: leaveRequests.employeeId,
+        leaveType: leaveRequests.leaveType,
+        status: leaveRequests.status,
+        daysCount: leaveRequests.daysCount,
+      })
+      .from(leaveRequests)
+      .innerJoin(employees, eq(leaveRequests.employeeId, employees.id))
+      .where(
+        and(
+          eq(employees.companyId, companyId),
+          gte(leaveRequests.startDate, yearStart),
+          lte(leaveRequests.startDate, yearEnd),
+        ),
+      ),
+  ]);
 
-      const pending = relevant
-        .filter((request) => request.status === "pending")
-        .reduce((sum, request) => sum + request.daysCount, 0);
+  const requestsByEmployee = new Map<string, LeaveRequestForBalance[]>();
+  for (const row of requestRows) {
+    const existing = requestsByEmployee.get(row.employeeId) ?? [];
+    existing.push(row);
+    requestsByEmployee.set(row.employeeId, existing);
+  }
 
-      return {
-        leaveType,
-        entitled,
-        used,
-        pending,
-        remaining: Math.max(0, entitled - used - pending),
-      };
-    },
-  );
-
-  return { ok: true, data: balances };
+  return {
+    ok: true,
+    data: employeeRows.map((employee) => ({
+      employeeId: employee.id,
+      employeeCode: employee.employeeCode,
+      employeeName: employee.fullName,
+      balances: computeLeaveBalances(requestsByEmployee.get(employee.id) ?? []),
+    })),
+  };
 }
 
 async function validateLeaveSubmission(
@@ -305,6 +412,24 @@ async function validateLeaveSubmission(
   const employeeResult = await getEmployeeForLeave(employeeId);
   if (!employeeResult.ok) {
     return employeeResult;
+  }
+
+  const onProbation = isCurrentlyOnProbation(employeeResult.data);
+
+  if (onProbation && input.leaveType !== "unpaid") {
+    return adminFailure(
+      403,
+      "PROBATION_UNPAID_ONLY",
+      "During probation, only unpaid leave can be requested. Entitled leave is available after probation is completed.",
+    );
+  }
+
+  if (!onProbation && input.leaveType === "unpaid") {
+    return adminFailure(
+      400,
+      "UNPAID_NOT_ALLOWED",
+      "Unpaid leave is only available during probation.",
+    );
   }
 
   const dateResult = validateDateRange(input.startDate, input.endDate);
@@ -334,24 +459,27 @@ async function validateLeaveSubmission(
     return adminFailure(
       400,
       "NO_LEAVE_DAYS",
-      input.leaveType === "annual"
+      input.leaveType === "annual" || input.leaveType === "unpaid"
         ? "The selected range contains no working days."
         : "The selected date range is invalid.",
     );
   }
 
-  const balancesResult = await getLeaveBalances(employeeId);
-  if (!balancesResult.ok) {
-    return balancesResult;
-  }
+  if (input.leaveType !== "unpaid") {
+    const leaveYear = Number.parseInt(input.startDate.slice(0, 4), 10);
+    const balancesResult = await getLeaveBalances(employeeId, leaveYear);
+    if (!balancesResult.ok) {
+      return balancesResult;
+    }
 
-  const balance = balancesResult.data.find((item) => item.leaveType === input.leaveType);
-  if (!balance || daysCount > balance.remaining) {
-    return adminFailure(
-      400,
-      "INSUFFICIENT_BALANCE",
-      `Insufficient ${input.leaveType} leave balance. Requested ${daysCount} day(s), ${balance?.remaining ?? 0} remaining.`,
-    );
+    const balance = balancesResult.data.find((item) => item.leaveType === input.leaveType);
+    if (!balance || daysCount > balance.remaining) {
+      return adminFailure(
+        400,
+        "INSUFFICIENT_BALANCE",
+        `Insufficient ${input.leaveType} leave balance. Requested ${daysCount} day(s), ${balance?.remaining ?? 0} remaining.`,
+      );
+    }
   }
 
   const overlapResult = await listLeaveRequests({ employeeId });
@@ -516,18 +644,21 @@ export async function approveLeaveRequest(
     return adminFailure(400, "INVALID_STATUS", "Only pending leave requests can be approved.");
   }
 
-  const balancesResult = await getLeaveBalances(current.data.employeeId);
-  if (!balancesResult.ok) {
-    return balancesResult;
-  }
+  if (current.data.leaveType !== "unpaid") {
+    const leaveYear = Number.parseInt(current.data.startDate.slice(0, 4), 10);
+    const balancesResult = await getLeaveBalances(current.data.employeeId, leaveYear);
+    if (!balancesResult.ok) {
+      return balancesResult;
+    }
 
-  const balance = balancesResult.data.find((item) => item.leaveType === current.data.leaveType);
-  if (!balance || current.data.daysCount > balance.remaining) {
-    return adminFailure(
-      400,
-      "INSUFFICIENT_BALANCE",
-      "Employee no longer has sufficient leave balance for this request.",
-    );
+    const balance = balancesResult.data.find((item) => item.leaveType === current.data.leaveType);
+    if (!balance || current.data.daysCount > balance.remaining) {
+      return adminFailure(
+        400,
+        "INSUFFICIENT_BALANCE",
+        "Employee no longer has sufficient leave balance for this request.",
+      );
+    }
   }
 
   const now = new Date();
