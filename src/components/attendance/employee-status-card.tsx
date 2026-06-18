@@ -140,7 +140,7 @@ export function EmployeeStatusCard({ status }: EmployeeStatusCardProps) {
 
         {status.state !== "checked_out" && (
           <p className="mt-3 text-muted-foreground text-sm">
-            Break used: {formatShiftDuration(status.totalBreakSeconds)} / 60:00 · Remaining:{" "}
+            Break used: {formatShiftDuration(status.totalBreakSeconds)} / 60:00 · Remaining:&nbsp;
             {formatShiftDuration(status.breakRemainingSeconds)}
           </p>
         )}
@@ -148,8 +148,8 @@ export function EmployeeStatusCard({ status }: EmployeeStatusCardProps) {
         <div className="mt-3 rounded-lg border px-3 py-2">
           <p className="font-medium text-sm">Monthly late check-ins</p>
           <p className="mt-1 text-muted-foreground text-sm">
-            {status.monthlyLate.lateCount} late this month · {status.monthlyLate.freeLatesRemaining}{" "}
-            of {MONTHLY_LATE_ALLOWANCE} free remaining
+            {status.monthlyLate.lateCount} late this month · {status.monthlyLate.freeLatesRemaining}
+            &nbsp; of {MONTHLY_LATE_ALLOWANCE} free remaining
           </p>
           {status.monthlyLate.totalFinePkr > 0 && (
             <p className="mt-1 text-amber-800 text-sm">

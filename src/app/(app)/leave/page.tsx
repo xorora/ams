@@ -73,7 +73,7 @@ export default async function LeavePage() {
         <Alert>
           <AlertDescription>
             Entitled leave is not available during probation. You can request emergency unpaid
-            leave, subject to HR approval. Current status:{" "}
+            leave, subject to HR approval. Current status:&nbsp;
             <span className="font-medium">{probationLabel}</span>.
           </AlertDescription>
         </Alert>

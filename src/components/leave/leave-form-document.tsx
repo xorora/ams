@@ -263,7 +263,7 @@ export function LeaveFormDocument({
 
         {exceedsBalance ? (
           <p className="text-destructive text-sm">
-            Insufficient {leaveTypeLabel(form?.leaveType ?? "annual")} balance. You have{" "}
+            Insufficient {leaveTypeLabel(form?.leaveType ?? "annual")} balance. You have&nbsp;
             {activeBalance?.remaining ?? 0} day(s) remaining but requested {activeDays}.
           </p>
         ) : null}

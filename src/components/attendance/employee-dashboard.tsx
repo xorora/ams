@@ -7,6 +7,7 @@ import { EmployeeAttendanceActions } from "@/components/attendance/employee-atte
 import { EmployeeClockCard } from "@/components/attendance/employee-clock-card";
 import { EmployeeEarlyCheckoutAlert } from "@/components/attendance/employee-early-checkout-alert";
 import { EmployeeStatusCard } from "@/components/attendance/employee-status-card";
+import { EmployeeDashboardLeaveOverview } from "@/components/leave/employee-dashboard-leave-overview";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { PKT_CLOCK_12H_FORMAT } from "@/lib/admin/display";
 import {
@@ -23,6 +24,7 @@ import {
 } from "@/lib/attendance/constants";
 import { formatLateFinePkr } from "@/lib/attendance/late-fines-utils";
 import type { SerializedTodayStatus } from "@/lib/attendance/serialize";
+import type { LeaveBalance, UnpaidLeaveSummary } from "@/lib/leave/types";
 import { toast, toastError } from "@/lib/toast";
 
 function getCurrentPosition(): Promise<GeolocationPosition> {
@@ -58,9 +60,20 @@ function geolocationErrorMessage(error: GeolocationPositionError | Error): strin
 type EmployeeDashboardProps = {
   initialStatus: SerializedTodayStatus | null;
   loadError: string | null;
+  showLeaveOverview?: boolean;
+  probationUnpaidOnly?: boolean;
+  leaveBalances?: LeaveBalance[];
+  unpaidSummary?: UnpaidLeaveSummary;
 };
 
-export function EmployeeDashboard({ initialStatus, loadError }: EmployeeDashboardProps) {
+export function EmployeeDashboard({
+  initialStatus,
+  loadError,
+  showLeaveOverview = false,
+  probationUnpaidOnly = false,
+  leaveBalances = [],
+  unpaidSummary = { used: 0, pending: 0, total: 0 },
+}: EmployeeDashboardProps) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [status, setStatus] = useState<SerializedTodayStatus | null>(initialStatus);
@@ -167,6 +180,14 @@ export function EmployeeDashboard({ initialStatus, loadError }: EmployeeDashboar
       <EmployeeClockCard pktClock={pktClock} shiftDate={status.shiftDate} />
       <EmployeeStatusCard status={status} />
 
+      {showLeaveOverview ? (
+        <EmployeeDashboardLeaveOverview
+          probationUnpaidOnly={probationUnpaidOnly}
+          balances={leaveBalances}
+          unpaidSummary={unpaidSummary}
+        />
+      ) : null}
+
       {status.warnings.length > 0 && (
         <Alert className="border-amber-200 bg-amber-50 text-amber-950">
           <AlertTitle>Notice</AlertTitle>
@@ -244,12 +265,12 @@ export function EmployeeDashboard({ initialStatus, loadError }: EmployeeDashboar
           <p className="text-muted-foreground text-xs">
             Actions require your location and you must be within the office geofence. Expected
             shift: check-in by {status.shiftSchedule.lateCheckInDeadline} (
-            {status.shiftSchedule.checkInGraceMinutes} min grace), check-out by{" "}
-            {status.shiftSchedule.lateCheckOutDeadline} ({status.shiftSchedule.checkOutGraceMinutes}{" "}
-            min grace after {status.shiftSchedule.expectedCheckOutTime}). Time after{" "}
+            {status.shiftSchedule.checkInGraceMinutes} min grace), check-out by&nbsp;
+            {status.shiftSchedule.lateCheckOutDeadline} ({status.shiftSchedule.checkOutGraceMinutes}
+            &nbsp; min grace after {status.shiftSchedule.expectedCheckOutTime}). Time after&nbsp;
             {status.shiftSchedule.expectedCheckOutTime} while still checked in is tracked as
-            overtime. Missing check-out after the grace period marks the shift absent. You get{" "}
-            {MONTHLY_LATE_ALLOWANCE} free late check-ins per month; each additional late costs{" "}
+            overtime. Missing check-out after the grace period marks the shift absent. You get&nbsp;
+            {MONTHLY_LATE_ALLOWANCE} free late check-ins per month; each additional late costs&nbsp;
             {formatLateFinePkr(LATE_FINE_AMOUNT_PKR)}.
           </p>
         )}

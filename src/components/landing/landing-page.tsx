@@ -126,12 +126,13 @@ export function LandingPage({ callbackUrl, errorMessage }: LandingPageProps) {
               </div>
 
               <h1 className="text-4xl font-semibold tracking-tight text-balance md:text-5xl lg:text-[3.25rem] lg:leading-[1.1]">
-                Clock in with confidence,{" "}
+                Clock in with confidence,&nbsp;
                 <span className="text-muted-foreground">even after midnight</span>
               </h1>
 
               <p className="max-w-lg text-lg text-muted-foreground text-pretty">
-                Geofenced check-in, break tracking, leave balances, and HR reporting — built for{" "}
+                Geofenced check-in, break tracking, leave balances, and HR reporting — built
+                for&nbsp;
                 {shiftWindowLabel.replace(/ PKT/g, "")} shifts in Pakistan Standard Time.
               </p>
 

@@ -130,11 +130,13 @@ export function MyLeaveManager({
             </Button>
           </div>
 
-          {probationUnpaidOnly ? (
-            <UnpaidLeaveSummaryCard summary={unpaidSummary} />
-          ) : (
-            <LeaveBalanceCards balances={balances} />
-          )}
+          <div className="pl-0.5">
+            {probationUnpaidOnly ? (
+              <UnpaidLeaveSummaryCard summary={unpaidSummary} />
+            ) : (
+              <LeaveBalanceCards balances={balances} />
+            )}
+          </div>
         </div>
       ) : null}
 
