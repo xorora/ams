@@ -1,5 +1,12 @@
 import type { LucideIcon } from "lucide-react";
-import { CalendarDays, CalendarOff, FileSpreadsheet, LayoutDashboard, Users } from "lucide-react";
+import {
+  CalendarDays,
+  CalendarOff,
+  Clock,
+  FileSpreadsheet,
+  LayoutDashboard,
+  Users,
+} from "lucide-react";
 import type { Session } from "next-auth";
 import { hasLinkedEmployee } from "@/lib/auth/attendance-access";
 
@@ -46,6 +53,7 @@ export function getNavItemsForUser(
         exact: true,
       },
       { href: "/leave", label: "Leave", icon: CalendarOff, exact: true },
+      { href: "/overtime", label: "Overtime", icon: Clock, exact: true },
     );
   }
 
@@ -59,6 +67,7 @@ export function getNavItemsForUser(
         adminOnly: true,
       },
       { href: "/admin/leave", label: "Leave requests", icon: CalendarOff, adminOnly: true },
+      { href: "/admin/overtime", label: "Overtime requests", icon: Clock, adminOnly: true },
       { href: "/admin/reports", label: "Reports", icon: FileSpreadsheet, adminOnly: true },
     );
   }

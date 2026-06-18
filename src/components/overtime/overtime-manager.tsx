@@ -2,63 +2,41 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import { LeaveDetailSheet } from "@/components/leave/leave-detail-sheet";
-import { LeaveFilters, type LeaveFiltersState } from "@/components/leave/leave-filters";
-import { LeaveTable } from "@/components/leave/leave-table";
+import { OvertimeDetailSheet } from "@/components/overtime/overtime-detail-sheet";
+import { OvertimeFilters, type OvertimeFiltersState } from "@/components/overtime/overtime-filters";
+import { OvertimeTable } from "@/components/overtime/overtime-table";
 import type { SerializedEmployee } from "@/lib/admin/serialize";
-import {
-  approveLeaveRequestAction,
-  getLeaveBalancesAction,
-  rejectLeaveRequestAction,
-} from "@/lib/leave/actions";
-import { leaveListQuery } from "@/lib/leave/query-params";
-import type { SerializedLeaveRequest } from "@/lib/leave/serialize";
-import type { LeaveBalance } from "@/lib/leave/types";
+import { approveOvertimeRequestAction, rejectOvertimeRequestAction } from "@/lib/overtime/actions";
+import { overtimeListQuery } from "@/lib/overtime/query-params";
+import type { SerializedOvertimeRequest } from "@/lib/overtime/serialize";
 import { downloadResponseBlob, toastAsync } from "@/lib/toast";
 
-type LeaveManagerProps = {
+type OvertimeManagerProps = {
   employees: SerializedEmployee[];
-  requests: SerializedLeaveRequest[];
-  filters: LeaveFiltersState;
-  companyName: string;
+  requests: SerializedOvertimeRequest[];
+  filters: OvertimeFiltersState;
 };
 
-export function LeaveManager({
+export function OvertimeManager({
   employees,
   requests,
   filters: initialFilters,
-  companyName,
-}: LeaveManagerProps) {
+}: OvertimeManagerProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [filters, setFilters] = useState<LeaveFiltersState>(initialFilters);
+  const [filters, setFilters] = useState<OvertimeFiltersState>(initialFilters);
   const [actionPending, setActionPending] = useState(false);
   const [downloadPending, setDownloadPending] = useState(false);
-  const [viewRequest, setViewRequest] = useState<SerializedLeaveRequest | null>(null);
-  const [viewBalances, setViewBalances] = useState<LeaveBalance[]>([]);
-
-  useEffect(() => {
-    if (!viewRequest) {
-      setViewBalances([]);
-      return;
-    }
-
-    const year = Number.parseInt(viewRequest.startDate.slice(0, 4), 10);
-    void getLeaveBalancesAction(viewRequest.employeeId, year).then((result) => {
-      if (result.ok) {
-        setViewBalances(result.data);
-      }
-    });
-  }, [viewRequest]);
+  const [viewRequest, setViewRequest] = useState<SerializedOvertimeRequest | null>(null);
 
   useEffect(() => {
     setFilters(initialFilters);
   }, [initialFilters]);
 
-  function applyFilters(next: LeaveFiltersState) {
+  function applyFilters(next: OvertimeFiltersState) {
     setFilters(next);
     startTransition(() => {
-      router.replace(`/admin/leave${leaveListQuery(next)}`);
+      router.replace(`/admin/overtime${overtimeListQuery(next)}`);
     });
   }
 
@@ -67,16 +45,17 @@ export function LeaveManager({
 
     try {
       await toastAsync(
-        approveLeaveRequestAction(id).then((result) => {
+        approveOvertimeRequestAction(id).then((result) => {
           if (!result.ok) {
             throw new Error(result.error);
           }
         }),
         {
-          loading: "Approving leave request…",
-          success: "Leave request approved.",
+          loading: "Approving overtime request…",
+          success: "Overtime request approved.",
         },
       );
+      startTransition(() => router.refresh());
     } catch {
       // toastAsync already surfaced the error toast
     } finally {
@@ -89,12 +68,12 @@ export function LeaveManager({
 
     try {
       await toastAsync(
-        fetch(`/api/admin/leave/${id}/pdf`).then((response) =>
-          downloadResponseBlob(response, `leave-${id}.pdf`),
+        fetch(`/api/admin/overtime/${id}/pdf`).then((response) =>
+          downloadResponseBlob(response, `overtime-${id}.pdf`),
         ),
         {
-          loading: "Downloading leave PDF…",
-          success: "Leave application PDF downloaded.",
+          loading: "Downloading overtime slip…",
+          success: "Overtime slip PDF downloaded.",
         },
       );
     } catch {
@@ -114,16 +93,17 @@ export function LeaveManager({
 
     try {
       await toastAsync(
-        rejectLeaveRequestAction(id, notes || null).then((result) => {
+        rejectOvertimeRequestAction(id, notes || null).then((result) => {
           if (!result.ok) {
             throw new Error(result.error);
           }
         }),
         {
-          loading: "Rejecting leave request…",
-          success: "Leave request rejected.",
+          loading: "Rejecting overtime request…",
+          success: "Overtime request rejected.",
         },
       );
+      startTransition(() => router.refresh());
     } catch {
       // toastAsync already surfaced the error toast
     } finally {
@@ -134,10 +114,10 @@ export function LeaveManager({
   return (
     <div className="flex flex-col gap-6 md:min-h-0 md:flex-1 md:overflow-hidden">
       <div className="shrink-0">
-        <LeaveFilters filters={filters} employees={employees} onChange={applyFilters} />
+        <OvertimeFilters filters={filters} employees={employees} onChange={applyFilters} />
       </div>
 
-      <LeaveTable
+      <OvertimeTable
         className="md:min-h-0 md:flex-1"
         requests={requests}
         loading={isPending}
@@ -148,10 +128,10 @@ export function LeaveManager({
         onDownloadPdf={handleDownloadPdf}
         downloadPending={downloadPending}
         actionPending={actionPending}
-        resetDeps={[filters.status, filters.leaveType, filters.employeeId]}
+        resetDeps={[filters.status, filters.employeeId]}
       />
 
-      <LeaveDetailSheet
+      <OvertimeDetailSheet
         open={viewRequest !== null}
         onOpenChange={(open) => {
           if (!open) {
@@ -159,9 +139,6 @@ export function LeaveManager({
           }
         }}
         request={viewRequest}
-        companyName={companyName}
-        balances={viewBalances}
-        showBalanceCards
       />
     </div>
   );

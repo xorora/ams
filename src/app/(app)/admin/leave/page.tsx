@@ -3,7 +3,7 @@ import { listEmployees } from "@/lib/admin/employees-service";
 import { getCompanies, requireSelectedCompanyId } from "@/lib/admin/selected-company";
 import { serializeEmployee } from "@/lib/admin/serialize";
 import { requireAdminSession } from "@/lib/auth/require-session";
-import { listCompanyLeaveBalances, listLeaveRequests } from "@/lib/leave/leave-service";
+import { listLeaveRequests } from "@/lib/leave/leave-service";
 import { serializeLeaveRequest } from "@/lib/leave/serialize";
 import type { LeaveRequestStatus, LeaveType } from "@/lib/leave/types";
 
@@ -41,13 +41,11 @@ export default async function AdminLeavePage({ searchParams }: PageProps) {
     employeeId: params.employeeId || undefined,
   };
 
-  const [employeesResult, requestsResult, activeCompanies, companyLeaveBalancesResult] =
-    await Promise.all([
-      listEmployees({ includeInactive: false, companyId }),
-      listLeaveRequests({ ...filters, companyId }),
-      getCompanies(),
-      listCompanyLeaveBalances(companyId),
-    ]);
+  const [employeesResult, requestsResult, activeCompanies] = await Promise.all([
+    listEmployees({ includeInactive: false, companyId }),
+    listLeaveRequests({ ...filters, companyId }),
+    getCompanies(),
+  ]);
 
   const employees = employeesResult.data.map((employee) => serializeEmployee(employee));
   const requests = requestsResult.data.map(serializeLeaveRequest);
@@ -59,8 +57,7 @@ export default async function AdminLeavePage({ searchParams }: PageProps) {
       <div className="shrink-0">
         <h1 className="text-2xl font-semibold">Leave requests</h1>
         <p className="mt-1 text-muted-foreground text-sm">
-          Review leave requests and track employee balances. Annual: 14 working days, casual: 10
-          days, sick: 8 days per year.
+          Review leave requests. Open a request to see that employee&apos;s balance for the year.
         </p>
       </div>
 
@@ -69,7 +66,6 @@ export default async function AdminLeavePage({ searchParams }: PageProps) {
         requests={requests}
         filters={filters}
         companyName={companyName}
-        companyLeaveBalances={companyLeaveBalancesResult.data}
       />
     </div>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import { LeaveBalanceCards } from "@/components/leave/leave-balance-cards";
 import { LeaveFormDocument } from "@/components/leave/leave-form-document";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -15,6 +16,7 @@ type LeaveDetailSheetProps = {
   designation?: string | null;
   department?: string | null;
   balances: LeaveBalance[];
+  showBalanceCards?: boolean;
 };
 
 export function LeaveDetailSheet({
@@ -25,6 +27,7 @@ export function LeaveDetailSheet({
   designation,
   department,
   balances,
+  showBalanceCards = false,
 }: LeaveDetailSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -49,6 +52,18 @@ export function LeaveDetailSheet({
                 </p>
               ) : null}
             </div>
+
+            {showBalanceCards && balances.length > 0 ? (
+              <div className="space-y-2">
+                <div>
+                  <h3 className="font-medium text-sm">Leave balance</h3>
+                  <p className="text-muted-foreground text-xs">
+                    {request.employeeName} · remaining / entitled for the request year
+                  </p>
+                </div>
+                <LeaveBalanceCards balances={balances} />
+              </div>
+            ) : null}
 
             <LeaveFormDocument
               mode="view"
