@@ -57,4 +57,4 @@ export const MAX_BREAK_SECONDS = 3600;
 export const MONTHLY_LATE_ALLOWANCE = 3;
 
 /** Fine charged for each late check-in after the monthly allowance. */
-export const LATE_FINE_AMOUNT_PKR = 500;
+export const LATE_FINE_AMOUNT_PKR = 1000;

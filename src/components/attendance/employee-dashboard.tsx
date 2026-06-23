@@ -270,7 +270,8 @@ export function EmployeeDashboard({
             &nbsp; min grace after {status.shiftSchedule.expectedCheckOutTime}). Time after&nbsp;
             {status.shiftSchedule.expectedCheckOutTime} while still checked in is tracked as
             overtime. Missing check-out after the grace period marks the shift absent. You get&nbsp;
-            {MONTHLY_LATE_ALLOWANCE} free late check-ins per month; each additional late costs&nbsp;
+            {MONTHLY_LATE_ALLOWANCE}&nbsp;free late check-ins per month; each additional late
+            costs&nbsp;
             {formatLateFinePkr(LATE_FINE_AMOUNT_PKR)}.
           </p>
         )}
