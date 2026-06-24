@@ -132,9 +132,12 @@ export function DevicesManager({ devices, unmappedUsers }: DevicesManagerProps) 
           if (!result.ok) {
             throw new Error(result.error);
           }
-          const { connectionStatus, lastSeenLabel, ipAddress } = result.data;
+          const { connectionStatus, lastSeenLabel, ipAddress, pendingCommands, requeuedCommands } =
+            result.data;
           const status = connectionStatusLabel(connectionStatus);
-          return `${status} · last heartbeat ${lastSeenLabel}${ipAddress ? ` · ${ipAddress}` : ""}`;
+          const queue = pendingCommands > 0 ? ` · ${pendingCommands} pending command(s)` : "";
+          const requeued = requeuedCommands > 0 ? ` · re-queued ${requeuedCommands} stale` : "";
+          return `${status} · last heartbeat ${lastSeenLabel}${ipAddress ? ` · ${ipAddress}` : ""}${queue}${requeued}`;
         }),
         {
           loading: "Refreshing status…",

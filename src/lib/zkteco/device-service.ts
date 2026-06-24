@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, lt, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { syncState, zktecoDeviceCommands, zktecoDevices } from "@/db/schema";
 import { formatWireCommand } from "@/lib/zkteco/adms/commands";
@@ -148,6 +148,38 @@ export async function enqueueDeviceCommand(
     .returning();
 
   return row;
+}
+
+export async function countPendingCommands(deviceId: string): Promise<number> {
+  const rows = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(zktecoDeviceCommands)
+    .where(
+      and(eq(zktecoDeviceCommands.deviceId, deviceId), eq(zktecoDeviceCommands.status, "pending")),
+    );
+  return rows[0]?.count ?? 0;
+}
+
+/** Re-queue commands marked sent but never acknowledged by the device (e.g. stolen by verify probes). */
+export async function requeueStaleSentCommands(
+  deviceId: string,
+  staleAfterMs = 120_000,
+): Promise<number> {
+  const cutoff = new Date(Date.now() - staleAfterMs);
+  const rows = await db
+    .update(zktecoDeviceCommands)
+    .set({ status: "pending", sentAt: null })
+    .where(
+      and(
+        eq(zktecoDeviceCommands.deviceId, deviceId),
+        eq(zktecoDeviceCommands.status, "sent"),
+        isNull(zktecoDeviceCommands.completedAt),
+        lt(zktecoDeviceCommands.sentAt, cutoff),
+      ),
+    )
+    .returning({ id: zktecoDeviceCommands.id });
+
+  return rows.length;
 }
 
 export async function getNextPendingCommand(

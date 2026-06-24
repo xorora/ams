@@ -104,7 +104,12 @@ BODY=$(echo "$RESP" | sed '/__HTTP__:/d')
 CODE=$(echo "$RESP" | grep '__HTTP__:' | cut -d: -f2)
 check "Heartbeat GET /iclock/getrequest" "$CODE" "$BODY"
 if [[ -n "$BODY" && "$CODE" == "200" ]]; then
-  echo "  Body: ${BODY:0:120}"
+  if [[ "$BODY" == OK* ]]; then
+    echo "  Body: ${BODY:0:120} (probe — queue not consumed)"
+  else
+    echo "  Body: ${BODY:0:120}"
+    echo "  Warning: probe returned a command — deploy latest AMS (getrequest probe fix)"
+  fi
 fi
 echo ""
 

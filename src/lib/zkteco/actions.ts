@@ -7,10 +7,12 @@ import { zktecoDevices } from "@/db/schema";
 import { type ActionResult, actionFailure, actionSuccess } from "@/lib/actions/result";
 import { requireAdminSession } from "@/lib/auth/require-session";
 import {
+  countPendingCommands,
   type DeviceConnectionStatus,
   formatDeviceLastSeen,
   getDeviceConnectionStatus,
   getSecondsSinceLastSeen,
+  requeueStaleSentCommands,
 } from "@/lib/zkteco/device-service";
 import {
   type DeviceSyncSummary,
@@ -61,6 +63,8 @@ export type DeviceStatusSnapshot = {
   lastSeenAt: string | null;
   lastSeenLabel: string;
   ipAddress: string | null;
+  pendingCommands: number;
+  requeuedCommands: number;
 };
 
 export async function refreshZktecoDeviceStatusAction(
@@ -80,12 +84,17 @@ export async function refreshZktecoDeviceStatusAction(
     });
   }
 
+  const requeued = await requeueStaleSentCommands(deviceId);
+  const pending = await countPendingCommands(deviceId);
+
   const snapshot: DeviceStatusSnapshot = {
     connectionStatus: getDeviceConnectionStatus(device.lastSeenAt),
     secondsSinceLastSeen: getSecondsSinceLastSeen(device.lastSeenAt),
     lastSeenAt: device.lastSeenAt?.toISOString() ?? null,
     lastSeenLabel: formatDeviceLastSeen(device.lastSeenAt),
     ipAddress: device.ipAddress,
+    pendingCommands: pending,
+    requeuedCommands: requeued,
   };
 
   revalidateAdminDevices();

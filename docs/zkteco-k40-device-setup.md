@@ -60,6 +60,24 @@ Use the **same value** in Vercel and on the device **Stamp** field (also labelle
 
 Do **not** put the device serial number in env — AMS auto-registers devices by `SN` on first handshake.
 
+### JWT username/password — not used (ADMS Direct)
+
+ZKBio Time docs at `172.16.10.104` describe **two different APIs**:
+
+| API | Auth | Who calls it |
+|-----|------|--------------|
+| `/iclock/cdata`, `/iclock/getrequest` (ADMS) | Device **SN** + **Stamp** (`ZKTECO_DEVICE_TOKEN`) | K40 firmware → AMS |
+| `/personnel/api/*`, `/iclock/api/*` (REST) | **JWT** from `POST /jwt-api-token-auth/` | Your server → ZKBio Time on LAN |
+
+AMS uses **ADMS Direct**: the K40 points at `ams.xorora.com` and polls with Stamp. **No `ZKBIO_USERNAME` / `ZKBIO_PASSWORD` needed** — and Vercel cannot reach `172.16.10.104` on your LAN anyway.
+
+If sync commands are not appearing on the device, the usual causes are:
+
+1. K40 cloud server not pointing at `ams.xorora.com` (still on ZKBio `172.16.10.104`)
+2. Stamp on device ≠ `ZKTECO_DEVICE_TOKEN` on Vercel
+3. Device offline (no heartbeat) — check **Last seen** on admin devices page
+4. Commands stuck as `sent` — run **Sync** after deploying the getrequest probe fix (re-queues stale commands)
+
 ---
 
 ## Registered device

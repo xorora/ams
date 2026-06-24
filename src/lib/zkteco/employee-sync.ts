@@ -25,6 +25,7 @@ import {
   getDeviceConnectionStatus,
   getSecondsSinceLastSeen,
   isDeviceReachable,
+  requeueStaleSentCommands,
 } from "@/lib/zkteco/device-service";
 
 const FUZZY_MATCH_THRESHOLD = 85;
@@ -665,6 +666,8 @@ export async function triggerReconcileDeviceSync(deviceId: string): Promise<Devi
       companyPull: { deviceId, queued: false, reason: "device_not_found" },
     };
   }
+
+  await requeueStaleSentCommands(deviceId);
 
   const { triggerDeviceCompanyPull, triggerDeviceCompanyPush } = await import(
     "@/lib/zkteco/company-sync"

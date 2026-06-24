@@ -1,6 +1,7 @@
 import { authorizeDeviceRequest } from "@/lib/zkteco/adms/handler";
+import { isAdmsProbeRequest } from "@/lib/zkteco/adms/request";
 import { admsError, admsTextResponse } from "@/lib/zkteco/adms/responses";
-import { getNextPendingCommand } from "@/lib/zkteco/device-service";
+import { countPendingCommands, getNextPendingCommand } from "@/lib/zkteco/device-service";
 
 export const runtime = "nodejs";
 
@@ -10,6 +11,12 @@ export async function GET(request: Request) {
 
     if (auth instanceof Response) {
       return auth;
+    }
+
+    // Probes (verify script, admin checks) must not dequeue commands — only the physical device may.
+    if (isAdmsProbeRequest(request)) {
+      const pending = await countPendingCommands(auth.device.id);
+      return admsTextResponse(`OK pending=${pending}`);
     }
 
     const command = await getNextPendingCommand(auth.device.id);
