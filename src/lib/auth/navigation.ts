@@ -4,6 +4,7 @@ import {
   CalendarOff,
   Clock,
   FileSpreadsheet,
+  Fingerprint,
   LayoutDashboard,
   Users,
 } from "lucide-react";
@@ -68,6 +69,7 @@ export function getNavItemsForUser(
       },
       { href: "/admin/leave", label: "Leave requests", icon: CalendarOff, adminOnly: true },
       { href: "/admin/overtime", label: "Overtime requests", icon: Clock, adminOnly: true },
+      { href: "/admin/devices", label: "Devices", icon: Fingerprint, adminOnly: true },
       { href: "/admin/reports", label: "Reports", icon: FileSpreadsheet, adminOnly: true },
     );
   }

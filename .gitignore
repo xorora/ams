@@ -17,13 +17,6 @@
 .DS_Store
 *.pem
 
-# eBio local attendance DB (PII — keep out of git)
-AttendanceTracker11.8_Ebio/attendance_db.mdb
-
-# ebio_sync Python package (scripts/ is version-controlled; ignore build artifacts)
-scripts/**/__pycache__/
-scripts/**/*.pyc
-
 # Extracted biometric data (PII — keep out of git)
 /exports/
 
@@ -40,9 +33,8 @@ yarn-error.log*
 # vercel
 .vercel
 
-# sync-agent build output (generated during next build)
-/generated/
+# generated build artifacts (legacy)
+/generated
 
 # typescript
 *.tsbuildinfo
-AttendanceTracker11.8_Ebio

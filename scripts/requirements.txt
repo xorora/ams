@@ -1,5 +1,0 @@
-pyodbc>=5.1
-psycopg[binary]>=3.2
-tzdata>=2024.1
-rapidfuzz>=3.9
-pywin32>=306; sys_platform == "win32"

@@ -7,6 +7,7 @@ import {
   getTodayPkt,
 } from "@/lib/admin/probation";
 import { closeOpenShiftForEmployee, findOpenShift } from "@/lib/attendance/close-open-shift";
+import { enqueueEmployeeDelete, enqueueEmployeePush } from "@/lib/zkteco/employee-sync";
 import { adminFailure, type ServiceFailure, type ServiceSuccess } from "./types";
 
 export type EmployeeRecord = typeof employees.$inferSelect;
@@ -189,6 +190,33 @@ async function unlinkEmployeeUser(employeeId: string, userId: string | null): Pr
     .where(and(eq(users.id, userId), eq(users.employeeId, employeeId)));
 }
 
+async function syncEmployeeToZktecoDevice(
+  employee: EmployeeRecord,
+  options: { deactivated?: boolean; previousEmployeeCode?: string } = {},
+): Promise<void> {
+  try {
+    if (options.deactivated) {
+      await enqueueEmployeeDelete(employee.employeeCode);
+      return;
+    }
+
+    if (!employee.isActive) {
+      return;
+    }
+
+    if (options.previousEmployeeCode && options.previousEmployeeCode !== employee.employeeCode) {
+      await enqueueEmployeeDelete(options.previousEmployeeCode);
+    }
+
+    await enqueueEmployeePush(employee.id);
+  } catch (error) {
+    console.error("[zkteco] failed to enqueue employee device sync", {
+      employeeId: employee.id,
+      error,
+    });
+  }
+}
+
 export async function listEmployees(
   filters: ListEmployeesFilters = {},
 ): Promise<ServiceSuccess<EmployeeRecord[]>> {
@@ -287,7 +315,9 @@ export async function createEmployee(
   await linkEmployeeToUserByEmail(created.id, data.email);
 
   const [linked] = await db.select().from(employees).where(eq(employees.id, created.id)).limit(1);
-  return { ok: true, data: linked ?? created };
+  const employee = linked ?? created;
+  await syncEmployeeToZktecoDevice(employee);
+  return { ok: true, data: employee };
 }
 
 export async function updateEmployee(
@@ -425,14 +455,27 @@ export async function updateEmployee(
     return adminFailure(404, "EMPLOYEE_NOT_FOUND", "Employee not found.");
   }
 
+  const employeeCodeChanged =
+    updates.employeeCode !== undefined && updates.employeeCode !== employee.employeeCode;
+  const deactivated = updates.isActive === false;
+
   if (emailChanged) {
     await unlinkEmployeeUser(id, employee.userId);
     await db.update(employees).set({ userId: null, updatedAt: now }).where(eq(employees.id, id));
     await linkEmployeeToUserByEmail(id, updated.email);
     const [reloaded] = await db.select().from(employees).where(eq(employees.id, id)).limit(1);
-    return { ok: true, data: reloaded ?? updated };
+    const result = reloaded ?? updated;
+    await syncEmployeeToZktecoDevice(result, {
+      deactivated,
+      previousEmployeeCode: employeeCodeChanged ? employee.employeeCode : undefined,
+    });
+    return { ok: true, data: result };
   }
 
+  await syncEmployeeToZktecoDevice(updated, {
+    deactivated,
+    previousEmployeeCode: employeeCodeChanged ? employee.employeeCode : undefined,
+  });
   return { ok: true, data: updated };
 }
 

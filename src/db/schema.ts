@@ -34,6 +34,13 @@ export const overtimeRequestStatusEnum = pgEnum("overtime_request_status", [
   "rejected",
   "cancelled",
 ]);
+export const machinePunchSourceEnum = pgEnum("machine_punch_source", ["ebio", "zkteco"]);
+export const zktecoCommandStatusEnum = pgEnum("zkteco_command_status", [
+  "pending",
+  "sent",
+  "completed",
+  "failed",
+]);
 
 export const companies = pgTable("companies", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -177,8 +184,9 @@ export const machinePunches = pgTable(
   "machine_punches",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    // Tran_MachineRawPunchId from the Access DB; idempotency key for the sync.
-    sourcePunchId: integer("source_punch_id").notNull().unique(),
+    sourceSystem: machinePunchSourceEnum("source_system").notNull().default("zkteco"),
+    // Legacy ebio: Tran_MachineRawPunchId. ZKTeco ADMS: deterministic hash of SN+pin+datetime.
+    sourcePunchId: integer("source_punch_id").notNull(),
     cardNo: text("card_no").notNull(),
     // PunchDatetime, converted from machine-local time to UTC by the sync script.
     punchAt: timestamp("punch_at", { withTimezone: true }).notNull(),
@@ -196,6 +204,10 @@ export const machinePunches = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
+    uniqueIndex("machine_punches_source_system_punch_id_idx").on(
+      table.sourceSystem,
+      table.sourcePunchId,
+    ),
     index("machine_punches_punch_at_idx").on(table.punchAt),
     index("machine_punches_card_no_idx").on(table.cardNo),
     index("machine_punches_employee_id_idx").on(table.employeeId),
@@ -204,8 +216,11 @@ export const machinePunches = pgTable(
 
 export const biometricEmployeeMappings = pgTable("biometric_employee_mappings", {
   id: uuid("id").defaultRandom().primaryKey(),
-  // Mst_Employee.Empid from the Access DB; durable key for the sync service.
-  sourceEmpId: integer("source_emp_id").notNull().unique(),
+  // Legacy ebio Mst_Employee.Empid from Access DB; also used for durable device PIN mappings.
+  sourceEmpId: integer("source_emp_id").unique(),
+  // ADMS user PIN on the device; maps to employees.employee_code.
+  devicePin: text("device_pin").unique(),
+  zktecoDeviceId: uuid("zkteco_device_id").references((): AnyPgColumn => zktecoDevices.id),
   cardNo: text("card_no").notNull().unique(),
   machineEmpCode: text("machine_emp_code"),
   machineEmpName: text("machine_emp_name").notNull(),
@@ -217,6 +232,44 @@ export const biometricEmployeeMappings = pgTable("biometric_employee_mappings", 
   matchMethod: text("match_method").notNull(),
   matchScore: real("match_score"),
   syncedAt: timestamp("synced_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const zktecoDevices = pgTable("zkteco_devices", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  serialNumber: text("serial_number").notNull().unique(),
+  alias: text("alias"),
+  ipAddress: text("ip_address"),
+  firmwareVersion: text("firmware_version"),
+  pushVersion: text("push_version"),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const zktecoDeviceCommands = pgTable(
+  "zkteco_device_commands",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    deviceId: uuid("device_id")
+      .notNull()
+      .references(() => zktecoDevices.id, { onDelete: "cascade" }),
+    commandText: text("command_text").notNull(),
+    status: zktecoCommandStatusEnum("status").notNull().default("pending"),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    resultText: text("result_text"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("zkteco_device_commands_device_status_idx").on(table.deviceId, table.status),
+    index("zkteco_device_commands_created_at_idx").on(table.createdAt),
+  ],
+);
+
+export const syncState = pgTable("sync_state", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

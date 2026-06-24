@@ -185,8 +185,25 @@ Full template: [`.env.example`](./.env.example).
 | `OFFICE_RADIUS_METERS` | No | Geofence radius (default **100**) |
 | `CRON_SECRET` | Prod | Bearer token for the auto-absent cron route |
 | `BOOTSTRAP_ADMIN_EMAIL` | Once | First login with this email becomes `admin`; remove after bootstrap |
+| `ZKTECO_TIMEZONE` | ZKTeco | Device timezone for ADMS punches (default: Asia/Karachi via app constant) |
+| `ZKTECO_DEVICE_TOKEN` | ZKTeco | Shared secret — must match K40 **Stamp** / Server Auth Key field |
+| `ZKTECO_DEFAULT_COMPANY_SLUG` | ZKTeco | Company slug for auto-created employees from device bootstrap |
+| `ZKTECO_SYNC_ALL_COMPANIES` | ZKTeco | Set `true` to push employees from all active companies to the device |
 
 On Vercel, `AUTH_URL` can often be omitted in production because Auth.js uses `trustHost: true` and infers the host from `VERCEL_URL`. Set it explicitly if redirects or callbacks misbehave.
+
+### ZKTeco K40 (biometric device)
+
+Cloud-native ADMS sync — the K40 pushes punches and pulls employee updates directly to AMS over HTTPS. See **[docs/zkteco-k40-device-setup.md](./docs/zkteco-k40-device-setup.md)** for device menu configuration, production URL (`ams.xorora.com`), and verification steps.
+
+After cutover from the legacy Ebio Windows sync agent, stop **AMSBioSync** on the old host — see **[docs/ebio-cutover.md](./docs/ebio-cutover.md)**.
+
+Verify ADMS routes locally or on production:
+
+```bash
+./scripts/zkteco-verify-device.sh              # against localhost:3000
+./scripts/zkteco-verify-device.sh --production # against ams.xorora.com
+```
 
 ---
 
@@ -312,6 +329,8 @@ Admins can enable probation when creating or editing an employee:
 | `/api/admin/attendance/*` | Attendance CRUD and status updates |
 | `/api/admin/reports/*` | Summary data and Excel export |
 | `/api/cron/mark-absent` | Daily auto-absent job (Bearer `CRON_SECRET`) |
+| `/iclock/*` | ZKTeco ADMS device protocol (handshake, punches, commands) — no auth session |
+| `/api/admin/zkteco/devices/*` | Admin: list devices, trigger user sync |
 
 Leave actions use Next.js Server Actions in [`src/lib/leave/actions.ts`](src/lib/leave/actions.ts).
 

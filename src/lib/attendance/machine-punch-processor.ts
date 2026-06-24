@@ -1,4 +1,4 @@
-import { and, eq, gte, isNotNull, lte, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { attendanceDays, companies, employees, machinePunches } from "@/db/schema";
 import {
@@ -16,6 +16,8 @@ export type ProcessMachinePunchesOptions = {
   since?: Date;
   /** Only punches at or before this instant (UTC). */
   until?: Date;
+  /** Only punches linked to these employees (includes full shift-day history per employee). */
+  employeeIds?: string[];
 };
 
 export type ProcessMachinePunchesResult = {
@@ -142,9 +144,9 @@ async function upsertAttendanceRows(rows: AttendanceInsertRow[]): Promise<number
   return affected;
 }
 
-/** Attach unlinked punches to employees via employees.machine_card_no = machine_punches.card_no. */
+/** Attach unlinked punches via machine_card_no or employee_code (ADMS PIN). */
 export async function relinkMachinePunchesToEmployees(): Promise<number> {
-  const result = await db.execute(sql`
+  const byCard = await db.execute(sql`
     UPDATE machine_punches AS mp
     SET employee_id = e.id
     FROM employees AS e
@@ -153,7 +155,16 @@ export async function relinkMachinePunchesToEmployees(): Promise<number> {
       AND e.machine_card_no = mp.card_no
   `);
 
-  return Number(result.rowCount ?? 0);
+  const byCode = await db.execute(sql`
+    UPDATE machine_punches AS mp
+    SET employee_id = e.id
+    FROM employees AS e
+    WHERE mp.employee_id IS NULL
+      AND mp.machine_emp_code IS NOT NULL
+      AND e.employee_code = mp.machine_emp_code
+  `);
+
+  return Number(byCard.rowCount ?? 0) + Number(byCode.rowCount ?? 0);
 }
 
 export async function runProcessMachinePunchesJob(
@@ -165,6 +176,9 @@ export async function runProcessMachinePunchesJob(
   }
   if (options.until) {
     conditions.push(lte(machinePunches.punchAt, options.until));
+  }
+  if (options.employeeIds && options.employeeIds.length > 0) {
+    conditions.push(inArray(machinePunches.employeeId, options.employeeIds));
   }
 
   const punchRows = await db
