@@ -35,6 +35,21 @@ ZKTECO_DEVICE_TOKEN=<shared-stamp-secret>
 ZKTECO_DEFAULT_COMPANY_SLUG=xorora
 ```
 
+Set `ZKTECO_SYNC_ALL_COMPANIES=true` when the K40 should receive **every** active AMS company and all of their employees (recommended for shared office devices):
+
+```env
+ZKTECO_SYNC_ALL_COMPANIES=true
+```
+
+When unset or not `true`, only employees from `ZKTECO_DEFAULT_COMPANY_SLUG` are pushed.
+
+Optional device status thresholds (seconds):
+
+```env
+ZKTECO_DEVICE_ONLINE_THRESHOLD_SECONDS=180
+ZKTECO_DEVICE_STALE_THRESHOLD_SECONDS=900
+```
+
 Generate the shared secret once:
 
 ```bash
@@ -146,7 +161,9 @@ FROM zkteco_devices
 WHERE serial_number = 'PAS4261300498';
 ```
 
-A device is considered **online** when `last_seen_at` is within the last 60 seconds (updated on every heartbeat).
+A device is considered **online** when `last_seen_at` is within the last **3 minutes** (configurable). **Idle** means seen within 15 minutes. The admin devices page auto-refreshes every 30 seconds.
+
+Verify scripts use `probe=1` so they do not fake a device heartbeat.
 
 Admins can also check via API (requires admin session):
 
@@ -174,6 +191,93 @@ LIMIT 5;
 1. Create or update an employee in **Admin → Employees**
 2. Within **5–15 seconds**, the device should receive an `UPDATE USERINFO` command on its next heartbeat
 3. Confirm the user appears on the K40 user list
+
+---
+
+## Initial device setup (companies → employees → biometrics)
+
+Do this once after pointing the K40 at AMS. Ebio should already be stopped.
+
+### ZKBio Time API vs AMS ADMS (what syncs)
+
+ZKBio Time 8.0 at `172.16.10.104` documents two layers. AMS talks **ADMS directly** to the K40 (device points at `ams.xorora.com`, not ZKBio).
+
+| ZKBio REST API (JWT) | AMS ADMS equivalent | Direction | Data |
+|----------------------|---------------------|-----------|------|
+| `GET /personnel/api/company/` | `QUERY DEPTINFO` / `UPDATE DEPTINFO` | ↔ | Companies + team departments on device |
+| `GET /personnel/api/departments/` | `DEPTINFO` records | ↔ | Department names |
+| `GET /personnel/api/employees/` | `QUERY USERINFO` / `UPDATE USERINFO` | ↔ | PIN, name, card, department |
+| `POST …/employees/resync_to_device/` | `UPDATE USERINFO` queue | AMS → device | Push employee profiles |
+| `POST /iclock/api/terminals/upload_all/` | `QUERY DEPTINFO` + `QUERY USERINFO` | device → AMS | Pull device state |
+| `bio_template_api` / `del_bio_template` | — | — | **Not synced** — enroll fingerprints on device |
+
+**One-click Sync** on **Admin → Biometric devices** queues, in order:
+
+1. Pull departments from device (`QUERY DEPTINFO`)
+2. Pull users from device (`QUERY USERINFO`) — links or creates AMS employees
+3. Push all AMS departments (companies + teams) to device
+4. Push all AMS employees (per company when `ZKTECO_SYNC_ALL_COMPANIES=true`)
+
+The device processes **one command per heartbeat (~5 s)**. A full sync of 2 companies + 22 employees takes ~2–3 minutes.
+
+**Biometrics (fingerprints)** are never transferred over ADMS — enroll on the K40 after profiles sync.
+
+### Step 1 — Enable all companies on AMS
+
+On **Vercel Production** (and `.env.local` for local scripts):
+
+```env
+ZKTECO_SYNC_ALL_COMPANIES=true
+```
+
+Redeploy after changing Vercel env vars.
+
+Current AMS companies that will sync to the device:
+
+| Company | Active employees |
+|---------|------------------|
+| Crest LED | 13 |
+| Xorora | 9 |
+
+Companies are pushed as **departments** (`DEPTINFO`) on the K40. Employee records reference each person’s AMS `department` field (Xorora teams like IT, Engineering; Crest LED employees may have no department).
+
+### Step 2 — Sync (one button)
+
+**Admin UI:** [Biometric devices](/admin/devices) → device `PAS4261300498` → **Sync**
+
+This pulls device state, then pushes AMS as the source of truth for companies and employees.
+
+**CLI alternative:**
+
+```bash
+bun --env-file=.env.local scripts/zkteco-push-device.ts PAS4261300498 sync
+```
+
+Advanced options (More menu): push companies only, push employees only, or pull only.
+
+### Step 3 — Enroll biometrics on the K40 (physical)
+
+AMS pushes **user profiles** (PIN, name, card number) only — **fingerprints are enrolled on the device**, not in AMS.
+
+For each employee:
+
+1. **Menu → User Mgt → User** (or **Personnel** — varies by firmware)
+2. Find the user by **PIN** (matches AMS `employee_code`, e.g. `001`, `011`)
+3. Select **Enroll fingerprint** (or **FP**)
+4. Scan the same finger **2–3 times** until enrollment succeeds
+5. Repeat for every employee who will use this device
+
+Tips:
+
+- PIN on device must match `employees.employee_code` in AMS
+- Enroll after the push completes — user must exist on device first
+- Card-only users can skip FP if they use RFID cards already assigned in AMS (`machine_card_no`)
+
+### Step 4 — Verify attendance
+
+1. Scan an enrolled employee on the K40
+2. Within ~10 s, check **Admin → Attendance** for today’s check-in
+3. Run `./scripts/zkteco-verify-device.sh --production` for ADMS connectivity checks
 
 ---
 

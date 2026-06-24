@@ -23,11 +23,23 @@ done
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ENV_FILE="${ROOT}/.env.local"
 
+read_env_value() {
+  local key="$1"
+  local line
+  line=$(grep -E "^${key}=" "$ENV_FILE" | head -1 || true)
+  [[ -z "$line" ]] && return 0
+  local val="${line#*=}"
+  val="${val%\"}"
+  val="${val#\"}"
+  val="${val%\'}"
+  val="${val#\'}"
+  printf -v "$key" '%s' "$val"
+  export "$key"
+}
+
 if [[ -f "$ENV_FILE" ]]; then
-  # shellcheck disable=SC1090
-  set -a
-  source <(grep -E '^(ZKTECO_DEVICE_TOKEN|ZKTECO_DEVICE_SN)=' "$ENV_FILE" | sed 's/^/export /')
-  set +a
+  read_env_value ZKTECO_DEVICE_TOKEN
+  read_env_value ZKTECO_DEVICE_SN
 fi
 
 if [[ "$PRODUCTION" == true ]]; then
@@ -39,7 +51,7 @@ fi
 TOKEN="${ZKTECO_DEVICE_TOKEN:-}"
 ENC_TOKEN=""
 if [[ -n "$TOKEN" ]]; then
-  ENC_TOKEN=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${TOKEN}', safe=''))")
+  ENC_TOKEN=$(ZKTECO_DEVICE_TOKEN="$TOKEN" python3 -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["ZKTECO_DEVICE_TOKEN"], safe=""))')
 fi
 
 auth_query() {
@@ -72,9 +84,10 @@ echo ""
 
 # 1. Handshake
 AUTH=$(auth_query)
-URL="${BASE}/iclock/cdata?SN=${SN}&options=all"
+PROBE="probe=1"
+URL="${BASE}/iclock/cdata?SN=${SN}&options=all&${PROBE}"
 [[ -n "$AUTH" ]] && URL="${URL}&${AUTH}"
-RESP=$(curl -sS -w "\n__HTTP__:%{http_code}" "$URL" || true)
+RESP=$(curl -sS -w "\n__HTTP__:%{http_code}" -H "X-ZKTeco-Probe: 1" "$URL" || true)
 BODY=$(echo "$RESP" | sed '/__HTTP__:/d')
 CODE=$(echo "$RESP" | grep '__HTTP__:' | cut -d: -f2)
 check "Handshake GET /iclock/cdata" "$CODE" "$BODY"
@@ -84,9 +97,9 @@ fi
 echo ""
 
 # 2. Heartbeat
-URL="${BASE}/iclock/getrequest?SN=${SN}"
+URL="${BASE}/iclock/getrequest?SN=${SN}&${PROBE}"
 [[ -n "$AUTH" ]] && URL="${URL}&${AUTH}"
-RESP=$(curl -sS -w "\n__HTTP__:%{http_code}" "$URL" || true)
+RESP=$(curl -sS -w "\n__HTTP__:%{http_code}" -H "X-ZKTeco-Probe: 1" "$URL" || true)
 BODY=$(echo "$RESP" | sed '/__HTTP__:/d')
 CODE=$(echo "$RESP" | grep '__HTTP__:' | cut -d: -f2)
 check "Heartbeat GET /iclock/getrequest" "$CODE" "$BODY"
@@ -101,9 +114,9 @@ if [[ "$PRODUCTION" == true && "${ZKTECO_VERIFY_LIVE_PUNCH:-}" != "1" ]]; then
 else
   PUNCH_TIME=$(TZ="${ZKTECO_TIMEZONE:-Asia/Karachi}" date '+%Y-%m-%d %H:%M:%S')
   PUNCH_BODY=$'9999\t'"${PUNCH_TIME}"$'\t0\t1\t0\t0'
-  URL="${BASE}/iclock/cdata?SN=${SN}&table=ATTLOG"
+  URL="${BASE}/iclock/cdata?SN=${SN}&table=ATTLOG&${PROBE}"
   [[ -n "$AUTH" ]] && URL="${URL}&${AUTH}"
-  RESP=$(curl -sS -w "\n__HTTP__:%{http_code}" -X POST "$URL" \
+  RESP=$(curl -sS -w "\n__HTTP__:%{http_code}" -X POST -H "X-ZKTeco-Probe: 1" "$URL" \
     -H "Content-Type: text/plain" \
     --data-binary "$PUNCH_BODY" || true)
   BODY=$(echo "$RESP" | sed '/__HTTP__:/d')
@@ -121,6 +134,15 @@ if [[ "$fail" -gt 0 ]]; then
     echo ""
     echo "Hint: HTTP 404 on production means /iclock routes are not deployed yet."
     echo "Deploy the ZKTeco ADMS changes to Vercel, then re-run with --production."
+  elif [[ "$PRODUCTION" == true && "$CODE" == "403" ]]; then
+    echo ""
+    if [[ -z "$TOKEN" ]]; then
+      echo "Hint: HTTP 403 — ZKTECO_DEVICE_TOKEN is not set in .env.local."
+      echo "Add the same value as Vercel Production → Settings → Environment Variables."
+    else
+      echo "Hint: HTTP 403 — Stamp does not match production ZKTECO_DEVICE_TOKEN."
+      echo "Copy the Vercel Production value into .env.local and on the K40 Stamp field."
+    fi
   fi
   exit 1
 fi

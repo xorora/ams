@@ -1,4 +1,4 @@
-import { getSerialNumber, validateDeviceAuth } from "@/lib/zkteco/adms/request";
+import { getSerialNumber, isAdmsProbeRequest, validateDeviceAuth } from "@/lib/zkteco/adms/request";
 import { admsError } from "@/lib/zkteco/adms/responses";
 import { type DeviceMetadata, ensureDevice } from "@/lib/zkteco/device-service";
 
@@ -20,6 +20,8 @@ export async function authorizeDeviceRequest(
     return admsError("Not Authorized Terminal", 403);
   }
 
-  const device = await ensureDevice(serialNumber, metadata);
+  const device = await ensureDevice(serialNumber, metadata, {
+    recordHeartbeat: !isAdmsProbeRequest(request),
+  });
   return { serialNumber, device };
 }

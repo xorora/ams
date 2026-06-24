@@ -16,6 +16,14 @@ export function getQueryParam(request: Request, name: string): string | null {
   return value || null;
 }
 
+/** Admin verify scripts and connectivity probes — must not update device last_seen_at. */
+export function isAdmsProbeRequest(request: Request): boolean {
+  if (request.headers.get("x-zkteco-probe") === "1") {
+    return true;
+  }
+  return getQueryParam(request, "probe") === "1";
+}
+
 export function validateDeviceAuth(request: Request): boolean {
   const expectedToken = getZktecoDeviceToken();
   if (!expectedToken) {

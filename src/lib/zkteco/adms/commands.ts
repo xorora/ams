@@ -1,23 +1,37 @@
 import type { employees } from "@/db/schema";
 
-type EmployeeRow = Pick<
+export type DeviceUserInfoRow = Pick<
   typeof employees.$inferSelect,
   "employeeCode" | "fullName" | "machineCardNo" | "department"
->;
+> & {
+  /** AMS company name — used as device Dept when team/department is unset. */
+  companyName?: string | null;
+};
 
 export function formatWireCommand(commandId: number | string, command: string): string {
   return `C:${commandId}:${command}`;
 }
 
-export function buildUpdateUserInfoCommand(employee: EmployeeRow): string {
+/** Device department: team name if set, otherwise company name (ZKBio Dept / ADMS DEPTINFO). */
+export function resolveDeviceDepartment(employee: DeviceUserInfoRow): string | undefined {
+  const team = employee.department?.trim();
+  if (team) {
+    return team;
+  }
+  const company = employee.companyName?.trim();
+  return company || undefined;
+}
+
+export function buildUpdateUserInfoCommand(employee: DeviceUserInfoRow): string {
   const parts = [`PIN=${employee.employeeCode}`, `Name=${employee.fullName}`, `Pri=0`];
 
   if (employee.machineCardNo) {
     parts.push(`Card=${employee.machineCardNo}`);
   }
 
-  if (employee.department?.trim()) {
-    parts.push(`Dept=${employee.department.trim()}`);
+  const dept = resolveDeviceDepartment(employee);
+  if (dept) {
+    parts.push(`Dept=${dept}`);
   }
 
   return `DATA UPDATE USERINFO ${parts.join("\t")}`;

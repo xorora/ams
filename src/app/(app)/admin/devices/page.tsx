@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { DevicesManager } from "@/components/admin/devices-manager";
 import { requireAdminSession } from "@/lib/auth/require-session";
 import {
@@ -19,7 +21,8 @@ export default async function AdminDevicesPage() {
       <div className="shrink-0">
         <h1 className="text-2xl font-semibold">Biometric devices</h1>
         <p className="mt-1 text-muted-foreground text-sm">
-          Monitor ZKTeco K40 connectivity, trigger employee sync, and review unmapped device users.
+          Sync companies and employees between AMS and the K40. Fingerprints are enrolled on the
+          device after profiles sync.
         </p>
       </div>
 

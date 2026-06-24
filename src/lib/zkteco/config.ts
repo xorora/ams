@@ -27,3 +27,22 @@ export function getZktecoDefaultCompanySlug(): string {
 export function shouldSyncAllCompanies(): boolean {
   return process.env.ZKTECO_SYNC_ALL_COMPANIES?.trim() === "true";
 }
+
+const DEFAULT_DEVICE_ONLINE_THRESHOLD_SECONDS = 180;
+const DEFAULT_DEVICE_STALE_THRESHOLD_SECONDS = 900;
+
+/** How recently the device must have heartbeated to count as online (default 3 min). */
+export function getDeviceOnlineThresholdMs(): number {
+  const seconds = Number.parseInt(process.env.ZKTECO_DEVICE_ONLINE_THRESHOLD_SECONDS ?? "", 10);
+  const resolved =
+    Number.isFinite(seconds) && seconds > 0 ? seconds : DEFAULT_DEVICE_ONLINE_THRESHOLD_SECONDS;
+  return resolved * 1000;
+}
+
+/** After this window without heartbeat the device is offline (default 15 min). */
+export function getDeviceStaleThresholdMs(): number {
+  const seconds = Number.parseInt(process.env.ZKTECO_DEVICE_STALE_THRESHOLD_SECONDS ?? "", 10);
+  const resolved =
+    Number.isFinite(seconds) && seconds > 0 ? seconds : DEFAULT_DEVICE_STALE_THRESHOLD_SECONDS;
+  return resolved * 1000;
+}

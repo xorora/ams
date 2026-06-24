@@ -14,10 +14,18 @@ import {
   buildDeleteUserInfoCommand,
   buildQueryUserInfoCommand,
   buildUpdateUserInfoCommand,
+  type DeviceUserInfoRow,
 } from "@/lib/zkteco/adms/commands";
 import type { UserInfoRecord } from "@/lib/zkteco/adms/parser";
+import { getCompaniesToSync } from "@/lib/zkteco/company-sync";
 import { getZktecoDefaultCompanySlug, shouldSyncAllCompanies } from "@/lib/zkteco/config";
-import { enqueueDeviceCommand, isDeviceOnline } from "@/lib/zkteco/device-service";
+import {
+  enqueueDeviceCommand,
+  formatDeviceLastSeen,
+  getDeviceConnectionStatus,
+  getSecondsSinceLastSeen,
+  isDeviceReachable,
+} from "@/lib/zkteco/device-service";
 
 const FUZZY_MATCH_THRESHOLD = 85;
 const DEFAULT_USER_SYNC_INTERVAL_HOURS = 24;
@@ -58,7 +66,33 @@ export type DeviceSyncResult = {
   companyPull: { deviceId: string; queued: boolean; reason?: string; commandId?: string };
 };
 
-export type SyncDirection = "both" | "push" | "pull";
+export type SyncDirection = "both" | "push" | "pull" | "companies" | "employees" | "sync";
+
+export type DeviceSyncSummary = {
+  companiesPushed: number;
+  employeesPushed: number;
+  companyPullQueued: boolean;
+  userPullQueued: boolean;
+  totalCommands: number;
+  estimatedMinutes: number;
+};
+
+export function summarizeDeviceSync(result: DeviceSyncResult): DeviceSyncSummary {
+  const totalCommands =
+    result.companyPush.queued +
+    result.push.queued +
+    (result.companyPull.queued ? 1 : 0) +
+    (result.pull.queued ? 1 : 0);
+
+  return {
+    companiesPushed: result.companyPush.queued,
+    employeesPushed: result.push.queued,
+    companyPullQueued: result.companyPull.queued,
+    userPullQueued: result.pull.queued,
+    totalCommands,
+    estimatedMinutes: Math.max(1, Math.ceil((totalCommands * 5) / 60)),
+  };
+}
 
 function syncStateKey(prefix: string, deviceId: string): string {
   return `${prefix}:${deviceId}`;
@@ -152,6 +186,61 @@ function getUserSyncIntervalMs(): number {
 
 async function getAllDevices() {
   return db.select().from(zktecoDevices).orderBy(desc(zktecoDevices.lastSeenAt));
+}
+
+async function getEmployeesWithCompanyForSync(): Promise<DeviceUserInfoRow[]> {
+  if (shouldSyncAllCompanies()) {
+    return db
+      .select({
+        employeeCode: employees.employeeCode,
+        fullName: employees.fullName,
+        machineCardNo: employees.machineCardNo,
+        department: employees.department,
+        companyName: companies.name,
+      })
+      .from(employees)
+      .innerJoin(companies, eq(employees.companyId, companies.id))
+      .where(and(eq(employees.isActive, true), eq(companies.isActive, true)));
+  }
+
+  const slug = getZktecoDefaultCompanySlug();
+  const company = await db.query.companies.findFirst({
+    where: eq(companies.slug, slug),
+  });
+
+  if (!company) {
+    return [];
+  }
+
+  const rows = await db
+    .select({
+      employeeCode: employees.employeeCode,
+      fullName: employees.fullName,
+      machineCardNo: employees.machineCardNo,
+      department: employees.department,
+    })
+    .from(employees)
+    .where(and(eq(employees.companyId, company.id), eq(employees.isActive, true)));
+
+  return rows.map((row) => ({ ...row, companyName: company.name }));
+}
+
+async function resolveCompanyIdForDeviceUser(record: UserInfoRecord): Promise<string | null> {
+  const dept = record.department?.trim();
+  if (dept) {
+    const companiesToSync = await getCompaniesToSync();
+    const match = companiesToSync.find(
+      (company) => company.name.toLowerCase() === dept.toLowerCase(),
+    );
+    if (match) {
+      return match.id;
+    }
+  }
+
+  const defaultCompany = await db.query.companies.findFirst({
+    where: eq(companies.slug, getZktecoDefaultCompanySlug()),
+  });
+  return defaultCompany?.id ?? null;
 }
 
 async function getEmployeesToSync(): Promise<Array<typeof employees.$inferSelect>> {
@@ -382,7 +471,13 @@ async function createEmployeeFromDeviceUser(
   cardNo: string,
   ctx: EmployeeContext,
 ): Promise<typeof employees.$inferSelect | null> {
-  const slug = getZktecoDefaultCompanySlug();
+  const companyId = (await resolveCompanyIdForDeviceUser(record)) ?? ctx.companyId;
+  const slug =
+    (
+      await db.query.companies.findFirst({
+        where: eq(companies.id, companyId),
+      })
+    )?.slug ?? getZktecoDefaultCompanySlug();
   const domain = emailDomainForSlug(slug);
   const baseCode = formatEmployeeCode(record.pin);
   const employeeCode = generateUniqueEmployeeCode(baseCode, ctx.takenCodes);
@@ -395,7 +490,8 @@ async function createEmployeeFromDeviceUser(
       employeeCode,
       fullName,
       email,
-      companyId: ctx.companyId,
+      companyId,
+      department: record.department?.trim() || null,
       machineCardNo: cardNo !== record.pin && !ctx.byCard.has(cardNo) ? cardNo : null,
     })
     .returning();
@@ -462,11 +558,21 @@ async function markUserSyncCompleted(deviceId: string): Promise<void> {
 }
 
 export async function enqueueEmployeePush(employeeId: string): Promise<void> {
-  const employee = await db.query.employees.findFirst({
-    where: eq(employees.id, employeeId),
-  });
+  const row = await db
+    .select({
+      employeeCode: employees.employeeCode,
+      fullName: employees.fullName,
+      machineCardNo: employees.machineCardNo,
+      department: employees.department,
+      companyName: companies.name,
+      isActive: employees.isActive,
+    })
+    .from(employees)
+    .innerJoin(companies, eq(employees.companyId, companies.id))
+    .where(eq(employees.id, employeeId))
+    .then((rows) => rows[0]);
 
-  if (!employee?.isActive) {
+  if (!row?.isActive) {
     return;
   }
 
@@ -475,7 +581,7 @@ export async function enqueueEmployeePush(employeeId: string): Promise<void> {
     return;
   }
 
-  const command = buildUpdateUserInfoCommand(employee);
+  const command = buildUpdateUserInfoCommand(row);
   for (const device of devices) {
     await enqueueDeviceCommand(device.id, command);
   }
@@ -504,7 +610,7 @@ export async function triggerDeviceEmployeePush(
     return { deviceId, queued: 0 };
   }
 
-  const employeeRows = await getEmployeesToSync();
+  const employeeRows = await getEmployeesWithCompanyForSync();
   for (const employee of employeeRows) {
     await enqueueDeviceCommand(deviceId, buildUpdateUserInfoCommand(employee));
   }
@@ -545,32 +651,76 @@ export async function enqueueBootstrapUserQuery(deviceId: string, pin?: string):
   await triggerDeviceUserPull(deviceId, { pin, force: false });
 }
 
+export async function triggerReconcileDeviceSync(deviceId: string): Promise<DeviceSyncResult> {
+  const device = await db.query.zktecoDevices.findFirst({
+    where: eq(zktecoDevices.id, deviceId),
+  });
+
+  if (!device) {
+    return {
+      deviceId,
+      push: { deviceId, queued: 0 },
+      pull: { deviceId, queued: false, reason: "device_not_found" },
+      companyPush: { deviceId, queued: 0 },
+      companyPull: { deviceId, queued: false, reason: "device_not_found" },
+    };
+  }
+
+  const { triggerDeviceCompanyPull, triggerDeviceCompanyPush } = await import(
+    "@/lib/zkteco/company-sync"
+  );
+
+  // Pull device state first, then push AMS canonical state (FIFO — one ADMS command per heartbeat).
+  const companyPull = await triggerDeviceCompanyPull(deviceId, { force: true });
+  const pull = await triggerDeviceUserPull(deviceId, { force: true });
+  const companyPush = await triggerDeviceCompanyPush(deviceId);
+  const push = await triggerDeviceEmployeePush(deviceId);
+
+  const now = new Date().toISOString();
+  await setSyncStateValue(syncStateKey("zkteco_bootstrap_initiated", deviceId), now);
+  await setSyncStateValue(syncStateKey("zkteco_last_reconcile_at", deviceId), now);
+  await setSyncStateValue(syncStateKey("zkteco_bootstrap_completed", deviceId), "true");
+
+  return { deviceId, push, pull, companyPush, companyPull };
+}
+
 export async function triggerFullDeviceSync(
   deviceId: string,
   options: { direction?: SyncDirection; pin?: string; force?: boolean } = {},
 ): Promise<DeviceSyncResult> {
   const direction = options.direction ?? "both";
+
+  if (direction === "sync") {
+    return triggerReconcileDeviceSync(deviceId);
+  }
+
   const { triggerDeviceCompanyPull, triggerDeviceCompanyPush } = await import(
     "@/lib/zkteco/company-sync"
   );
 
-  const companyPush =
-    direction === "pull" ? { deviceId, queued: 0 } : await triggerDeviceCompanyPush(deviceId);
-  const push =
-    direction === "pull" ? { deviceId, queued: 0 } : await triggerDeviceEmployeePush(deviceId);
-  const companyPull =
-    direction === "push"
-      ? { deviceId, queued: false as const, reason: "push_only" }
-      : await triggerDeviceCompanyPull(deviceId, { force: options.force });
-  const pull =
-    direction === "push"
-      ? { deviceId, queued: false as const, reason: "push_only" }
-      : await triggerDeviceUserPull(deviceId, {
-          pin: options.pin,
-          force: options.force,
-        });
+  const includeCompanyPush =
+    direction === "both" || direction === "push" || direction === "companies";
+  const includeEmployeePush =
+    direction === "both" || direction === "push" || direction === "employees";
+  const includePull = direction === "both" || direction === "pull";
 
-  if (direction !== "pull") {
+  const companyPush = includeCompanyPush
+    ? await triggerDeviceCompanyPush(deviceId)
+    : { deviceId, queued: 0 };
+  const push = includeEmployeePush
+    ? await triggerDeviceEmployeePush(deviceId)
+    : { deviceId, queued: 0 };
+  const companyPull = includePull
+    ? await triggerDeviceCompanyPull(deviceId, { force: options.force })
+    : { deviceId, queued: false as const, reason: "push_only" };
+  const pull = includePull
+    ? await triggerDeviceUserPull(deviceId, {
+        pin: options.pin,
+        force: options.force,
+      })
+    : { deviceId, queued: false as const, reason: "push_only" };
+
+  if (includeCompanyPush || includeEmployeePush) {
     await setSyncStateValue(
       syncStateKey("zkteco_bootstrap_initiated", deviceId),
       new Date().toISOString(),
@@ -618,7 +768,7 @@ export async function runPeriodicDeviceSync(): Promise<{
   let skipped = 0;
 
   for (const device of devices) {
-    if (!isDeviceOnline(device.lastSeenAt)) {
+    if (!isDeviceReachable(device.lastSeenAt)) {
       skipped += 1;
       continue;
     }
@@ -808,7 +958,10 @@ export async function listZktecoDevicesWithSyncState() {
 
       return {
         ...device,
-        isOnline: isDeviceOnline(device.lastSeenAt),
+        connectionStatus: getDeviceConnectionStatus(device.lastSeenAt),
+        secondsSinceLastSeen: getSecondsSinceLastSeen(device.lastSeenAt),
+        lastSeenLabel: formatDeviceLastSeen(device.lastSeenAt),
+        isOnline: isDeviceReachable(device.lastSeenAt),
         lastUserSyncAt,
         lastEmployeePushAt,
         lastCompanyPushAt: companySync.lastCompanyPushAt,

@@ -1,8 +1,8 @@
 "use client";
 
-import { RefreshCwIcon } from "lucide-react";
+import { ChevronDownIcon, RefreshCwIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,11 +14,21 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { type ColumnDef, DataTable } from "@/components/ui/table";
 import { formatPktDateTime, formatPktIso } from "@/lib/admin/display";
 import { toastAsync } from "@/lib/toast";
-import { triggerZktecoDeviceSyncAction } from "@/lib/zkteco/actions";
-import type { SyncDirection } from "@/lib/zkteco/employee-sync";
+import {
+  refreshZktecoDeviceStatusAction,
+  triggerZktecoDeviceSyncAction,
+} from "@/lib/zkteco/actions";
+import type { DeviceConnectionStatus } from "@/lib/zkteco/device-service";
+import type { DeviceSyncSummary, SyncDirection } from "@/lib/zkteco/employee-sync";
 import type { SerializedUnmappedDeviceUser, SerializedZktecoDevice } from "@/lib/zkteco/serialize";
 
 type DevicesManagerProps = {
@@ -37,14 +47,53 @@ function formatSyncAt(value: string | null): string {
   return formatPktDateTime(value);
 }
 
-function onlineBadgeVariant(isOnline: boolean): "default" | "secondary" | "destructive" {
-  return isOnline ? "default" : "destructive";
+function onlineBadgeVariant(
+  status: DeviceConnectionStatus,
+): "default" | "secondary" | "destructive" {
+  if (status === "online") {
+    return "default";
+  }
+  if (status === "stale") {
+    return "secondary";
+  }
+  return "destructive";
+}
+
+function connectionStatusLabel(status: DeviceConnectionStatus): string {
+  if (status === "online") {
+    return "Online";
+  }
+  if (status === "stale") {
+    return "Idle";
+  }
+  return "Offline";
+}
+
+function formatSyncSuccess(summary: DeviceSyncSummary): string {
+  const parts = [
+    `Queued ${summary.totalCommands} command(s)`,
+    `${summary.companiesPushed} dept(s)`,
+    `${summary.employeesPushed} employee(s)`,
+  ];
+  if (summary.companyPullQueued || summary.userPullQueued) {
+    parts.push("pull from device");
+  }
+  return `${parts.join(" · ")}. Est. ~${summary.estimatedMinutes} min on device.`;
 }
 
 export function DevicesManager({ devices, unmappedUsers }: DevicesManagerProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [syncingDeviceId, setSyncingDeviceId] = useState<string | null>(null);
+  const [refreshingDeviceId, setRefreshingDeviceId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      startTransition(() => router.refresh());
+    }, 30_000);
+
+    return () => window.clearInterval(interval);
+  }, [router]);
 
   async function handleSync(
     deviceId: string,
@@ -59,10 +108,11 @@ export function DevicesManager({ devices, unmappedUsers }: DevicesManagerProps) 
           if (!result.ok) {
             throw new Error(result.error);
           }
+          return formatSyncSuccess(result.data);
         }),
         {
           loading: `${label}…`,
-          success: `${label} queued. The device will pick up commands on its next heartbeat.`,
+          success: (message) => message,
         },
       );
       startTransition(() => router.refresh());
@@ -70,6 +120,32 @@ export function DevicesManager({ devices, unmappedUsers }: DevicesManagerProps) 
       // toastAsync already surfaced the error toast
     } finally {
       setSyncingDeviceId(null);
+    }
+  }
+
+  async function handleRefreshStatus(deviceId: string) {
+    setRefreshingDeviceId(deviceId);
+
+    try {
+      await toastAsync(
+        refreshZktecoDeviceStatusAction(deviceId).then((result) => {
+          if (!result.ok) {
+            throw new Error(result.error);
+          }
+          const { connectionStatus, lastSeenLabel, ipAddress } = result.data;
+          const status = connectionStatusLabel(connectionStatus);
+          return `${status} · last heartbeat ${lastSeenLabel}${ipAddress ? ` · ${ipAddress}` : ""}`;
+        }),
+        {
+          loading: "Refreshing status…",
+          success: (message) => message,
+        },
+      );
+      startTransition(() => router.refresh());
+    } catch {
+      // toastAsync already surfaced the error toast
+    } finally {
+      setRefreshingDeviceId(null);
     }
   }
 
@@ -128,15 +204,18 @@ export function DevicesManager({ devices, unmappedUsers }: DevicesManagerProps) 
         <div className="grid shrink-0 gap-4 md:grid-cols-2">
           {devices.map((device) => {
             const syncing = syncingDeviceId === device.id;
-            const busy = syncing || isPending;
+            const refreshing = refreshingDeviceId === device.id;
+            const busy = syncing || refreshing || isPending;
+            const reachable = device.isOnline;
+            const status = device.connectionStatus;
 
             return (
               <Card key={device.id} size="sm">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     {deviceLabel(device)}
-                    <Badge variant={onlineBadgeVariant(device.isOnline)}>
-                      {device.isOnline ? "Online" : "Offline"}
+                    <Badge variant={onlineBadgeVariant(status)}>
+                      {connectionStatusLabel(status)}
                     </Badge>
                   </CardTitle>
                   <CardDescription className="font-mono text-xs">
@@ -144,7 +223,7 @@ export function DevicesManager({ devices, unmappedUsers }: DevicesManagerProps) 
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-2 text-sm">
-                  <DetailRow label="Last seen" value={formatSyncAt(device.lastSeenAt)} />
+                  <DetailRow label="Last seen" value={device.lastSeenLabel} />
                   <DetailRow label="IP address" value={device.ipAddress ?? "—"} />
                   <DetailRow label="Firmware" value={device.firmwareVersion ?? "—"} />
                   <DetailRow label="Push version" value={device.pushVersion ?? "—"} />
@@ -168,41 +247,61 @@ export function DevicesManager({ devices, unmappedUsers }: DevicesManagerProps) 
                     }
                   />
                 </CardContent>
-                <CardFooter className="flex flex-wrap gap-2 border-t-0 bg-transparent p-4 pt-0">
+                <CardFooter className="flex flex-wrap items-center gap-2 border-t-0 bg-transparent p-4 pt-0">
                   <Button
                     size="sm"
-                    disabled={busy || !device.isOnline}
-                    onClick={() => handleSync(device.id, { direction: "both" }, "Full sync")}
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => handleRefreshStatus(device.id)}
+                  >
+                    <RefreshCwIcon className={refreshing ? "animate-spin" : undefined} />
+                    Refresh status
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={busy || !reachable}
+                    onClick={() => handleSync(device.id, { direction: "sync" }, "Sync")}
                   >
                     <RefreshCwIcon className={syncing ? "animate-spin" : undefined} />
-                    Sync now
+                    Sync
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={busy || !device.isOnline}
-                    onClick={() => handleSync(device.id, { direction: "pull" }, "Pull from device")}
-                  >
-                    Pull users
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={busy || !device.isOnline}
-                    onClick={() => handleSync(device.id, { direction: "push" }, "Push to device")}
-                  >
-                    Push employees
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={busy || !device.isOnline}
-                    onClick={() =>
-                      handleSync(device.id, { direction: "both", force: true }, "Force sync")
-                    }
-                  >
-                    Force sync
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={<Button size="sm" variant="outline" disabled={busy || !reachable} />}
+                    >
+                      More
+                      <ChevronDownIcon />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      <DropdownMenuItem
+                        onClick={() =>
+                          handleSync(device.id, { direction: "companies" }, "Push companies")
+                        }
+                      >
+                        Push companies only
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() =>
+                          handleSync(device.id, { direction: "employees" }, "Push employees")
+                        }
+                      >
+                        Push employees only
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() =>
+                          handleSync(device.id, { direction: "pull" }, "Pull from device")
+                        }
+                      >
+                        Pull from device only
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  {!reachable ? (
+                    <p className="w-full text-muted-foreground text-xs">
+                      Device has not heartbeated recently. Check K40 cloud server points to
+                      ams.xorora.com, then use Refresh status. Status auto-updates every 30s.
+                    </p>
+                  ) : null}
                 </CardFooter>
               </Card>
             );
@@ -214,8 +313,8 @@ export function DevicesManager({ devices, unmappedUsers }: DevicesManagerProps) 
         <div className="shrink-0">
           <h2 className="font-medium text-base">Unmapped device users</h2>
           <p className="text-muted-foreground text-sm">
-            Punches from device PINs that are not linked to an AMS employee. Match or create
-            employees with the same employee code, then run a pull sync.
+            Punches from device PINs that are not linked to an AMS employee. Run Sync to pull device
+            users and push AMS employees, then enroll fingerprints on the K40.
           </p>
         </div>
 

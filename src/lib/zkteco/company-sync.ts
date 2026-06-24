@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { companies, syncState, zktecoDeviceCommands, zktecoDevices } from "@/db/schema";
+import { companies, employees, syncState, zktecoDeviceCommands, zktecoDevices } from "@/db/schema";
 import { buildQueryDeptInfoCommand, buildUpdateDeptInfoCommand } from "@/lib/zkteco/adms/commands";
 import type { DeptInfoRecord } from "@/lib/zkteco/adms/parser";
 import { getZktecoDefaultCompanySlug, shouldSyncAllCompanies } from "@/lib/zkteco/config";
@@ -71,15 +71,47 @@ function companyDeptId(index: number): string {
   return String(index + 1);
 }
 
-export async function triggerDeviceCompanyPush(deviceId: string): Promise<CompanyPushResult> {
+/** Company names plus each employee team/department — matches ZKBio company + department hierarchy on device. */
+async function collectDeviceDepartmentNames(): Promise<string[]> {
   const companiesToSync = await getCompaniesToSync();
+  const names = new Set(companiesToSync.map((company) => company.name));
+
+  let employeeRows: Array<{ department: string | null }>;
+  if (shouldSyncAllCompanies()) {
+    employeeRows = await db
+      .select({ department: employees.department })
+      .from(employees)
+      .innerJoin(companies, eq(employees.companyId, companies.id))
+      .where(and(eq(employees.isActive, true), eq(companies.isActive, true)));
+  } else {
+    const slug = getZktecoDefaultCompanySlug();
+    const company = await db.query.companies.findFirst({
+      where: eq(companies.slug, slug),
+    });
+    employeeRows = company
+      ? await db
+          .select({ department: employees.department })
+          .from(employees)
+          .where(and(eq(employees.companyId, company.id), eq(employees.isActive, true)))
+      : [];
+  }
+
+  for (const row of employeeRows) {
+    const team = row.department?.trim();
+    if (team) {
+      names.add(team);
+    }
+  }
+
+  return [...names].sort((left, right) => left.localeCompare(right));
+}
+
+export async function triggerDeviceCompanyPush(deviceId: string): Promise<CompanyPushResult> {
+  const departmentNames = await collectDeviceDepartmentNames();
   let queued = 0;
 
-  for (const [index, company] of companiesToSync.entries()) {
-    await enqueueDeviceCommand(
-      deviceId,
-      buildUpdateDeptInfoCommand(companyDeptId(index), company.name),
-    );
+  for (const [index, name] of departmentNames.entries()) {
+    await enqueueDeviceCommand(deviceId, buildUpdateDeptInfoCommand(companyDeptId(index), name));
     queued += 1;
   }
 
