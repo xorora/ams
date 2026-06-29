@@ -1,8 +1,8 @@
 "use client";
 
-import { ChevronDownIcon, RefreshCwIcon } from "lucide-react";
+import { RefreshCwIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useTransition } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,331 +14,300 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { type ColumnDef, DataTable } from "@/components/ui/table";
 import { formatPktDateTime, formatPktIso } from "@/lib/admin/display";
 import { toastAsync } from "@/lib/toast";
 import {
-  refreshZktecoDeviceStatusAction,
-  triggerZktecoDeviceSyncAction,
-} from "@/lib/zkteco/actions";
-import type { DeviceConnectionStatus } from "@/lib/zkteco/device-service";
-import type { DeviceSyncSummary, SyncDirection } from "@/lib/zkteco/employee-sync";
-import type { SerializedUnmappedDeviceUser, SerializedZktecoDevice } from "@/lib/zkteco/serialize";
+  triggerWdmsAttendanceSyncAction,
+  triggerWdmsCompanyPushAction,
+  triggerWdmsEmployeeSyncAction,
+  triggerWdmsTerminalSyncAction,
+} from "@/lib/wdms/actions";
+import type {
+  SerializedUnmappedPunch,
+  SerializedWdmsSyncState,
+  SerializedWdmsTerminal,
+} from "@/lib/wdms/serialize";
 
 type DevicesManagerProps = {
-  devices: SerializedZktecoDevice[];
-  unmappedUsers: SerializedUnmappedDeviceUser[];
+  devices: SerializedWdmsTerminal[];
+  unmappedPunches: SerializedUnmappedPunch[];
+  syncState: SerializedWdmsSyncState;
 };
-
-function deviceLabel(device: SerializedZktecoDevice): string {
-  return device.alias?.trim() || device.serialNumber;
-}
 
 function formatSyncAt(value: string | null): string {
   if (!value) {
     return "Never";
   }
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value)) {
+    return value;
+  }
   return formatPktDateTime(value);
 }
 
-function onlineBadgeVariant(
-  status: DeviceConnectionStatus,
-): "default" | "secondary" | "destructive" {
-  if (status === "online") {
-    return "default";
-  }
-  if (status === "stale") {
-    return "secondary";
-  }
-  return "destructive";
+function deviceLabel(device: SerializedWdmsTerminal): string {
+  return device.alias?.trim() || device.serialNumber;
 }
 
-function connectionStatusLabel(status: DeviceConnectionStatus): string {
-  if (status === "online") {
-    return "Online";
+function isRecentlyActive(lastSeenAt: string | null): boolean {
+  if (!lastSeenAt) {
+    return false;
   }
-  if (status === "stale") {
-    return "Idle";
+  const seen = Date.parse(lastSeenAt);
+  if (!Number.isFinite(seen)) {
+    return false;
   }
-  return "Offline";
+  return Date.now() - seen <= 15 * 60 * 1000;
 }
 
-function formatSyncSuccess(summary: DeviceSyncSummary): string {
-  const parts = [
-    `Queued ${summary.totalCommands} command(s)`,
-    `${summary.companiesPushed} dept(s)`,
-    `${summary.employeesPushed} employee(s)`,
-  ];
-  if (summary.companyPullQueued || summary.userPullQueued) {
-    parts.push("pull from device");
-  }
-  return `${parts.join(" · ")}. Est. ~${summary.estimatedMinutes} min on device.`;
-}
-
-export function DevicesManager({ devices, unmappedUsers }: DevicesManagerProps) {
+export function DevicesManager({ devices, unmappedPunches, syncState }: DevicesManagerProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [syncingDeviceId, setSyncingDeviceId] = useState<string | null>(null);
-  const [refreshingDeviceId, setRefreshingDeviceId] = useState<string | null>(null);
 
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      startTransition(() => router.refresh());
-    }, 30_000);
+  function refreshPage() {
+    startTransition(() => router.refresh());
+  }
 
-    return () => window.clearInterval(interval);
-  }, [router]);
-
-  async function handleSync(
-    deviceId: string,
-    options: { direction?: SyncDirection; force?: boolean },
-    label: string,
-  ) {
-    setSyncingDeviceId(deviceId);
-
+  async function handleAttendanceSync() {
     try {
       await toastAsync(
-        triggerZktecoDeviceSyncAction(deviceId, options).then((result) => {
+        triggerWdmsAttendanceSyncAction().then((result) => {
           if (!result.ok) {
             throw new Error(result.error);
           }
-          return formatSyncSuccess(result.data);
+          return result.data;
         }),
         {
-          loading: `${label}…`,
-          success: (message) => message,
+          loading: "Pulling attendance from WDMS…",
+          success: (data) => `Synced ${data.inserted} new punch(es) from ${data.fetched} fetched.`,
         },
       );
-      startTransition(() => router.refresh());
+      refreshPage();
     } catch {
       // toastAsync already surfaced the error toast
-    } finally {
-      setSyncingDeviceId(null);
     }
   }
 
-  async function handleRefreshStatus(deviceId: string) {
-    setRefreshingDeviceId(deviceId);
-
+  async function handleEmployeeSync() {
     try {
       await toastAsync(
-        refreshZktecoDeviceStatusAction(deviceId).then((result) => {
+        triggerWdmsEmployeeSyncAction().then((result) => {
           if (!result.ok) {
             throw new Error(result.error);
           }
-          const { connectionStatus, lastSeenLabel, ipAddress, pendingCommands, requeuedCommands } =
-            result.data;
-          const status = connectionStatusLabel(connectionStatus);
-          const queue = pendingCommands > 0 ? ` · ${pendingCommands} pending command(s)` : "";
-          const requeued = requeuedCommands > 0 ? ` · re-queued ${requeuedCommands} stale` : "";
-          return `${status} · last heartbeat ${lastSeenLabel}${ipAddress ? ` · ${ipAddress}` : ""}${queue}${requeued}`;
+          return result.data;
         }),
         {
-          loading: "Refreshing status…",
-          success: (message) => message,
+          loading: "Pulling employees from WDMS…",
+          success: (data) =>
+            `Employees: ${data.created} created, ${data.updated} updated (${data.fetched} fetched).`,
         },
       );
-      startTransition(() => router.refresh());
+      refreshPage();
     } catch {
       // toastAsync already surfaced the error toast
-    } finally {
-      setRefreshingDeviceId(null);
     }
   }
 
-  const unmappedColumns = useMemo<ColumnDef<SerializedUnmappedDeviceUser>[]>(
-    () => [
-      {
-        accessorKey: "pin",
-        header: "PIN",
-        cell: ({ row }) => <span className="font-mono text-xs">{row.original.pin}</span>,
-      },
-      {
-        accessorKey: "cardNo",
-        header: "Card",
-        cell: ({ row }) => <span className="font-mono text-xs">{row.original.cardNo}</span>,
-      },
-      {
-        accessorKey: "machineEmpName",
-        header: "Device name",
-        cell: ({ row }) => row.original.machineEmpName?.trim() || "—",
-      },
-      {
-        accessorKey: "machineNo",
-        header: "Device SN",
-        cell: ({ row }) => (
-          <span className="font-mono text-xs">{row.original.machineNo ?? "—"}</span>
-        ),
-      },
-      {
-        accessorKey: "punchCount",
-        header: "Punches",
-        meta: { align: "right" },
-        cell: ({ row }) => <span className="tabular-nums">{row.original.punchCount}</span>,
-      },
-      {
-        accessorKey: "lastPunchAt",
-        header: "Last punch",
-        cell: ({ row }) => (
-          <span className="tabular-nums text-xs">{formatPktIso(row.original.lastPunchAt)}</span>
-        ),
-      },
-    ],
-    [],
-  );
+  async function handleCompanyPush() {
+    try {
+      await toastAsync(
+        triggerWdmsCompanyPushAction().then((result) => {
+          if (!result.ok) {
+            throw new Error(result.error);
+          }
+          return result.data;
+        }),
+        {
+          loading: "Pushing company data to WDMS…",
+          success: (data) => {
+            const { totals } = data;
+            const failed = totals.failures;
+            const base = `${totals.employeesPushed} pushed, ${totals.employeesSkipped} skipped across ${data.companies.length} company(ies). ${totals.departmentsCreated} dept(s), ${totals.areasCreated} area(s).`;
+            return failed > 0 ? `${base} ${failed} failed.` : base;
+          },
+        },
+      );
+      refreshPage();
+    } catch {
+      // toastAsync already surfaced the error toast
+    }
+  }
+
+  async function handleTerminalSync() {
+    try {
+      await toastAsync(
+        triggerWdmsTerminalSyncAction().then((result) => {
+          if (!result.ok) {
+            throw new Error(result.error);
+          }
+          return result.data;
+        }),
+        {
+          loading: "Refreshing device status from WDMS…",
+          success: (data) => `Updated ${data.count} terminal(s).`,
+        },
+      );
+      refreshPage();
+    } catch {
+      // toastAsync already surfaced the error toast
+    }
+  }
+
+  const unmappedColumns: ColumnDef<SerializedUnmappedPunch>[] = [
+    {
+      accessorKey: "empCode",
+      header: "Emp code",
+    },
+    {
+      accessorKey: "machineEmpName",
+      header: "Name on device",
+      cell: ({ row }) => row.original.machineEmpName ?? "—",
+    },
+    {
+      accessorKey: "machineNo",
+      header: "Terminal",
+      cell: ({ row }) => row.original.machineNo ?? "—",
+    },
+    {
+      accessorKey: "punchCount",
+      header: "Punches",
+    },
+    {
+      accessorKey: "lastPunchAt",
+      header: "Last punch",
+      cell: ({ row }) => formatPktIso(row.original.lastPunchAt),
+    },
+  ];
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-6 md:overflow-hidden">
-      {devices.length === 0 ? (
-        <Alert>
-          <AlertTitle>No devices registered yet</AlertTitle>
+    <div className="flex min-h-0 flex-1 flex-col gap-6 md:overflow-auto">
+      {!syncState.wdmsConfigured ? (
+        <Alert variant="destructive">
+          <AlertTitle>WDMS not configured</AlertTitle>
           <AlertDescription>
-            Configure the K40 cloud server to point at this AMS instance. The device auto-registers
-            on its first handshake using its serial number.
+            Set WDMS_BASE_URL, WDMS_USERNAME, and WDMS_PASSWORD in your environment. The K40 pushes
+            punches to ZKBio WDMS; AMS pulls from WDMS over the REST API.
           </AlertDescription>
         </Alert>
       ) : (
-        <div className="grid shrink-0 gap-4 md:grid-cols-2">
-          {devices.map((device) => {
-            const syncing = syncingDeviceId === device.id;
-            const refreshing = refreshingDeviceId === device.id;
-            const busy = syncing || refreshing || isPending;
-            const reachable = device.isOnline;
-            const status = device.connectionStatus;
+        <Card>
+          <CardHeader>
+            <CardTitle>WDMS sync</CardTitle>
+            <CardDescription>
+              Connected to {syncState.wdmsBaseUrl}. Attendance sync runs every 10 minutes via cron;
+              employee sync runs daily.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <p className="text-muted-foreground">Last attendance pull</p>
+              <p className="font-medium">{formatSyncAt(syncState.lastAttendanceSync)}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Last employee pull</p>
+              <p className="font-medium">{formatSyncAt(syncState.lastEmployeeSync)}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Last terminal refresh</p>
+              <p className="font-medium">{formatSyncAt(syncState.lastTerminalSync)}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Last company push</p>
+              <p className="font-medium">{formatSyncAt(syncState.lastCompanyPush)}</p>
+            </div>
+          </CardContent>
+          <CardFooter className="flex flex-wrap gap-2">
+            <Button disabled={isPending} onClick={handleCompanyPush} type="button">
+              Push company to WDMS
+            </Button>
+            <Button disabled={isPending} onClick={handleAttendanceSync} type="button">
+              <RefreshCwIcon className="size-4" />
+              Pull attendance
+            </Button>
+            <Button
+              disabled={isPending}
+              onClick={handleEmployeeSync}
+              type="button"
+              variant="secondary"
+            >
+              Pull employees
+            </Button>
+            <Button
+              disabled={isPending}
+              onClick={handleTerminalSync}
+              type="button"
+              variant="outline"
+            >
+              Refresh terminals
+            </Button>
+          </CardFooter>
+        </Card>
+      )}
 
+      {devices.length === 0 ? (
+        <Alert>
+          <AlertTitle>No terminals found</AlertTitle>
+          <AlertDescription>
+            Terminals appear here after WDMS sync. Ensure the K40 is enrolled in ZKBio WDMS and
+            pushing to the lahore-server instance.
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          {devices.map((device) => {
+            const online = isRecentlyActive(device.lastSeenAt);
             return (
-              <Card key={device.id} size="sm">
+              <Card key={device.id}>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    {deviceLabel(device)}
-                    <Badge variant={onlineBadgeVariant(status)}>
-                      {connectionStatusLabel(status)}
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <CardTitle>{deviceLabel(device)}</CardTitle>
+                      <CardDescription>{device.serialNumber}</CardDescription>
+                    </div>
+                    <Badge variant={online ? "default" : "secondary"}>
+                      {online ? "Recent activity" : "Idle / offline"}
                     </Badge>
-                  </CardTitle>
-                  <CardDescription className="font-mono text-xs">
-                    {device.serialNumber}
-                  </CardDescription>
+                  </div>
                 </CardHeader>
-                <CardContent className="grid gap-2 text-sm">
-                  <DetailRow label="Last seen" value={device.lastSeenLabel} />
-                  <DetailRow label="IP address" value={device.ipAddress ?? "—"} />
-                  <DetailRow label="Firmware" value={device.firmwareVersion ?? "—"} />
-                  <DetailRow label="Push version" value={device.pushVersion ?? "—"} />
-                  <DetailRow label="Last user pull" value={formatSyncAt(device.lastUserSyncAt)} />
-                  <DetailRow
-                    label="Last employee push"
-                    value={formatSyncAt(device.lastEmployeePushAt)}
-                  />
-                  <DetailRow
-                    label="Last company sync"
-                    value={formatSyncAt(device.lastCompanySyncAt)}
-                  />
-                  <DetailRow
-                    label="Bootstrap"
-                    value={
-                      device.bootstrapCompleted
-                        ? "Completed"
-                        : device.userQueryPending
-                          ? "In progress"
-                          : "Not started"
-                    }
-                  />
-                </CardContent>
-                <CardFooter className="flex flex-wrap items-center gap-2 border-t-0 bg-transparent p-4 pt-0">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() => handleRefreshStatus(device.id)}
-                  >
-                    <RefreshCwIcon className={refreshing ? "animate-spin" : undefined} />
-                    Refresh status
-                  </Button>
-                  <Button
-                    size="sm"
-                    disabled={busy || !reachable}
-                    onClick={() => handleSync(device.id, { direction: "sync" }, "Sync")}
-                  >
-                    <RefreshCwIcon className={syncing ? "animate-spin" : undefined} />
-                    Sync
-                  </Button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={<Button size="sm" variant="outline" disabled={busy || !reachable} />}
-                    >
-                      More
-                      <ChevronDownIcon />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start">
-                      <DropdownMenuItem
-                        onClick={() =>
-                          handleSync(device.id, { direction: "companies" }, "Push companies")
-                        }
-                      >
-                        Push companies only
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() =>
-                          handleSync(device.id, { direction: "employees" }, "Push employees")
-                        }
-                      >
-                        Push employees only
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() =>
-                          handleSync(device.id, { direction: "pull" }, "Pull from device")
-                        }
-                      >
-                        Pull from device only
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  {!reachable ? (
-                    <p className="w-full text-muted-foreground text-xs">
-                      Device has not heartbeated recently. Check K40 cloud server points to
-                      ams.xorora.com, then use Refresh status. Status auto-updates every 30s.
-                    </p>
+                <CardContent className="space-y-2 text-sm">
+                  <div className="flex justify-between gap-4">
+                    <span className="text-muted-foreground">Last activity</span>
+                    <span>{device.lastSeenAt ? formatPktIso(device.lastSeenAt) : "Unknown"}</span>
+                  </div>
+                  {device.ipAddress ? (
+                    <div className="flex justify-between gap-4">
+                      <span className="text-muted-foreground">IP</span>
+                      <span>{device.ipAddress}</span>
+                    </div>
                   ) : null}
-                </CardFooter>
+                  {device.firmwareVersion ? (
+                    <div className="flex justify-between gap-4">
+                      <span className="text-muted-foreground">Firmware</span>
+                      <span>{device.firmwareVersion}</span>
+                    </div>
+                  ) : null}
+                </CardContent>
               </Card>
             );
           })}
         </div>
       )}
 
-      <section className="flex min-h-0 flex-1 flex-col gap-3 md:overflow-hidden">
-        <div className="shrink-0">
-          <h2 className="font-medium text-base">Unmapped device users</h2>
-          <p className="text-muted-foreground text-sm">
-            Punches from device PINs that are not linked to an AMS employee. Run Sync to pull device
-            users and push AMS employees, then enroll fingerprints on the K40.
-          </p>
-        </div>
-
-        <DataTable
-          columns={unmappedColumns}
-          data={unmappedUsers}
-          loading={isPending}
-          emptyMessage="All device punches are linked to employees."
-          className="md:min-h-0 md:flex-1"
-          resetDeps={[unmappedUsers.length]}
-        />
-      </section>
-    </div>
-  );
-}
-
-function DetailRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-start justify-between gap-4">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-right">{value}</span>
+      {unmappedPunches.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Unmapped punches</CardTitle>
+            <CardDescription>
+              These emp codes punched on the device but do not match an AMS employee. Create or
+              update employees with matching employee codes.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <DataTable columns={unmappedColumns} data={unmappedPunches} />
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }

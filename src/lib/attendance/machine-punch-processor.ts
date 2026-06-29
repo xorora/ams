@@ -144,18 +144,9 @@ async function upsertAttendanceRows(rows: AttendanceInsertRow[]): Promise<number
   return affected;
 }
 
-/** Attach unlinked punches via machine_card_no or employee_code (ADMS PIN). */
+/** Attach unlinked punches via employee_code (WDMS emp_code). */
 export async function relinkMachinePunchesToEmployees(): Promise<number> {
-  const byCard = await db.execute(sql`
-    UPDATE machine_punches AS mp
-    SET employee_id = e.id
-    FROM employees AS e
-    WHERE mp.employee_id IS NULL
-      AND e.machine_card_no IS NOT NULL
-      AND e.machine_card_no = mp.card_no
-  `);
-
-  const byCode = await db.execute(sql`
+  const result = await db.execute(sql`
     UPDATE machine_punches AS mp
     SET employee_id = e.id
     FROM employees AS e
@@ -164,7 +155,7 @@ export async function relinkMachinePunchesToEmployees(): Promise<number> {
       AND e.employee_code = mp.machine_emp_code
   `);
 
-  return Number(byCard.rowCount ?? 0) + Number(byCode.rowCount ?? 0);
+  return Number(result.rowCount ?? 0);
 }
 
 export async function runProcessMachinePunchesJob(

@@ -183,27 +183,19 @@ Full template: [`.env.example`](./.env.example).
 | `OFFICE_LAT` | Yes | Office latitude (WGS84) for geofence |
 | `OFFICE_LNG` | Yes | Office longitude (WGS84) for geofence |
 | `OFFICE_RADIUS_METERS` | No | Geofence radius (default **100**) |
-| `CRON_SECRET` | Prod | Bearer token for the auto-absent cron route |
+| `CRON_SECRET` | Prod | Bearer token for cron routes (mark-absent, WDMS sync) |
 | `BOOTSTRAP_ADMIN_EMAIL` | Once | First login with this email becomes `admin`; remove after bootstrap |
-| `ZKTECO_TIMEZONE` | ZKTeco | Device timezone for ADMS punches (default: Asia/Karachi via app constant) |
-| `ZKTECO_DEVICE_TOKEN` | ZKTeco | Shared secret — must match K40 **Stamp** / Server Auth Key field |
-| `ZKTECO_DEFAULT_COMPANY_SLUG` | ZKTeco | Company slug for auto-created employees from device bootstrap |
-| `ZKTECO_SYNC_ALL_COMPANIES` | ZKTeco | Set `true` to push employees from all active companies to the device |
+| `WDMS_BASE_URL` | Biometric | ZKBio WDMS URL (e.g. `https://lahore-server.tailca4ca9.ts.net`) |
+| `WDMS_USERNAME` | Biometric | WDMS API user with OpenAPI permissions |
+| `WDMS_PASSWORD` | Biometric | WDMS API password |
+| `WDMS_TIMEZONE` | No | Punch timezone (default: Asia/Karachi) |
+| `WDMS_DEFAULT_COMPANY_SLUG` | No | Company slug for employees pulled from WDMS (default: `xorora`) |
 
 On Vercel, `AUTH_URL` can often be omitted in production because Auth.js uses `trustHost: true` and infers the host from `VERCEL_URL`. Set it explicitly if redirects or callbacks misbehave.
 
-### ZKTeco K40 (biometric device)
+### ZKBio WDMS (biometric)
 
-Cloud-native ADMS sync — the K40 pushes punches and pulls employee updates directly to AMS over HTTPS. See **[docs/zkteco-k40-device-setup.md](./docs/zkteco-k40-device-setup.md)** for device menu configuration, production URL (`ams.xorora.com`), and verification steps.
-
-After cutover from the legacy Ebio Windows sync agent, stop **AMSBioSync** on the old host — see **[docs/ebio-cutover.md](./docs/ebio-cutover.md)**.
-
-Verify ADMS routes locally or on production:
-
-```bash
-./scripts/zkteco-verify-device.sh              # against localhost:3000
-./scripts/zkteco-verify-device.sh --production # against ams.xorora.com
-```
+K40 devices push punches to **ZKBio WDMS** on the office LAN. AMS pulls attendance and employees from WDMS over the REST API and pushes new hires back to WDMS. See **[docs/AMS-INTEGRATION.md](./docs/AMS-INTEGRATION.md)** for architecture, env vars, and setup.
 
 ---
 
@@ -278,9 +270,11 @@ Admins can enable probation when creating or editing an employee:
 5. Deploy. Add the production URL to Google OAuth redirect URIs if not done yet.
 6. **Cron:** [`vercel.json`](./vercel.json) registers a daily job:
 
-   | Path | Schedule (UTC) | Local (PKT) |
-   |------|----------------|-------------|
-   | `/api/cron/mark-absent` | `0 23 * * *` | ~**04:00** Asia/Karachi |
+   | Path | Schedule (UTC) | Purpose |
+   |------|----------------|---------|
+   | `/api/cron/mark-absent` | `0 23 * * *` | Mark absent (~04:00 PKT) |
+   | `/api/sync/attendance` | `*/10 * * * *` | Pull punches from WDMS |
+   | `/api/sync/employees` | `0 2 * * *` | Pull employees from WDMS |
 
    - Set `CRON_SECRET` in Vercel. Vercel sends `Authorization: Bearer <CRON_SECRET>` when invoking cron routes.
    - Cron jobs require a Vercel plan that supports [Cron Jobs](https://vercel.com/docs/cron-jobs).
@@ -318,6 +312,7 @@ Admins can enable probation when creating or editing an employee:
 | `/admin/leave` | Admin | Review and approve/reject leave requests |
 | `/admin/reports` | Admin | Date-range summary report |
 | `/admin/reports/[employeeId]` | Admin | Per-employee report drill-down |
+| `/admin/devices` | Admin | WDMS sync status and biometric terminals |
 
 ### API routes
 
@@ -329,8 +324,8 @@ Admins can enable probation when creating or editing an employee:
 | `/api/admin/attendance/*` | Attendance CRUD and status updates |
 | `/api/admin/reports/*` | Summary data and Excel export |
 | `/api/cron/mark-absent` | Daily auto-absent job (Bearer `CRON_SECRET`) |
-| `/iclock/*` | ZKTeco ADMS device protocol (handshake, punches, commands) — no auth session |
-| `/api/admin/zkteco/devices/*` | Admin: list devices, trigger user sync |
+| `/api/sync/attendance` | Pull attendance from WDMS (Bearer `CRON_SECRET`) |
+| `/api/sync/employees` | Pull employees from WDMS (Bearer `CRON_SECRET`) |
 
 Leave actions use Next.js Server Actions in [`src/lib/leave/actions.ts`](src/lib/leave/actions.ts).
 

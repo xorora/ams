@@ -5,7 +5,11 @@
       "schedule": "0 23 * * *"
     },
     {
-      "path": "/api/cron/sync-zkteco-users",
+      "path": "/api/sync/attendance",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/sync/employees",
       "schedule": "0 2 * * *"
     }
   ]

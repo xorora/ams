@@ -7,7 +7,7 @@ import {
   getTodayPkt,
 } from "@/lib/admin/probation";
 import { closeOpenShiftForEmployee, findOpenShift } from "@/lib/attendance/close-open-shift";
-import { enqueueEmployeeDelete, enqueueEmployeePush } from "@/lib/zkteco/employee-sync";
+import { pushEmployeeById } from "@/lib/wdms/employee-sync";
 import { adminFailure, type ServiceFailure, type ServiceSuccess } from "./types";
 
 export type EmployeeRecord = typeof employees.$inferSelect;
@@ -190,27 +190,27 @@ async function unlinkEmployeeUser(employeeId: string, userId: string | null): Pr
     .where(and(eq(users.id, userId), eq(users.employeeId, employeeId)));
 }
 
-async function syncEmployeeToZktecoDevice(
+async function syncEmployeeToWdms(
   employee: EmployeeRecord,
   options: { deactivated?: boolean; previousEmployeeCode?: string } = {},
 ): Promise<void> {
   try {
-    if (options.deactivated) {
-      await enqueueEmployeeDelete(employee.employeeCode);
-      return;
-    }
-
-    if (!employee.isActive) {
+    if (options.deactivated || !employee.isActive) {
+      // WDMS resign API is managed separately; deactivation does not auto-remove device enrollment.
       return;
     }
 
     if (options.previousEmployeeCode && options.previousEmployeeCode !== employee.employeeCode) {
-      await enqueueEmployeeDelete(options.previousEmployeeCode);
+      console.warn("[wdms] employee code changed; update WDMS enrollment manually if needed", {
+        employeeId: employee.id,
+        previousEmployeeCode: options.previousEmployeeCode,
+        employeeCode: employee.employeeCode,
+      });
     }
 
-    await enqueueEmployeePush(employee.id);
+    await pushEmployeeById(employee.id);
   } catch (error) {
-    console.error("[zkteco] failed to enqueue employee device sync", {
+    console.error("[wdms] failed to push employee to WDMS", {
       employeeId: employee.id,
       error,
     });
@@ -316,7 +316,7 @@ export async function createEmployee(
 
   const [linked] = await db.select().from(employees).where(eq(employees.id, created.id)).limit(1);
   const employee = linked ?? created;
-  await syncEmployeeToZktecoDevice(employee);
+  await syncEmployeeToWdms(employee);
   return { ok: true, data: employee };
 }
 
@@ -465,14 +465,14 @@ export async function updateEmployee(
     await linkEmployeeToUserByEmail(id, updated.email);
     const [reloaded] = await db.select().from(employees).where(eq(employees.id, id)).limit(1);
     const result = reloaded ?? updated;
-    await syncEmployeeToZktecoDevice(result, {
+    await syncEmployeeToWdms(result, {
       deactivated,
       previousEmployeeCode: employeeCodeChanged ? employee.employeeCode : undefined,
     });
     return { ok: true, data: result };
   }
 
-  await syncEmployeeToZktecoDevice(updated, {
+  await syncEmployeeToWdms(updated, {
     deactivated,
     previousEmployeeCode: employeeCodeChanged ? employee.employeeCode : undefined,
   });
