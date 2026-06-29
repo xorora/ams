@@ -195,8 +195,8 @@ export function DevicesManager({ devices, unmappedPunches, syncState }: DevicesM
           <CardHeader>
             <CardTitle>WDMS sync</CardTitle>
             <CardDescription>
-              Connected to {syncState.wdmsBaseUrl}. Attendance sync runs every 10 minutes via cron;
-              employee sync runs daily.
+              Connected to {syncState.wdmsBaseUrl}. Attendance sync runs daily via cron (Hobby plan
+              limit); employee sync runs daily.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
