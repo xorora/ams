@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 
+export function getCronSecret(): string | undefined {
+  const secret = process.env.CRON_SECRET?.trim();
+  return secret || undefined;
+}
+
 export function verifyCronAuth(request: Request): boolean {
-  const secret = process.env.CRON_SECRET;
+  const secret = getCronSecret();
   if (!secret) {
     return false;
   }
@@ -23,6 +28,23 @@ export function cronUnauthorizedResponse() {
 export function wdmsNotConfiguredResponse() {
   return NextResponse.json(
     { error: "WDMS is not configured", code: "WDMS_NOT_CONFIGURED" },
+    { status: 500 },
+  );
+}
+
+export function zktimeNotConfiguredResponse() {
+  return NextResponse.json(
+    { error: "ZKTime is not configured", code: "ZKTIME_NOT_CONFIGURED" },
+    { status: 500 },
+  );
+}
+
+export function deviceSyncNotConfiguredResponse() {
+  return NextResponse.json(
+    {
+      error: "Device sync is not configured",
+      code: "DEVICE_SYNC_NOT_CONFIGURED",
+    },
     { status: 500 },
   );
 }

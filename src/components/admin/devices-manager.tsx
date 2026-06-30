@@ -7,6 +7,11 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { type ColumnDef, DataTable } from "@/components/ui/table";
 import { formatPktIso } from "@/lib/admin/display";
+import type {
+  SerializedDeviceSyncState,
+  SerializedDeviceTerminal,
+  SerializedUnmappedPunch,
+} from "@/lib/device-sync/serialize";
 import { toastAsync } from "@/lib/toast";
 import {
   triggerWdmsAttendanceSyncAction,
@@ -14,21 +19,23 @@ import {
   triggerWdmsEmployeeSyncAction,
   triggerWdmsTerminalSyncAction,
 } from "@/lib/wdms/actions";
-import type {
-  SerializedUnmappedPunch,
-  SerializedWdmsSyncState,
-  SerializedWdmsTerminal,
-} from "@/lib/wdms/serialize";
+import {
+  triggerZktimeAttendanceSyncAction,
+  triggerZktimeEmployeeSyncAction,
+  triggerZktimePushActiveEmployeesAction,
+  triggerZktimeTerminalSyncAction,
+} from "@/lib/zktime/actions";
 
 type DevicesManagerProps = {
-  devices: SerializedWdmsTerminal[];
+  devices: SerializedDeviceTerminal[];
   unmappedPunches: SerializedUnmappedPunch[];
-  syncState: SerializedWdmsSyncState;
+  syncState: SerializedDeviceSyncState;
 };
 
 export function DevicesManager({ unmappedPunches, syncState }: DevicesManagerProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const isZktime = syncState.provider === "zktime";
 
   function refreshPage() {
     startTransition(() => router.refresh());
@@ -36,15 +43,17 @@ export function DevicesManager({ unmappedPunches, syncState }: DevicesManagerPro
 
   async function handleAttendanceSync() {
     try {
+      const action = isZktime ? triggerZktimeAttendanceSyncAction : triggerWdmsAttendanceSyncAction;
+
       await toastAsync(
-        triggerWdmsAttendanceSyncAction().then((result) => {
+        action().then((result) => {
           if (!result.ok) {
             throw new Error(result.error);
           }
           return result.data;
         }),
         {
-          loading: "Pulling attendance from WDMS…",
+          loading: isZktime ? "Pulling attendance from ZKTime…" : "Pulling attendance from WDMS…",
           success: (data) => `Synced ${data.inserted} new punch(es) from ${data.fetched} fetched.`,
         },
       );
@@ -56,17 +65,43 @@ export function DevicesManager({ unmappedPunches, syncState }: DevicesManagerPro
 
   async function handleEmployeeSync() {
     try {
+      const action = isZktime ? triggerZktimeEmployeeSyncAction : triggerWdmsEmployeeSyncAction;
+
       await toastAsync(
-        triggerWdmsEmployeeSyncAction().then((result) => {
+        action().then((result) => {
           if (!result.ok) {
             throw new Error(result.error);
           }
           return result.data;
         }),
         {
-          loading: "Pulling employees from WDMS…",
+          loading: isZktime ? "Pulling employees from ZKTime…" : "Pulling employees from WDMS…",
           success: (data) =>
             `Employees: ${data.created} created, ${data.updated} updated (${data.fetched} fetched).`,
+        },
+      );
+      refreshPage();
+    } catch {
+      // toastAsync already surfaced the error toast
+    }
+  }
+
+  async function handleEmployeePush() {
+    try {
+      await toastAsync(
+        triggerZktimePushActiveEmployeesAction().then((result) => {
+          if (!result.ok) {
+            throw new Error(result.error);
+          }
+          return result.data;
+        }),
+        {
+          loading: "Pushing employees to ZKTime…",
+          success: (data) => {
+            const failed = data.failures.length;
+            const base = `${data.pushed} pushed, ${data.queued} queued.`;
+            return failed > 0 ? `${base} ${failed} failed.` : base;
+          },
         },
       );
       refreshPage();
@@ -102,15 +137,19 @@ export function DevicesManager({ unmappedPunches, syncState }: DevicesManagerPro
 
   async function handleTerminalSync() {
     try {
+      const action = isZktime ? triggerZktimeTerminalSyncAction : triggerWdmsTerminalSyncAction;
+
       await toastAsync(
-        triggerWdmsTerminalSyncAction().then((result) => {
+        action().then((result) => {
           if (!result.ok) {
             throw new Error(result.error);
           }
           return result.data;
         }),
         {
-          loading: "Refreshing device status from WDMS…",
+          loading: isZktime
+            ? "Refreshing device status from ZKTime…"
+            : "Refreshing device status from WDMS…",
           success: (data) => `Updated ${data.count} terminal(s).`,
         },
       );
@@ -149,19 +188,25 @@ export function DevicesManager({ unmappedPunches, syncState }: DevicesManagerPro
   return (
     <div className="flex flex-col gap-4 md:min-h-0 md:flex-1 md:overflow-hidden">
       <div className="shrink-0">
-        {!syncState.wdmsConfigured ? (
+        {!syncState.configured ? (
           <Alert variant="destructive">
-            <AlertTitle>WDMS not configured</AlertTitle>
+            <AlertTitle>Device sync not configured</AlertTitle>
             <AlertDescription>
-              Set WDMS_BASE_URL, WDMS_USERNAME, and WDMS_PASSWORD in your environment. The K40
-              pushes punches to ZKBio WDMS; AMS pulls from WDMS over the REST API.
+              Set ZKTIME_BASE_URL and ZKTIME_API_KEY, or WDMS_BASE_URL, WDMS_USERNAME, and
+              WDMS_PASSWORD in your environment.
             </AlertDescription>
           </Alert>
         ) : (
           <div className="flex w-full items-center justify-end gap-5">
-            <Button disabled={isPending} onClick={handleCompanyPush} type="button">
-              Push company to WDMS
-            </Button>
+            {isZktime ? (
+              <Button disabled={isPending} onClick={handleEmployeePush} type="button">
+                Push employees to ZKTime
+              </Button>
+            ) : (
+              <Button disabled={isPending} onClick={handleCompanyPush} type="button">
+                Push company to WDMS
+              </Button>
+            )}
             <Button disabled={isPending} onClick={handleAttendanceSync} type="button">
               <RefreshCwIcon className="size-4" />
               Pull attendance

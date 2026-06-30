@@ -1,0 +1,111 @@
+import { fromZonedTime } from "date-fns-tz";
+import { inArray } from "drizzle-orm";
+import { db } from "@/db";
+import { employees, machinePunches } from "@/db/schema";
+import {
+  relinkMachinePunchesToEmployees,
+  runProcessMachinePunchesJob,
+} from "@/lib/attendance/machine-punch-processor";
+import type { ZktimeClient } from "@/lib/zktime/client";
+import { getZktimeTimezone } from "@/lib/zktime/config";
+import { getLastAttendanceUploadTime, setLastAttendanceUploadTime } from "@/lib/zktime/sync-state";
+
+function parsePunchAt(datetime: string): Date {
+  return fromZonedTime(datetime, getZktimeTimezone());
+}
+
+async function resolveEmployeeIdsByCode(codes: string[]): Promise<Map<string, string>> {
+  const uniqueCodes = [...new Set(codes.filter(Boolean))];
+  const resolved = new Map<string, string>();
+  if (uniqueCodes.length === 0) {
+    return resolved;
+  }
+
+  const rows = await db
+    .select({ id: employees.id, employeeCode: employees.employeeCode })
+    .from(employees)
+    .where(inArray(employees.employeeCode, uniqueCodes));
+
+  for (const row of rows) {
+    resolved.set(row.employeeCode, row.id);
+  }
+
+  return resolved;
+}
+
+export type AttendanceSyncResult = {
+  fetched: number;
+  inserted: number;
+  since: string;
+  latestUploadTime: string | null;
+};
+
+export async function syncAttendanceFromZktime(
+  client: ZktimeClient,
+  options: { since?: string } = {},
+): Promise<AttendanceSyncResult> {
+  const since = options.since ?? (await getLastAttendanceUploadTime());
+  const { transactions, latestUploadTime } = await client.exportTransactions(since);
+
+  if (transactions.length === 0) {
+    return { fetched: 0, inserted: 0, since, latestUploadTime: null };
+  }
+
+  const employeeIdsByCode = await resolveEmployeeIdsByCode(transactions.map((tx) => tx.emp_code));
+
+  const rows = transactions.map((tx) => ({
+    sourceSystem: "zkteco" as const,
+    sourcePunchId: tx.id,
+    cardNo: tx.emp_code,
+    punchAt: parsePunchAt(tx.punch_time),
+    machineNo: tx.terminal_sn ?? null,
+    isManual: false,
+    machineEmpCode: tx.emp_code,
+    machineEmpName: tx.full_name?.trim() || tx.emp_code,
+    employeeId: employeeIdsByCode.get(tx.emp_code) ?? null,
+    rawPunchAt: [tx.punch_time, tx.punch_state_display, tx.verify_type_display]
+      .filter(Boolean)
+      .join("|"),
+  }));
+
+  const insertedRows = await db
+    .insert(machinePunches)
+    .values(rows)
+    .onConflictDoNothing({
+      target: [machinePunches.sourceSystem, machinePunches.sourcePunchId],
+    })
+    .returning({
+      id: machinePunches.id,
+      employeeId: machinePunches.employeeId,
+    });
+
+  if (insertedRows.length > 0) {
+    await relinkMachinePunchesToEmployees();
+
+    const insertedIds = insertedRows.map((row) => row.id);
+    const linkedRows = await db
+      .select({ employeeId: machinePunches.employeeId })
+      .from(machinePunches)
+      .where(inArray(machinePunches.id, insertedIds));
+
+    const affectedEmployeeIds = [
+      ...new Set(linkedRows.flatMap((row) => (row.employeeId ? [row.employeeId] : []))),
+    ];
+
+    if (affectedEmployeeIds.length > 0) {
+      await runProcessMachinePunchesJob({ employeeIds: affectedEmployeeIds });
+    }
+  }
+
+  const latest = latestUploadTime ?? transactions.at(-1)?.upload_time ?? null;
+  if (latest) {
+    await setLastAttendanceUploadTime(latest);
+  }
+
+  return {
+    fetched: transactions.length,
+    inserted: insertedRows.length,
+    since,
+    latestUploadTime: latest,
+  };
+}

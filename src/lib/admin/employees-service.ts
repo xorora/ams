@@ -7,7 +7,7 @@ import {
   getTodayPkt,
 } from "@/lib/admin/probation";
 import { closeOpenShiftForEmployee, findOpenShift } from "@/lib/attendance/close-open-shift";
-import { pushEmployeeById } from "@/lib/wdms/employee-sync";
+import { pushEmployeeToDevice } from "@/lib/device-sync/push-employee";
 import { adminFailure, type ServiceFailure, type ServiceSuccess } from "./types";
 
 export type EmployeeRecord = typeof employees.$inferSelect;
@@ -190,27 +190,29 @@ async function unlinkEmployeeUser(employeeId: string, userId: string | null): Pr
     .where(and(eq(users.id, userId), eq(users.employeeId, employeeId)));
 }
 
-async function syncEmployeeToWdms(
+async function syncEmployeeToDevice(
   employee: EmployeeRecord,
   options: { deactivated?: boolean; previousEmployeeCode?: string } = {},
 ): Promise<void> {
   try {
     if (options.deactivated || !employee.isActive) {
-      // WDMS resign API is managed separately; deactivation does not auto-remove device enrollment.
       return;
     }
 
     if (options.previousEmployeeCode && options.previousEmployeeCode !== employee.employeeCode) {
-      console.warn("[wdms] employee code changed; update WDMS enrollment manually if needed", {
-        employeeId: employee.id,
-        previousEmployeeCode: options.previousEmployeeCode,
-        employeeCode: employee.employeeCode,
-      });
+      console.warn(
+        "[device-sync] employee code changed; update device enrollment manually if needed",
+        {
+          employeeId: employee.id,
+          previousEmployeeCode: options.previousEmployeeCode,
+          employeeCode: employee.employeeCode,
+        },
+      );
     }
 
-    await pushEmployeeById(employee.id);
+    await pushEmployeeToDevice(employee.id);
   } catch (error) {
-    console.error("[wdms] failed to push employee to WDMS", {
+    console.error("[device-sync] failed to push employee to device", {
       employeeId: employee.id,
       error,
     });
@@ -316,7 +318,7 @@ export async function createEmployee(
 
   const [linked] = await db.select().from(employees).where(eq(employees.id, created.id)).limit(1);
   const employee = linked ?? created;
-  await syncEmployeeToWdms(employee);
+  await syncEmployeeToDevice(employee);
   return { ok: true, data: employee };
 }
 
@@ -465,14 +467,14 @@ export async function updateEmployee(
     await linkEmployeeToUserByEmail(id, updated.email);
     const [reloaded] = await db.select().from(employees).where(eq(employees.id, id)).limit(1);
     const result = reloaded ?? updated;
-    await syncEmployeeToWdms(result, {
+    await syncEmployeeToDevice(result, {
       deactivated,
       previousEmployeeCode: employeeCodeChanged ? employee.employeeCode : undefined,
     });
     return { ok: true, data: result };
   }
 
-  await syncEmployeeToWdms(updated, {
+  await syncEmployeeToDevice(updated, {
     deactivated,
     previousEmployeeCode: employeeCodeChanged ? employee.employeeCode : undefined,
   });

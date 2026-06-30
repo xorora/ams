@@ -1,25 +1,19 @@
 import { NextResponse } from "next/server";
 import { runMarkAbsentJob } from "@/lib/attendance/mark-absent-job";
-
-function verifyCronAuth(request: Request): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) {
-    return false;
-  }
-  const auth = request.headers.get("authorization");
-  return auth === `Bearer ${secret}`;
-}
+import {
+  cronNotConfiguredResponse,
+  cronUnauthorizedResponse,
+  getCronSecret,
+  verifyCronAuth,
+} from "@/lib/cron/auth";
 
 export async function GET(request: Request) {
-  if (!process.env.CRON_SECRET) {
-    return NextResponse.json(
-      { error: "Cron is not configured", code: "CRON_NOT_CONFIGURED" },
-      { status: 500 },
-    );
+  if (!getCronSecret()) {
+    return cronNotConfiguredResponse();
   }
 
   if (!verifyCronAuth(request)) {
-    return NextResponse.json({ error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
+    return cronUnauthorizedResponse();
   }
 
   try {
