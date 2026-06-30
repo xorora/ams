@@ -183,19 +183,19 @@ Full template: [`.env.example`](./.env.example).
 | `OFFICE_LAT` | Yes | Office latitude (WGS84) for geofence |
 | `OFFICE_LNG` | Yes | Office longitude (WGS84) for geofence |
 | `OFFICE_RADIUS_METERS` | No | Geofence radius (default **100**) |
-| `CRON_SECRET` | Prod | Bearer token for cron routes (mark-absent, WDMS sync) |
+| `CRON_SECRET` | Prod | Bearer token for cron routes (mark-absent, ZKTime sync) |
 | `BOOTSTRAP_ADMIN_EMAIL` | Once | First login with this email becomes `admin`; remove after bootstrap |
-| `WDMS_BASE_URL` | Biometric | ZKBio WDMS URL (e.g. `https://lahore-server.tailca4ca9.ts.net`) |
-| `WDMS_USERNAME` | Biometric | WDMS API user with OpenAPI permissions |
-| `WDMS_PASSWORD` | Biometric | WDMS API password |
-| `WDMS_TIMEZONE` | No | Punch timezone (default: Asia/Karachi) |
-| `WDMS_DEFAULT_COMPANY_SLUG` | No | Company slug for employees pulled from WDMS (default: `xorora`) |
+| `ZKTIME_BASE_URL` | Biometric | ZKTime bridge URL (e.g. `https://lahore-server.tailca4ca9.ts.net`) |
+| `ZKTIME_API_KEY` | Biometric | Bridge API key from the ZKTime server |
+| `ZKTIME_TIMEZONE` | No | Punch timezone (default: Asia/Karachi) |
+| `ZKTIME_DEFAULT_SYNC_SINCE` | No | Initial attendance cursor (default: `2000-01-01 00:00:00`) |
+| `ZKTIME_DEFAULT_COMPANY_SLUG` | No | Company slug for employees pulled from ZKTime (default: `xorora`) |
 
 On Vercel, `AUTH_URL` can often be omitted in production because Auth.js uses `trustHost: true` and infers the host from `VERCEL_URL`. Set it explicitly if redirects or callbacks misbehave.
 
-### ZKBio WDMS (biometric)
+### ZKTime (biometric)
 
-K40 devices push punches to **ZKBio WDMS** on the office LAN. AMS pulls attendance and employees from WDMS over the REST API and pushes new hires back to WDMS. See **[docs/AMS-INTEGRATION.md](./docs/AMS-INTEGRATION.md)** for architecture, env vars, and setup.
+K40 devices connect to **ZKTime** on the office LAN. AMS pulls attendance and employees from the ZKTime bridge API and pushes new hires back for device enrollment. See **[docs/AMS-INTEGRATION.md](./docs/AMS-INTEGRATION.md)** for architecture, env vars, and setup.
 
 ---
 
@@ -273,8 +273,8 @@ Admins can enable probation when creating or editing an employee:
    | Path | Schedule (UTC) | Purpose |
    |------|----------------|---------|
    | `/api/cron/mark-absent` | `0 23 * * *` | Mark absent (~04:00 PKT) |
-   | `/api/sync/attendance` | `*/10 * * * *` | Pull punches from WDMS |
-   | `/api/sync/employees` | `0 2 * * *` | Pull employees from WDMS |
+   | `/api/sync/attendance` | `0 3 * * *` | Pull punches from ZKTime |
+   | `/api/sync/employees` | `0 2 * * *` | Pull employees from ZKTime |
 
    - Set `CRON_SECRET` in Vercel. Vercel sends `Authorization: Bearer <CRON_SECRET>` when invoking cron routes.
    - Cron jobs require a Vercel plan that supports [Cron Jobs](https://vercel.com/docs/cron-jobs).
@@ -312,7 +312,7 @@ Admins can enable probation when creating or editing an employee:
 | `/admin/leave` | Admin | Review and approve/reject leave requests |
 | `/admin/reports` | Admin | Date-range summary report |
 | `/admin/reports/[employeeId]` | Admin | Per-employee report drill-down |
-| `/admin/devices` | Admin | WDMS sync status and biometric terminals |
+| `/admin/devices` | Admin | ZKTime sync status and biometric terminals |
 
 ### API routes
 
@@ -324,8 +324,8 @@ Admins can enable probation when creating or editing an employee:
 | `/api/admin/attendance/*` | Attendance CRUD and status updates |
 | `/api/admin/reports/*` | Summary data and Excel export |
 | `/api/cron/mark-absent` | Daily auto-absent job (Bearer `CRON_SECRET`) |
-| `/api/sync/attendance` | Pull attendance from WDMS (Bearer `CRON_SECRET`) |
-| `/api/sync/employees` | Pull employees from WDMS (Bearer `CRON_SECRET`) |
+| `/api/sync/attendance` | Pull attendance from ZKTime (Bearer `CRON_SECRET`) |
+| `/api/sync/employees` | Pull/push employees via ZKTime (Bearer `CRON_SECRET`) |
 
 Leave actions use Next.js Server Actions in [`src/lib/leave/actions.ts`](src/lib/leave/actions.ts).
 
@@ -344,6 +344,7 @@ src/
     auth/                 # Navigation, register/link employee, domain checks
     admin/                # Employees, attendance, reports, probation
     leave/                # Leave service, balances, working-day math
+    zktime/               # ZKTime bridge client and device sync
   instrumentation.ts      # Validates required env on server start
   proxy.ts                # Auth guard (Next.js 16 proxy convention)
   components/             # UI (admin, attendance, leave, auth, shadcn)

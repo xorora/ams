@@ -1,8 +1,8 @@
-import type { wdmsTerminals } from "@/db/schema";
+import type { deviceTerminals } from "@/db/schema";
 import type { DeviceSyncAdminState } from "@/lib/device-sync/admin";
-import type { UnmappedWdmsPunch } from "@/lib/wdms/employee-sync";
+import type { UnmappedZktimePunch } from "@/lib/zktime/employee-sync";
 
-export type DeviceTerminal = typeof wdmsTerminals.$inferSelect;
+export type DeviceTerminal = typeof deviceTerminals.$inferSelect;
 
 export type SerializedDeviceTerminal = Omit<
   DeviceTerminal,
@@ -13,7 +13,7 @@ export type SerializedDeviceTerminal = Omit<
   updatedAt: string;
 };
 
-export type SerializedUnmappedPunch = Omit<UnmappedWdmsPunch, "lastPunchAt"> & {
+export type SerializedUnmappedPunch = Omit<UnmappedZktimePunch, "lastPunchAt"> & {
   lastPunchAt: string;
 };
 
@@ -28,7 +28,7 @@ export function serializeDeviceTerminal(device: DeviceTerminal): SerializedDevic
   };
 }
 
-export function serializeUnmappedPunch(punch: UnmappedWdmsPunch): SerializedUnmappedPunch {
+export function serializeUnmappedPunch(punch: UnmappedZktimePunch): SerializedUnmappedPunch {
   return {
     ...punch,
     lastPunchAt: punch.lastPunchAt.toISOString(),

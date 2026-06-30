@@ -3,6 +3,15 @@ export type ZktimeClientConfig = {
   apiKey: string;
 };
 
+export type ZktimePaginatedResponse<T> = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  msg: string;
+  code: number;
+  data: T[];
+};
+
 export type ZktimeTransaction = {
   id: number;
   emp_code: string;
@@ -21,32 +30,56 @@ export type ZktimeTransactionsExportResponse = {
   latestUploadTime: string | null;
 };
 
+export type ZktimeDepartment = {
+  id: number;
+  dept_code: string;
+  dept_name: string;
+};
+
 export type ZktimeEmployee = {
+  id: number;
   emp_code: string;
+  first_name: string;
+  last_name: string;
   full_name: string;
-  department_id?: number | null;
-  department_name?: string | null;
-  enabled?: boolean | null;
+  department?: ZktimeDepartment | null;
+  hire_date?: string | null;
+  app_status?: number | null;
 };
 
-export type ZktimeEmployeesResponse = {
-  employees: ZktimeEmployee[];
-};
-
-export type ZktimePushEmployeePayload = {
+export type ZktimeEmployeeUpsertRequest = {
   emp_code: string;
   full_name: string;
-  department_id?: number | null;
+  department_id?: number;
 };
+
+export type ZktimeEmployeeUpsertResponse = {
+  msg: string;
+  code: number;
+  data: ZktimeEmployee;
+};
+
+export type ZktimeDeviceSyncRequest = {
+  emp_codes?: string[] | null;
+};
+
+export type ZktimeDeviceSyncResponse = {
+  msg: string;
+  code: number;
+  queued: number;
+};
+
+/** @deprecated Use ZktimeEmployeeUpsertRequest */
+export type ZktimePushEmployeePayload = ZktimeEmployeeUpsertRequest;
 
 export type ZktimePushEmployeesRequest = {
-  employees: ZktimePushEmployeePayload[];
+  employees: ZktimeEmployeeUpsertRequest[];
 };
 
 export type ZktimePushEmployeesResponse = {
   pushed: number;
-  queued?: number;
-  failures?: Array<{ emp_code: string; message: string }>;
+  queued: number;
+  failures: Array<{ emp_code: string; message: string }>;
 };
 
 export type ZktimeTerminal = {
@@ -57,6 +90,13 @@ export type ZktimeTerminal = {
   last_seen_at?: string | null;
 };
 
-export type ZktimeTerminalsResponse = {
-  terminals: ZktimeTerminal[];
+export type OrganizationalPushResult = {
+  companies: number;
+  departmentsMapped: number;
+  rolesTracked: number;
+  employeesPushed: number;
+  employeesFailed: number;
+  deviceSyncQueued: number;
+  failures: Array<{ emp_code: string; message: string }>;
+  notes: string[];
 };

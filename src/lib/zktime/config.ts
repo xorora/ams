@@ -20,15 +20,9 @@ export function getZktimeDefaultSyncSince(): string {
 
 /** Punch timestamps from the ZKTime bridge are in this timezone. */
 export function getZktimeTimezone(): string {
-  return (
-    process.env.ZKTIME_TIMEZONE?.trim() || process.env.WDMS_TIMEZONE?.trim() || BUSINESS_TIMEZONE
-  );
+  return process.env.ZKTIME_TIMEZONE?.trim() || BUSINESS_TIMEZONE;
 }
 
 export function getDefaultCompanySlug(): string {
-  return (
-    process.env.ZKTIME_DEFAULT_COMPANY_SLUG?.trim() ||
-    process.env.WDMS_DEFAULT_COMPANY_SLUG?.trim() ||
-    "xorora"
-  );
+  return process.env.ZKTIME_DEFAULT_COMPANY_SLUG?.trim() || "xorora";
 }

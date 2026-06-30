@@ -25,26 +25,9 @@ export function cronUnauthorizedResponse() {
   return NextResponse.json({ error: "Unauthorized", code: "UNAUTHORIZED" }, { status: 401 });
 }
 
-export function wdmsNotConfiguredResponse() {
-  return NextResponse.json(
-    { error: "WDMS is not configured", code: "WDMS_NOT_CONFIGURED" },
-    { status: 500 },
-  );
-}
-
 export function zktimeNotConfiguredResponse() {
   return NextResponse.json(
     { error: "ZKTime is not configured", code: "ZKTIME_NOT_CONFIGURED" },
-    { status: 500 },
-  );
-}
-
-export function deviceSyncNotConfiguredResponse() {
-  return NextResponse.json(
-    {
-      error: "Device sync is not configured",
-      code: "DEVICE_SYNC_NOT_CONFIGURED",
-    },
     { status: 500 },
   );
 }

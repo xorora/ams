@@ -1,6 +1,6 @@
 # AMS ↔ ZKTime Integration
 
-Use this bridge when ZKTime (not WDMS) owns the K40 device connection.
+AMS connects to K40 biometric devices through the ZKTime bridge API.
 
 ## Data flow
 
@@ -19,14 +19,8 @@ ZKTIME_BASE_URL=https://lahore-server.tailca4ca9.ts.net
 ZKTIME_API_KEY=<bridge API key from server .env>
 CRON_SECRET=<random secret for cron auth>
 ZKTIME_DEFAULT_SYNC_SINCE=2000-01-01 00:00:00
-```
-
-Remove or disable WDMS vars if fully switching:
-
-```env
-# WDMS_BASE_URL=...
-# WDMS_USERNAME=...
-# WDMS_PASSWORD=...
+ZKTIME_DEFAULT_COMPANY_SLUG=xorora
+ZKTIME_TIMEZONE=Asia/Karachi
 ```
 
 ## Cron jobs
@@ -71,7 +65,7 @@ Interactive docs: `https://lahore-server.tailca4ca9.ts.net/docs`
 
 ## Notes
 
-- Only one app can use TCP 4370 on the K40. Keep ZKTime running; do not run WDMS device sync at the same time.
-- IIS on port 80 broke the old WDMS funnel. This bridge uses **port 8090** — run `setup-tailscale-funnel.ps1` to repoint Tailscale.
+- Only one app can use TCP 4370 on the K40. Keep ZKTime running on the office server.
+- The bridge listens on **port 8090** — run `setup-tailscale-funnel.ps1` to expose it via Tailscale.
 - Attendance appears in AMS only after employees exist in ZKTime with matching badge numbers.
 - Implement Prisma upsert TODOs in the AMS sync routes for production reconciliation.

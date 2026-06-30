@@ -24,9 +24,8 @@ export default async function AdminDevicesPage() {
       <div className="shrink-0">
         <h1 className="text-2xl font-semibold">Biometric devices</h1>
         <p className="mt-1 text-muted-foreground text-sm">
-          {serializedSyncState.provider === "zktime"
-            ? "ZKTime owns the K40 connection. AMS pulls attendance and employees through the ZKTime bridge and pushes new hires back for device enrollment."
-            : "K40 devices push punches to ZKBio WDMS. AMS pulls attendance and employee data from WDMS and pushes new hires back to WDMS for device enrollment."}
+          ZKTime owns the K40 connection. AMS pulls attendance and employees through the ZKTime
+          bridge and pushes new hires back for device enrollment.
         </p>
       </div>
 

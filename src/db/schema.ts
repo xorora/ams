@@ -177,8 +177,8 @@ export const machinePunches = pgTable(
   "machine_punches",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    sourceSystem: machinePunchSourceEnum("source_system").notNull().default("wdms"),
-    // WDMS transaction id (or legacy ebio/zkteco punch id).
+    sourceSystem: machinePunchSourceEnum("source_system").notNull().default("zkteco"),
+    // External punch id from the biometric bridge (or legacy ebio/zkteco id).
     sourcePunchId: integer("source_punch_id").notNull(),
     cardNo: text("card_no").notNull(),
     punchAt: timestamp("punch_at", { withTimezone: true }).notNull(),
@@ -203,7 +203,7 @@ export const machinePunches = pgTable(
   ],
 );
 
-export const wdmsTerminals = pgTable("wdms_terminals", {
+export const deviceTerminals = pgTable("device_terminals", {
   id: uuid("id").defaultRandom().primaryKey(),
   serialNumber: text("serial_number").notNull().unique(),
   alias: text("alias"),

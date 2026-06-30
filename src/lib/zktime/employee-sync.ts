@@ -1,15 +1,23 @@
 import { desc, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { companies, employees, machinePunches, wdmsTerminals } from "@/db/schema";
+import { companies, deviceTerminals, employees, machinePunches } from "@/db/schema";
 import { ZktimeClient } from "@/lib/zktime/client";
 import { getDefaultCompanySlug } from "@/lib/zktime/config";
+import {
+  buildDepartmentIdMap,
+  pushAllOrganizationalDataToZktime,
+} from "@/lib/zktime/organizational-push";
 import {
   setSyncStateValue,
   ZKTIME_LAST_EMPLOYEE_PUSH_AT,
   ZKTIME_LAST_EMPLOYEE_SYNC_AT,
   ZKTIME_LAST_TERMINAL_SYNC_AT,
 } from "@/lib/zktime/sync-state";
-import type { ZktimePushEmployeePayload } from "@/lib/zktime/types";
+import type { ZktimeEmployeeUpsertRequest } from "@/lib/zktime/types";
+
+function normalizeDepartmentKey(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
 
 function emailDomainForSlug(slug: string): string {
   if (slug === "crest-led") {
@@ -50,12 +58,16 @@ export async function pullEmployeesFromZktime(client: ZktimeClient): Promise<Emp
   let created = 0;
 
   for (const zktimeEmp of zktimeEmployees) {
-    if (zktimeEmp.enabled === false) {
+    if (
+      zktimeEmp.app_status !== undefined &&
+      zktimeEmp.app_status !== 0 &&
+      zktimeEmp.app_status !== 1
+    ) {
       continue;
     }
 
     const fullName = zktimeEmp.full_name.trim();
-    const department = zktimeEmp.department_name?.trim() || null;
+    const department = zktimeEmp.department?.dept_name?.trim() || null;
 
     const existing = await db.query.employees.findFirst({
       where: eq(employees.employeeCode, zktimeEmp.emp_code),
@@ -117,41 +129,59 @@ export type EmployeePushResult = {
 
 export async function pushEmployeesToZktime(
   client: ZktimeClient,
-  payload: ZktimePushEmployeePayload[],
+  payload: ZktimeEmployeeUpsertRequest[],
 ): Promise<EmployeePushResult> {
   if (payload.length === 0) {
     return { pushed: 0, queued: 0, failures: [] };
   }
 
-  const response = await client.pushEmployees({ employees: payload });
+  const failures: EmployeePushResult["failures"] = [];
+  let pushed = 0;
 
-  await setSyncStateValue(ZKTIME_LAST_EMPLOYEE_PUSH_AT, new Date().toISOString());
+  for (const employee of payload) {
+    try {
+      await client.upsertEmployee({
+        emp_code: employee.emp_code,
+        full_name: employee.full_name.trim().slice(0, 40),
+        department_id: employee.department_id ?? 1,
+      });
+      pushed += 1;
+    } catch (error) {
+      failures.push({
+        emp_code: employee.emp_code,
+        message: error instanceof Error ? error.message : "Unknown push failure",
+      });
+    }
+  }
 
-  return {
-    pushed: response.pushed ?? payload.length,
-    queued: response.queued ?? 0,
-    failures: response.failures ?? [],
-  };
+  if (pushed > 0) {
+    const syncResult = await client.syncEmployeesToDevice({
+      emp_codes: payload
+        .map((employee) => employee.emp_code)
+        .filter((code) => !failures.some((failure) => failure.emp_code === code)),
+    });
+
+    await setSyncStateValue(ZKTIME_LAST_EMPLOYEE_PUSH_AT, new Date().toISOString());
+
+    return {
+      pushed,
+      queued: syncResult.queued,
+      failures,
+    };
+  }
+
+  return { pushed: 0, queued: 0, failures };
 }
 
 export async function pushActiveEmployeesToZktime(
   client: ZktimeClient,
 ): Promise<EmployeePushResult> {
-  const activeEmployees = await db
-    .select({
-      employeeCode: employees.employeeCode,
-      fullName: employees.fullName,
-    })
-    .from(employees)
-    .where(eq(employees.isActive, true));
-
-  return pushEmployeesToZktime(
-    client,
-    activeEmployees.map((employee) => ({
-      emp_code: employee.employeeCode,
-      full_name: employee.fullName,
-    })),
-  );
+  const result = await pushAllOrganizationalDataToZktime(client);
+  return {
+    pushed: result.employeesPushed,
+    queued: result.deviceSyncQueued,
+    failures: result.failures,
+  };
 }
 
 export async function pushEmployeeById(employeeId: string): Promise<void> {
@@ -160,18 +190,34 @@ export async function pushEmployeeById(employeeId: string): Promise<void> {
     return;
   }
 
-  const employee = await db.query.employees.findFirst({
-    where: eq(employees.id, employeeId),
-  });
+  const row = await db
+    .select({
+      employeeCode: employees.employeeCode,
+      fullName: employees.fullName,
+      department: employees.department,
+      isActive: employees.isActive,
+      companyName: companies.name,
+    })
+    .from(employees)
+    .innerJoin(companies, eq(employees.companyId, companies.id))
+    .where(eq(employees.id, employeeId))
+    .limit(1);
 
+  const employee = row[0];
   if (!employee?.isActive) {
     return;
   }
+
+  const zktimeDepartments = await client.getAllDepartments();
+  const label = `${employee.companyName.trim()} - ${employee.department?.trim() || "General"}`;
+  const departmentId =
+    buildDepartmentIdMap(zktimeDepartments, [label]).get(normalizeDepartmentKey(label)) ?? 1;
 
   await pushEmployeesToZktime(client, [
     {
       emp_code: employee.employeeCode,
       full_name: employee.fullName,
+      department_id: departmentId,
     },
   ]);
 }
@@ -182,13 +228,13 @@ export async function syncTerminalsFromZktime(client: ZktimeClient): Promise<num
 
   for (const terminal of terminals) {
     const lastActivity = terminal.last_seen_at ? new Date(terminal.last_seen_at) : null;
-    const existing = await db.query.wdmsTerminals.findFirst({
-      where: eq(wdmsTerminals.serialNumber, terminal.serial_number),
+    const existing = await db.query.deviceTerminals.findFirst({
+      where: eq(deviceTerminals.serialNumber, terminal.serial_number),
     });
 
     if (existing) {
       await db
-        .update(wdmsTerminals)
+        .update(deviceTerminals)
         .set({
           alias: terminal.alias || existing.alias,
           ipAddress: terminal.ip_address ?? existing.ipAddress,
@@ -196,11 +242,11 @@ export async function syncTerminalsFromZktime(client: ZktimeClient): Promise<num
           lastSeenAt: lastActivity ?? existing.lastSeenAt,
           updatedAt: now,
         })
-        .where(eq(wdmsTerminals.id, existing.id));
+        .where(eq(deviceTerminals.id, existing.id));
       continue;
     }
 
-    await db.insert(wdmsTerminals).values({
+    await db.insert(deviceTerminals).values({
       serialNumber: terminal.serial_number,
       alias: terminal.alias ?? null,
       ipAddress: terminal.ip_address ?? null,
@@ -267,7 +313,7 @@ export async function listUnmappedPunches(): Promise<UnmappedZktimePunch[]> {
 
 export async function listDevicesWithSyncState() {
   const { getSyncStateValue } = await import("@/lib/zktime/sync-state");
-  const devices = await db.select().from(wdmsTerminals).orderBy(desc(wdmsTerminals.lastSeenAt));
+  const devices = await db.select().from(deviceTerminals).orderBy(desc(deviceTerminals.lastSeenAt));
 
   const [lastAttendanceSync, lastEmployeeSync, lastTerminalSync, lastEmployeePush] =
     await Promise.all([

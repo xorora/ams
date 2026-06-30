@@ -2,22 +2,21 @@ import { NextResponse } from "next/server";
 import {
   cronNotConfiguredResponse,
   cronUnauthorizedResponse,
-  deviceSyncNotConfiguredResponse,
   getCronSecret,
   verifyCronAuth,
+  zktimeNotConfiguredResponse,
 } from "@/lib/cron/auth";
-import { getDeviceSyncProvider } from "@/lib/device-sync/provider";
-import { WdmsClient } from "@/lib/wdms/client";
-import { pullEmployeesFromWdms } from "@/lib/wdms/employee-sync";
 import { ZktimeClient } from "@/lib/zktime/client";
+import { isZktimeConfigured } from "@/lib/zktime/config";
 import { pullEmployeesFromZktime, pushEmployeesToZktime } from "@/lib/zktime/employee-sync";
-import type { ZktimePushEmployeePayload } from "@/lib/zktime/types";
+import { pushAllOrganizationalDataToZktime } from "@/lib/zktime/organizational-push";
+import type { ZktimeEmployeeUpsertRequest } from "@/lib/zktime/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
-function isPushPayload(value: unknown): value is { employees: ZktimePushEmployeePayload[] } {
+function isPushPayload(value: unknown): value is { employees: ZktimeEmployeeUpsertRequest[] } {
   if (!value || typeof value !== "object" || !("employees" in value)) {
     return false;
   }
@@ -31,9 +30,13 @@ function isPushPayload(value: unknown): value is { employees: ZktimePushEmployee
     (employee) =>
       employee &&
       typeof employee === "object" &&
-      typeof (employee as ZktimePushEmployeePayload).emp_code === "string" &&
-      typeof (employee as ZktimePushEmployeePayload).full_name === "string",
+      typeof (employee as ZktimeEmployeeUpsertRequest).emp_code === "string" &&
+      typeof (employee as ZktimeEmployeeUpsertRequest).full_name === "string",
   );
+}
+
+function isPushAllPayload(value: unknown): value is { pushAll: true } {
+  return Boolean(value && typeof value === "object" && (value as { pushAll?: boolean }).pushAll);
 }
 
 export async function GET(request: Request) {
@@ -45,28 +48,18 @@ export async function GET(request: Request) {
     return cronUnauthorizedResponse();
   }
 
-  const provider = getDeviceSyncProvider();
-  if (!provider) {
-    return deviceSyncNotConfiguredResponse();
+  if (!isZktimeConfigured()) {
+    return zktimeNotConfiguredResponse();
   }
 
   try {
-    if (provider === "zktime") {
-      const client = ZktimeClient.fromEnv();
-      const employees = await pullEmployeesFromZktime(client);
-      return NextResponse.json({ ok: true, employees });
-    }
-
-    const client = WdmsClient.fromEnv();
-    const employees = await pullEmployeesFromWdms(client);
+    const client = ZktimeClient.fromEnv();
+    const employees = await pullEmployeesFromZktime(client);
     return NextResponse.json({ ok: true, employees });
   } catch (error) {
     console.error("[sync/employees] pull", error);
     return NextResponse.json(
-      {
-        error: `Failed to sync employees from ${provider === "zktime" ? "ZKTime" : "WDMS"}`,
-        code: "SYNC_FAILED",
-      },
+      { error: "Failed to sync employees from ZKTime", code: "SYNC_FAILED" },
       { status: 500 },
     );
   }
@@ -81,36 +74,39 @@ export async function POST(request: Request) {
     return cronUnauthorizedResponse();
   }
 
-  const provider = getDeviceSyncProvider();
-  if (provider !== "zktime") {
-    return NextResponse.json(
-      {
-        error: "Employee push requires ZKTime configuration",
-        code: "ZKTIME_NOT_CONFIGURED",
-      },
-      { status: 500 },
-    );
+  if (!isZktimeConfigured()) {
+    return zktimeNotConfiguredResponse();
   }
 
-  let body: unknown;
+  let body: unknown = {};
   try {
-    body = await request.json();
+    const text = await request.text();
+    if (text.trim()) {
+      body = JSON.parse(text);
+    }
   } catch {
     return NextResponse.json({ error: "Invalid JSON body", code: "INVALID_BODY" }, { status: 400 });
   }
 
-  if (!isPushPayload(body) || body.employees.length === 0) {
-    return NextResponse.json(
-      {
-        error: 'Body must include a non-empty "employees" array with emp_code and full_name',
-        code: "INVALID_BODY",
-      },
-      { status: 400 },
-    );
-  }
-
   try {
     const client = ZktimeClient.fromEnv();
+
+    if (isPushAllPayload(body) || Object.keys(body as object).length === 0) {
+      const result = await pushAllOrganizationalDataToZktime(client);
+      return NextResponse.json({ ok: true, ...result });
+    }
+
+    if (!isPushPayload(body) || body.employees.length === 0) {
+      return NextResponse.json(
+        {
+          error:
+            'Send {"pushAll": true} to push all AMS data, or a non-empty "employees" array for targeted push',
+          code: "INVALID_BODY",
+        },
+        { status: 400 },
+      );
+    }
+
     const result = await pushEmployeesToZktime(client, body.employees);
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {

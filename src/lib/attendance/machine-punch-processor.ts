@@ -144,7 +144,7 @@ async function upsertAttendanceRows(rows: AttendanceInsertRow[]): Promise<number
   return affected;
 }
 
-/** Attach unlinked punches via employee_code (WDMS emp_code). */
+/** Attach unlinked punches via employee_code (device badge number). */
 export async function relinkMachinePunchesToEmployees(): Promise<number> {
   const result = await db.execute(sql`
     UPDATE machine_punches AS mp

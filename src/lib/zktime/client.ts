@@ -1,12 +1,14 @@
 import { getZktimeApiKey, getZktimeBaseUrl, isZktimeConfigured } from "@/lib/zktime/config";
 import type {
   ZktimeClientConfig,
+  ZktimeDepartment,
+  ZktimeDeviceSyncRequest,
+  ZktimeDeviceSyncResponse,
   ZktimeEmployee,
-  ZktimeEmployeesResponse,
-  ZktimePushEmployeesRequest,
-  ZktimePushEmployeesResponse,
+  ZktimeEmployeeUpsertRequest,
+  ZktimeEmployeeUpsertResponse,
+  ZktimePaginatedResponse,
   ZktimeTerminal,
-  ZktimeTerminalsResponse,
   ZktimeTransaction,
   ZktimeTransactionsExportResponse,
 } from "@/lib/zktime/types";
@@ -70,38 +72,63 @@ export class ZktimeClient {
     return (await response.json()) as T;
   }
 
+  private async fetchAllPages<T>(initialPath: string, pageSize = 500): Promise<T[]> {
+    const items: T[] = [];
+    let path: string | null = initialPath;
+
+    while (path) {
+      const separator = path.includes("?") ? "&" : "?";
+      const pageUrl: string = path.startsWith("http")
+        ? path
+        : `${path}${separator}page_size=${pageSize}`;
+
+      const response: ZktimePaginatedResponse<T> =
+        await this.request<ZktimePaginatedResponse<T>>(pageUrl);
+      items.push(...response.data);
+      path = response.next;
+    }
+
+    return items;
+  }
+
   async getHealth(): Promise<{ ok?: boolean; status?: string }> {
     return this.request<{ ok?: boolean; status?: string }>("/api/v1/health");
   }
 
   async exportTransactions(since: string): Promise<ZktimeTransactionsExportResponse> {
     const search = new URLSearchParams({ since });
-    const response = await this.request<ZktimeTransactionsExportResponse | ZktimeTransaction[]>(
+    const transactions = await this.fetchAllPages<ZktimeTransaction>(
       `/api/v1/transactions/export?${search.toString()}`,
     );
 
-    if (Array.isArray(response)) {
-      const latestUploadTime = response.at(-1)?.upload_time ?? null;
-      return { transactions: response, latestUploadTime };
-    }
-
     return {
-      transactions: response.transactions ?? [],
-      latestUploadTime:
-        response.latestUploadTime ?? response.transactions?.at(-1)?.upload_time ?? null,
+      transactions,
+      latestUploadTime: transactions.at(-1)?.upload_time ?? null,
     };
   }
 
-  async getEmployees(): Promise<ZktimeEmployee[]> {
-    const response = await this.request<ZktimeEmployeesResponse | ZktimeEmployee[]>(
-      "/api/v1/employees",
-    );
-
-    return Array.isArray(response) ? response : (response.employees ?? []);
+  async getAllDepartments(): Promise<ZktimeDepartment[]> {
+    return this.fetchAllPages<ZktimeDepartment>("/api/v1/departments");
   }
 
-  async pushEmployees(payload: ZktimePushEmployeesRequest): Promise<ZktimePushEmployeesResponse> {
-    return this.request<ZktimePushEmployeesResponse>("/api/v1/employees", {
+  async getEmployees(): Promise<ZktimeEmployee[]> {
+    return this.fetchAllPages<ZktimeEmployee>("/api/v1/employees");
+  }
+
+  async upsertEmployee(
+    payload: ZktimeEmployeeUpsertRequest,
+  ): Promise<ZktimeEmployeeUpsertResponse> {
+    return this.request<ZktimeEmployeeUpsertResponse>("/api/v1/employees", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async syncEmployeesToDevice(
+    payload: ZktimeDeviceSyncRequest = {},
+  ): Promise<ZktimeDeviceSyncResponse> {
+    return this.request<ZktimeDeviceSyncResponse>("/api/v1/employees/sync-to-device", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -109,10 +136,6 @@ export class ZktimeClient {
   }
 
   async getTerminals(): Promise<ZktimeTerminal[]> {
-    const response = await this.request<ZktimeTerminalsResponse | ZktimeTerminal[]>(
-      "/api/v1/terminals",
-    );
-
-    return Array.isArray(response) ? response : (response.terminals ?? []);
+    return this.fetchAllPages<ZktimeTerminal>("/api/v1/terminals");
   }
 }

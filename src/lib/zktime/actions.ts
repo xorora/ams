@@ -13,11 +13,11 @@ import { ZktimeClient } from "@/lib/zktime/client";
 import { isZktimeConfigured } from "@/lib/zktime/config";
 import {
   pullEmployeesFromZktime,
-  pushActiveEmployeesToZktime,
   pushEmployeesToZktime,
   syncTerminalsFromZktime,
 } from "@/lib/zktime/employee-sync";
-import type { ZktimePushEmployeePayload } from "@/lib/zktime/types";
+import { pushAllOrganizationalDataToZktime } from "@/lib/zktime/organizational-push";
+import type { OrganizationalPushResult, ZktimeEmployeeUpsertRequest } from "@/lib/zktime/types";
 
 function revalidateAdminDevices() {
   revalidatePath("/admin/devices");
@@ -85,12 +85,8 @@ export async function triggerZktimeEmployeeSyncAction(): Promise<
   }
 }
 
-export async function triggerZktimePushActiveEmployeesAction(): Promise<
-  ActionResult<{
-    pushed: number;
-    queued: number;
-    failures: Array<{ emp_code: string; message: string }>;
-  }>
+export async function triggerZktimeOrganizationalPushAction(): Promise<
+  ActionResult<OrganizationalPushResult>
 > {
   await requireAdminSession();
 
@@ -100,21 +96,28 @@ export async function triggerZktimePushActiveEmployeesAction(): Promise<
 
   try {
     const client = ZktimeClient.fromEnv();
-    const result = await pushActiveEmployeesToZktime(client);
+    const result = await pushAllOrganizationalDataToZktime(client);
     revalidateAdminDevices();
     return actionSuccess(result);
   } catch (error) {
-    console.error("[zktime/actions] active employee push failed", error);
+    console.error("[zktime/actions] organizational push failed", error);
     return actionFailure({
       ok: false,
       code: "ZKTIME_PUSH_FAILED",
-      message: error instanceof Error ? error.message : "Failed to push employees to ZKTime.",
+      message:
+        error instanceof Error ? error.message : "Failed to push organizational data to ZKTime.",
     });
   }
 }
 
+export async function triggerZktimePushActiveEmployeesAction(): Promise<
+  ActionResult<OrganizationalPushResult>
+> {
+  return triggerZktimeOrganizationalPushAction();
+}
+
 export async function triggerZktimeEmployeePushAction(
-  employees: ZktimePushEmployeePayload[],
+  employees: ZktimeEmployeeUpsertRequest[],
 ): Promise<
   ActionResult<{
     pushed: number;
