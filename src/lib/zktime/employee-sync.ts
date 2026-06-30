@@ -14,7 +14,7 @@ import {
   ZKTIME_LAST_EMPLOYEE_SYNC_AT,
   ZKTIME_LAST_TERMINAL_SYNC_AT,
 } from "@/lib/zktime/sync-state";
-import type { ZktimeEmployeeUpsertRequest } from "@/lib/zktime/types";
+import type { ZktimeEmployeeUpsertRequest, ZktimeTerminal } from "@/lib/zktime/types";
 
 function normalizeDepartmentKey(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
@@ -233,41 +233,62 @@ export async function pushEmployeeById(employeeId: string): Promise<void> {
   });
 }
 
+function resolveTerminalSerialNumber(terminal: ZktimeTerminal): string | null {
+  for (const value of [terminal.serial_number, terminal.terminal_sn, terminal.alias]) {
+    const trimmed = value?.trim();
+    if (trimmed) {
+      return trimmed;
+    }
+  }
+
+  const ip = terminal.ip_address?.trim();
+  return ip || null;
+}
+
 export async function syncTerminalsFromZktime(client: ZktimeClient): Promise<number> {
   const terminals = await client.getTerminals();
   const now = new Date();
+  let synced = 0;
 
   for (const terminal of terminals) {
+    const serialNumber = resolveTerminalSerialNumber(terminal);
+    if (!serialNumber) {
+      console.warn("[zktime] skipping terminal with no serial number, alias, or IP", terminal);
+      continue;
+    }
+
     const lastActivity = terminal.last_seen_at ? new Date(terminal.last_seen_at) : null;
     const existing = await db.query.deviceTerminals.findFirst({
-      where: eq(deviceTerminals.serialNumber, terminal.serial_number),
+      where: eq(deviceTerminals.serialNumber, serialNumber),
     });
 
     if (existing) {
       await db
         .update(deviceTerminals)
         .set({
-          alias: terminal.alias || existing.alias,
-          ipAddress: terminal.ip_address ?? existing.ipAddress,
-          firmwareVersion: terminal.firmware_version ?? existing.firmwareVersion,
+          alias: terminal.alias?.trim() || existing.alias,
+          ipAddress: terminal.ip_address?.trim() || existing.ipAddress,
+          firmwareVersion: terminal.firmware_version?.trim() || existing.firmwareVersion,
           lastSeenAt: lastActivity ?? existing.lastSeenAt,
           updatedAt: now,
         })
         .where(eq(deviceTerminals.id, existing.id));
+      synced += 1;
       continue;
     }
 
     await db.insert(deviceTerminals).values({
-      serialNumber: terminal.serial_number,
-      alias: terminal.alias ?? null,
-      ipAddress: terminal.ip_address ?? null,
-      firmwareVersion: terminal.firmware_version ?? null,
+      serialNumber,
+      alias: terminal.alias?.trim() || null,
+      ipAddress: terminal.ip_address?.trim() || null,
+      firmwareVersion: terminal.firmware_version?.trim() || null,
       lastSeenAt: lastActivity,
     });
+    synced += 1;
   }
 
   await setSyncStateValue(ZKTIME_LAST_TERMINAL_SYNC_AT, now.toISOString());
-  return terminals.length;
+  return synced;
 }
 
 export type UnmappedZktimePunch = {

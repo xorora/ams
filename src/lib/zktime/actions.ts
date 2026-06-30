@@ -48,7 +48,11 @@ export async function triggerZktimeAttendanceSyncAction(): Promise<
   try {
     const client = ZktimeClient.fromEnv();
     const result = await syncAttendanceFromZktime(client);
-    await syncTerminalsFromZktime(client);
+    try {
+      await syncTerminalsFromZktime(client);
+    } catch (terminalError) {
+      console.error("[zktime/actions] terminal sync failed after attendance sync", terminalError);
+    }
     revalidateAdminDevices();
     return actionSuccess(result);
   } catch (error) {

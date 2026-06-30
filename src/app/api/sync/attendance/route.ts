@@ -47,7 +47,12 @@ export async function GET(request: Request) {
     const since = await resolveSince(request);
     const client = ZktimeClient.fromEnv();
     const attendance = await syncAttendanceFromZktime(client, { since });
-    const terminals = await syncTerminalsFromZktime(client);
+    let terminals = 0;
+    try {
+      terminals = await syncTerminalsFromZktime(client);
+    } catch (terminalError) {
+      console.error("[sync/attendance] terminal sync failed after attendance sync", terminalError);
+    }
 
     return NextResponse.json({
       source: "zktime",

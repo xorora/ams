@@ -106,7 +106,9 @@ export type ZktimePushEmployeesResponse = {
 };
 
 export type ZktimeTerminal = {
-  serial_number: string;
+  serial_number?: string | null;
+  /** Some bridge responses use terminal_sn instead of serial_number. */
+  terminal_sn?: string | null;
   alias?: string | null;
   ip_address?: string | null;
   firmware_version?: string | null;
