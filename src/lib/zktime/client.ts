@@ -74,15 +74,20 @@ export class ZktimeClient {
     return (await response.json()) as T;
   }
 
+  private appendPageSize(path: string, pageSize: number): string {
+    if (path.includes("page_size=")) {
+      return path;
+    }
+    const separator = path.includes("?") ? "&" : "?";
+    return `${path}${separator}page_size=${pageSize}`;
+  }
+
   private async fetchAllPages<T>(initialPath: string, pageSize = 500): Promise<T[]> {
     const items: T[] = [];
     let path: string | null = initialPath;
 
     while (path) {
-      const separator = path.includes("?") ? "&" : "?";
-      const pageUrl: string = path.startsWith("http")
-        ? path
-        : `${path}${separator}page_size=${pageSize}`;
+      const pageUrl = this.appendPageSize(path, pageSize);
 
       const response: ZktimePaginatedResponse<T> =
         await this.request<ZktimePaginatedResponse<T>>(pageUrl);

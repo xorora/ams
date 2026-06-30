@@ -188,7 +188,6 @@ Full template: [`.env.example`](./.env.example).
 | `ZKTIME_BASE_URL` | Biometric | ZKTime bridge URL (e.g. `https://lahore-server.tailca4ca9.ts.net`) |
 | `ZKTIME_API_KEY` | Biometric | Bridge API key from the ZKTime server |
 | `ZKTIME_TIMEZONE` | No | Punch timezone (default: Asia/Karachi) |
-| `ZKTIME_DEFAULT_SYNC_SINCE` | No | Initial attendance cursor (default: `2000-01-01 00:00:00`) |
 | `ZKTIME_DEFAULT_COMPANY_SLUG` | No | Company slug for employees pulled from ZKTime (default: `xorora`) |
 
 On Vercel, `AUTH_URL` can often be omitted in production because Auth.js uses `trustHost: true` and infers the host from `VERCEL_URL`. Set it explicitly if redirects or callbacks misbehave.

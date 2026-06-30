@@ -18,10 +18,11 @@ Join key in AMS: **`emp_code`** ↔ ZKTime **`Badgenumber`**.
 ZKTIME_BASE_URL=https://lahore-server.tailca4ca9.ts.net
 ZKTIME_API_KEY=<bridge API key from server .env>
 CRON_SECRET=<random secret for cron auth>
-ZKTIME_DEFAULT_SYNC_SINCE=2000-01-01 00:00:00
 ZKTIME_DEFAULT_COMPANY_SLUG=xorora
 ZKTIME_TIMEZONE=Asia/Karachi
 ```
+
+First attendance sync (no stored cursor) uses **today at 00:00:00** in `ZKTIME_TIMEZONE`. Later runs use `latestUploadTime` saved in AMS `sync_state`.
 
 ## Cron jobs
 

@@ -234,7 +234,7 @@ export async function pushEmployeeById(employeeId: string): Promise<void> {
 }
 
 function resolveTerminalSerialNumber(terminal: ZktimeTerminal): string | null {
-  for (const value of [terminal.serial_number, terminal.terminal_sn, terminal.alias]) {
+  for (const value of [terminal.sn, terminal.serial_number, terminal.terminal_sn, terminal.alias]) {
     const trimmed = value?.trim();
     if (trimmed) {
       return trimmed;
@@ -243,6 +243,11 @@ function resolveTerminalSerialNumber(terminal: ZktimeTerminal): string | null {
 
   const ip = terminal.ip_address?.trim();
   return ip || null;
+}
+
+function resolveTerminalLastSeenAt(terminal: ZktimeTerminal): Date | null {
+  const raw = terminal.last_activity ?? terminal.last_seen_at;
+  return raw ? new Date(raw) : null;
 }
 
 export async function syncTerminalsFromZktime(client: ZktimeClient): Promise<number> {
@@ -257,7 +262,7 @@ export async function syncTerminalsFromZktime(client: ZktimeClient): Promise<num
       continue;
     }
 
-    const lastActivity = terminal.last_seen_at ? new Date(terminal.last_seen_at) : null;
+    const lastActivity = resolveTerminalLastSeenAt(terminal);
     const existing = await db.query.deviceTerminals.findFirst({
       where: eq(deviceTerminals.serialNumber, serialNumber),
     });

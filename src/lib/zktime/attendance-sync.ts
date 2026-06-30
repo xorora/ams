@@ -14,6 +14,21 @@ function parsePunchAt(datetime: string): Date {
   return fromZonedTime(datetime, getZktimeTimezone());
 }
 
+function resolveTransactionEmployeeName(tx: {
+  full_name?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  emp_code: string;
+}): string {
+  const fullName = tx.full_name?.trim();
+  if (fullName) {
+    return fullName;
+  }
+
+  const composed = [tx.first_name?.trim(), tx.last_name?.trim()].filter(Boolean).join(" ");
+  return composed || tx.emp_code;
+}
+
 async function resolveEmployeeIdsByCode(codes: string[]): Promise<Map<string, string>> {
   const uniqueCodes = [...new Set(codes.filter(Boolean))];
   const resolved = new Map<string, string>();
@@ -61,7 +76,7 @@ export async function syncAttendanceFromZktime(
     machineNo: tx.terminal_sn ?? null,
     isManual: false,
     machineEmpCode: tx.emp_code,
-    machineEmpName: tx.full_name?.trim() || tx.emp_code,
+    machineEmpName: resolveTransactionEmployeeName(tx),
     employeeId: employeeIdsByCode.get(tx.emp_code) ?? null,
     rawPunchAt: [tx.punch_time, tx.punch_state_display, tx.verify_type_display]
       .filter(Boolean)

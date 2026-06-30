@@ -8,7 +8,7 @@ import {
 } from "@/lib/cron/auth";
 import { syncAttendanceFromZktime } from "@/lib/zktime/attendance-sync";
 import { ZktimeClient } from "@/lib/zktime/client";
-import { getZktimeDefaultSyncSince, isZktimeConfigured } from "@/lib/zktime/config";
+import { isZktimeConfigured } from "@/lib/zktime/config";
 import { syncTerminalsFromZktime } from "@/lib/zktime/employee-sync";
 import { getLastAttendanceUploadTime } from "@/lib/zktime/sync-state";
 
@@ -22,12 +22,7 @@ async function resolveSince(request: Request): Promise<string> {
     return querySince;
   }
 
-  const storedSince = await getLastAttendanceUploadTime();
-  if (storedSince !== getZktimeDefaultSyncSince()) {
-    return storedSince;
-  }
-
-  return getZktimeDefaultSyncSince();
+  return getLastAttendanceUploadTime();
 }
 
 export async function GET(request: Request) {

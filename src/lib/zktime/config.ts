@@ -1,3 +1,4 @@
+import { formatInTimeZone } from "date-fns-tz";
 import { BUSINESS_TIMEZONE } from "@/lib/attendance/constants";
 
 export function getZktimeBaseUrl(): string | undefined {
@@ -14,8 +15,10 @@ export function isZktimeConfigured(): boolean {
   return Boolean(getZktimeBaseUrl() && getZktimeApiKey());
 }
 
-export function getZktimeDefaultSyncSince(): string {
-  return process.env.ZKTIME_DEFAULT_SYNC_SINCE?.trim() || "2000-01-01 00:00:00";
+/** Start of today in ZKTIME_TIMEZONE — used when no prior attendance sync cursor exists. */
+export function getTodayAttendanceSyncSince(): string {
+  const today = formatInTimeZone(new Date(), getZktimeTimezone(), "yyyy-MM-dd");
+  return `${today} 00:00:00`;
 }
 
 /** Punch timestamps from the ZKTime bridge are in this timezone. */

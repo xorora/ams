@@ -21,8 +21,12 @@ export type ZktimeTransaction = {
   terminal_alias?: string | null;
   punch_state?: string | null;
   punch_state_display?: string | null;
+  verify_type?: number | null;
   verify_type_display?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
   full_name?: string | null;
+  department?: string | null;
 };
 
 export type ZktimeTransactionsExportResponse = {
@@ -34,6 +38,7 @@ export type ZktimeDepartment = {
   id: number;
   dept_code: string;
   dept_name: string;
+  ams_id?: number | null;
 };
 
 export type ZktimeEmployee = {
@@ -106,12 +111,19 @@ export type ZktimePushEmployeesResponse = {
 };
 
 export type ZktimeTerminal = {
+  id?: number | null;
+  /** Device serial from bridge v1.1+ (`sn` in API). */
+  sn?: string | null;
   serial_number?: string | null;
-  /** Some bridge responses use terminal_sn instead of serial_number. */
   terminal_sn?: string | null;
   alias?: string | null;
   ip_address?: string | null;
+  port?: number | null;
+  machine_number?: number | null;
+  enabled?: boolean | null;
   firmware_version?: string | null;
+  state?: number | null;
+  last_activity?: string | null;
   last_seen_at?: string | null;
 };
 
