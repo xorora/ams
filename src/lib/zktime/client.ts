@@ -12,6 +12,7 @@ import type {
   ZktimePaginatedResponse,
   ZktimeTerminal,
   ZktimeTransaction,
+  ZktimeTransactionsExportPageResponse,
   ZktimeTransactionsExportResponse,
 } from "@/lib/zktime/types";
 
@@ -104,13 +105,26 @@ export class ZktimeClient {
 
   async exportTransactions(since: string): Promise<ZktimeTransactionsExportResponse> {
     const search = new URLSearchParams({ since });
-    const transactions = await this.fetchAllPages<ZktimeTransaction>(
-      `/api/v1/transactions/export?${search.toString()}`,
-    );
+    const initialPath = `/api/v1/transactions/export?${search.toString()}`;
+    const transactions: ZktimeTransaction[] = [];
+    let path: string | null = initialPath;
+    let nextSince: string | null = null;
+
+    while (path) {
+      const pageUrl = this.appendPageSize(path, 500);
+      const response = await this.request<ZktimeTransactionsExportPageResponse>(pageUrl);
+
+      if (nextSince === null && response.next_since) {
+        nextSince = response.next_since;
+      }
+
+      transactions.push(...response.data);
+      path = response.next;
+    }
 
     return {
       transactions,
-      latestUploadTime: transactions.at(-1)?.upload_time ?? null,
+      nextSince,
     };
   }
 

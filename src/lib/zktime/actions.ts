@@ -36,7 +36,7 @@ export async function triggerZktimeAttendanceSyncAction(): Promise<
     fetched: number;
     inserted: number;
     since: string;
-    latestUploadTime: string | null;
+    nextSince: string | null;
   }>
 > {
   await requireAdminSession();

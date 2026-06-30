@@ -10,7 +10,7 @@ import { syncAttendanceFromZktime } from "@/lib/zktime/attendance-sync";
 import { ZktimeClient } from "@/lib/zktime/client";
 import { isZktimeConfigured } from "@/lib/zktime/config";
 import { syncTerminalsFromZktime } from "@/lib/zktime/employee-sync";
-import { getLastAttendanceUploadTime } from "@/lib/zktime/sync-state";
+import { getLastAttendanceNextSince } from "@/lib/zktime/sync-state";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,7 +22,7 @@ async function resolveSince(request: Request): Promise<string> {
     return querySince;
   }
 
-  return getLastAttendanceUploadTime();
+  return getLastAttendanceNextSince();
 }
 
 export async function GET(request: Request) {
@@ -54,7 +54,7 @@ export async function GET(request: Request) {
       synced: attendance.fetched,
       inserted: attendance.inserted,
       since: attendance.since,
-      latestUploadTime: attendance.latestUploadTime ?? since,
+      next_since: attendance.nextSince ?? since,
       terminals,
     });
   } catch (error) {

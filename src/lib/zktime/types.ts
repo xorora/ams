@@ -29,9 +29,16 @@ export type ZktimeTransaction = {
   department?: string | null;
 };
 
+export type ZktimeTransactionsExportPageResponse = ZktimePaginatedResponse<ZktimeTransaction> & {
+  since_requested?: string;
+  since_parsed_local?: string;
+  latest_punch_time?: string;
+  next_since?: string;
+};
+
 export type ZktimeTransactionsExportResponse = {
   transactions: ZktimeTransaction[];
-  latestUploadTime: string | null;
+  nextSince: string | null;
 };
 
 export type ZktimeDepartment = {

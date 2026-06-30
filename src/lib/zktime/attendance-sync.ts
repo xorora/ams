@@ -8,7 +8,7 @@ import {
 } from "@/lib/attendance/machine-punch-processor";
 import type { ZktimeClient } from "@/lib/zktime/client";
 import { getZktimeTimezone } from "@/lib/zktime/config";
-import { getLastAttendanceUploadTime, setLastAttendanceUploadTime } from "@/lib/zktime/sync-state";
+import { getLastAttendanceNextSince, setLastAttendanceNextSince } from "@/lib/zktime/sync-state";
 
 function parsePunchAt(datetime: string): Date {
   return fromZonedTime(datetime, getZktimeTimezone());
@@ -52,18 +52,22 @@ export type AttendanceSyncResult = {
   fetched: number;
   inserted: number;
   since: string;
-  latestUploadTime: string | null;
+  nextSince: string | null;
 };
 
 export async function syncAttendanceFromZktime(
   client: ZktimeClient,
   options: { since?: string } = {},
 ): Promise<AttendanceSyncResult> {
-  const since = options.since ?? (await getLastAttendanceUploadTime());
-  const { transactions, latestUploadTime } = await client.exportTransactions(since);
+  const since = options.since ?? (await getLastAttendanceNextSince());
+  const { transactions, nextSince } = await client.exportTransactions(since);
+
+  if (nextSince) {
+    await setLastAttendanceNextSince(nextSince);
+  }
 
   if (transactions.length === 0) {
-    return { fetched: 0, inserted: 0, since, latestUploadTime: null };
+    return { fetched: 0, inserted: 0, since, nextSince };
   }
 
   const employeeIdsByCode = await resolveEmployeeIdsByCode(transactions.map((tx) => tx.emp_code));
@@ -112,15 +116,10 @@ export async function syncAttendanceFromZktime(
     }
   }
 
-  const latest = latestUploadTime ?? transactions.at(-1)?.upload_time ?? null;
-  if (latest) {
-    await setLastAttendanceUploadTime(latest);
-  }
-
   return {
     fetched: transactions.length,
     inserted: insertedRows.length,
     since,
-    latestUploadTime: latest,
+    nextSince,
   };
 }
