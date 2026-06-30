@@ -3,11 +3,11 @@ import { db } from "@/db";
 import { attendanceDays, companies, employees, machinePunches } from "@/db/schema";
 import {
   getCompanyShiftConfig,
-  getExpectedCheckOutAt,
   getShiftDateForCompany,
   isEarlyLeaveForCompany,
   isLateCheckInForCompany,
 } from "./company-shift";
+import { overtimeFieldsOnCheckout } from "./overtime";
 
 const INSERT_BATCH_SIZE = 100;
 
@@ -27,118 +27,280 @@ export type ProcessMachinePunchesResult = {
   skipped: number;
 };
 
+type PunchDirection = "in" | "out" | "unknown";
+
 type PunchRow = {
   employeeId: string;
   punchAt: Date;
   companySlug: string;
+  direction: PunchDirection;
 };
 
-type PunchGroup = {
+type ShiftPunchGroup = {
   employeeId: string;
   shiftDate: string;
-  checkInAt: Date;
-  checkOutAt: Date | null;
   companySlug: string;
+  checkIns: Date[];
+  checkOuts: Date[];
+  unknowns: Date[];
 };
 
-type AttendanceInsertRow = typeof attendanceDays.$inferInsert;
+type ExistingAttendance = typeof attendanceDays.$inferSelect;
 
-function groupPunches(rows: PunchRow[]): PunchGroup[] {
-  const byKey = new Map<
-    string,
-    { employeeId: string; shiftDate: string; companySlug: string; punches: Date[] }
-  >();
+type AttendanceUpsertRow = {
+  employeeId: string;
+  shiftDate: string;
+  status: "present";
+  source: "system";
+  checkInAt: Date | null;
+  checkOutAt: Date | null;
+  isLate: boolean;
+  isEarlyLeave: boolean;
+  isMissedCheckout: boolean;
+  overtimeStartedAt: Date | null;
+  overtimeEndedAt: Date | null;
+  overtimeSeconds: number | null;
+  totalBreakSeconds: number;
+};
 
-  for (const { employeeId, punchAt, companySlug } of rows) {
+export function parseMachinePunchDirection(rawPunchAt: string | null): PunchDirection {
+  if (!rawPunchAt) {
+    return "unknown";
+  }
+
+  const parts = rawPunchAt.split("|");
+  if (parts.length < 2) {
+    return "unknown";
+  }
+
+  const state = parts[1].trim().toLowerCase();
+  if (state.includes("check out") || state === "checkout") {
+    return "out";
+  }
+  if (state.includes("check in") || state === "checkin") {
+    return "in";
+  }
+
+  return "unknown";
+}
+
+function groupPunches(rows: PunchRow[]): ShiftPunchGroup[] {
+  const byKey = new Map<string, ShiftPunchGroup>();
+
+  for (const { employeeId, punchAt, companySlug, direction } of rows) {
     const config = getCompanyShiftConfig(companySlug);
     const shiftDate = getShiftDateForCompany(punchAt, config);
     const key = `${employeeId}:${shiftDate}`;
-    const existing = byKey.get(key);
-    if (existing) {
-      existing.punches.push(punchAt);
+    const existing =
+      byKey.get(key) ??
+      ({
+        employeeId,
+        shiftDate,
+        companySlug,
+        checkIns: [],
+        checkOuts: [],
+        unknowns: [],
+      } satisfies ShiftPunchGroup);
+
+    if (direction === "in") {
+      existing.checkIns.push(punchAt);
+    } else if (direction === "out") {
+      existing.checkOuts.push(punchAt);
     } else {
-      byKey.set(key, { employeeId, shiftDate, companySlug, punches: [punchAt] });
+      existing.unknowns.push(punchAt);
     }
+
+    byKey.set(key, existing);
   }
 
-  const groups: PunchGroup[] = [];
-  for (const { employeeId, shiftDate, companySlug, punches } of byKey.values()) {
-    punches.sort((a, b) => a.getTime() - b.getTime());
-    const checkInAt = punches[0];
-    const checkOutAt = punches.length > 1 ? punches[punches.length - 1] : null;
-    groups.push({ employeeId, shiftDate, checkInAt, checkOutAt, companySlug });
-  }
-
-  return groups;
+  return [...byKey.values()];
 }
 
-function buildAttendanceRow(group: PunchGroup): AttendanceInsertRow {
-  const config = getCompanyShiftConfig(group.companySlug);
-  const { employeeId, shiftDate, checkInAt, checkOutAt } = group;
-  const isLate = isLateCheckInForCompany(checkInAt, shiftDate, config);
-  const isEarlyLeave = checkOutAt ? isEarlyLeaveForCompany(checkOutAt, shiftDate, config) : false;
+function resolveUnknownPunches(
+  group: ShiftPunchGroup,
+  existing: ExistingAttendance | null,
+): { checkIns: Date[]; checkOuts: Date[] } {
+  const checkIns = [...group.checkIns];
+  const checkOuts = [...group.checkOuts];
 
-  let overtimeStartedAt: Date | null = null;
-  let overtimeEndedAt: Date | null = null;
-  let overtimeSeconds: number | null = null;
+  if (group.unknowns.length === 0) {
+    return { checkIns, checkOuts };
+  }
+
+  const unknowns = [...group.unknowns].sort((a, b) => a.getTime() - b.getTime());
+
+  if (unknowns.length === 1) {
+    const punch = unknowns[0];
+    if (existing?.checkInAt && !existing.checkOutAt) {
+      checkOuts.push(punch);
+    } else if (!existing?.checkInAt) {
+      checkIns.push(punch);
+    } else {
+      checkOuts.push(punch);
+    }
+    return { checkIns, checkOuts };
+  }
+
+  checkIns.push(unknowns[0]);
+  checkOuts.push(unknowns[unknowns.length - 1]);
+  return { checkIns, checkOuts };
+}
+
+function earliestDate(values: Date[]): Date | null {
+  if (values.length === 0) {
+    return null;
+  }
+  return values.reduce((earliest, value) =>
+    value.getTime() < earliest.getTime() ? value : earliest,
+  );
+}
+
+function latestDate(values: Date[]): Date | null {
+  if (values.length === 0) {
+    return null;
+  }
+  return values.reduce((latest, value) => (value.getTime() > latest.getTime() ? value : latest));
+}
+
+function mergeCheckIn(existing: Date | null, machineValues: Date[]): Date | null {
+  const machineEarliest = earliestDate(machineValues);
+  if (!machineEarliest) {
+    return existing;
+  }
+  if (!existing) {
+    return machineEarliest;
+  }
+  return existing.getTime() <= machineEarliest.getTime() ? existing : machineEarliest;
+}
+
+function mergeCheckOut(existing: Date | null, machineValues: Date[]): Date | null {
+  const machineLatest = latestDate(machineValues);
+  if (!machineLatest) {
+    return existing;
+  }
+  if (!existing) {
+    return machineLatest;
+  }
+  return existing.getTime() >= machineLatest.getTime() ? existing : machineLatest;
+}
+
+function buildMergedAttendanceRow(
+  group: ShiftPunchGroup,
+  existing: ExistingAttendance | null,
+): AttendanceUpsertRow | null {
+  const { checkIns, checkOuts } = resolveUnknownPunches(group, existing);
+  const checkInAt = mergeCheckIn(existing?.checkInAt ?? null, checkIns);
+  const checkOutAt = mergeCheckOut(existing?.checkOutAt ?? null, checkOuts);
+
+  if (!checkInAt && !checkOutAt) {
+    return null;
+  }
+
+  const config = getCompanyShiftConfig(group.companySlug);
+  const isLate = checkInAt ? isLateCheckInForCompany(checkInAt, group.shiftDate, config) : false;
+  const isEarlyLeave = checkOutAt
+    ? isEarlyLeaveForCompany(checkOutAt, group.shiftDate, config)
+    : false;
+
+  let overtimeStartedAt: Date | null = existing?.overtimeStartedAt ?? null;
+  let overtimeEndedAt: Date | null = existing?.overtimeEndedAt ?? null;
+  let overtimeSeconds: number | null = existing?.overtimeSeconds ?? null;
 
   if (checkOutAt) {
-    const expectedCheckout = getExpectedCheckOutAt(shiftDate, config);
-    if (checkOutAt.getTime() > expectedCheckout.getTime()) {
-      overtimeStartedAt = expectedCheckout;
-      overtimeEndedAt = checkOutAt;
-      overtimeSeconds = Math.max(
-        0,
-        Math.floor((checkOutAt.getTime() - expectedCheckout.getTime()) / 1000),
-      );
+    const overtime = overtimeFieldsOnCheckout(
+      group.shiftDate,
+      checkOutAt,
+      existing?.overtimeStartedAt ?? null,
+      config,
+    );
+    if (overtime) {
+      overtimeStartedAt = overtime.overtimeStartedAt;
+      overtimeEndedAt = overtime.overtimeEndedAt;
+      overtimeSeconds = overtime.overtimeSeconds;
+    } else {
+      overtimeStartedAt = null;
+      overtimeEndedAt = null;
+      overtimeSeconds = null;
     }
   }
 
   return {
-    employeeId,
-    shiftDate,
+    employeeId: group.employeeId,
+    shiftDate: group.shiftDate,
     status: "present",
     source: "system",
     checkInAt,
     checkOutAt,
-    checkInLat: null,
-    checkInLng: null,
-    checkOutLat: null,
-    checkOutLng: null,
     isLate,
     isEarlyLeave,
+    isMissedCheckout: checkOutAt ? false : (existing?.isMissedCheckout ?? false),
     overtimeStartedAt,
     overtimeEndedAt,
     overtimeSeconds,
-    totalBreakSeconds: 0,
+    totalBreakSeconds: existing?.totalBreakSeconds ?? 0,
   };
 }
 
-async function upsertAttendanceRows(rows: AttendanceInsertRow[]): Promise<number> {
+async function upsertAttendanceRows(
+  rows: AttendanceUpsertRow[],
+  existingByKey: Map<string, ExistingAttendance>,
+): Promise<number> {
   let affected = 0;
 
   for (let i = 0; i < rows.length; i += INSERT_BATCH_SIZE) {
     const batch = rows.slice(i, i + INSERT_BATCH_SIZE);
-    const result = await db
-      .insert(attendanceDays)
-      .values(batch)
-      .onConflictDoUpdate({
-        target: [attendanceDays.employeeId, attendanceDays.shiftDate],
-        set: {
-          checkInAt: sql`excluded.check_in_at`,
-          checkOutAt: sql`excluded.check_out_at`,
-          isLate: sql`excluded.is_late`,
-          isEarlyLeave: sql`excluded.is_early_leave`,
-          overtimeStartedAt: sql`excluded.overtime_started_at`,
-          overtimeEndedAt: sql`excluded.overtime_ended_at`,
-          overtimeSeconds: sql`excluded.overtime_seconds`,
-          updatedAt: sql`now()`,
-        },
-        where: eq(attendanceDays.source, "system"),
-      })
-      .returning({ id: attendanceDays.id });
 
-    affected += result.length;
+    for (const row of batch) {
+      const key = `${row.employeeId}:${row.shiftDate}`;
+      const existing = existingByKey.get(key);
+
+      if (existing) {
+        const result = await db
+          .update(attendanceDays)
+          .set({
+            status: row.status,
+            checkInAt: row.checkInAt,
+            checkOutAt: row.checkOutAt,
+            isLate: row.isLate,
+            isEarlyLeave: row.isEarlyLeave,
+            isMissedCheckout: row.isMissedCheckout,
+            overtimeStartedAt: row.overtimeStartedAt,
+            overtimeEndedAt: row.overtimeEndedAt,
+            overtimeSeconds: row.overtimeSeconds,
+            updatedAt: sql`now()`,
+          })
+          .where(eq(attendanceDays.id, existing.id))
+          .returning({ id: attendanceDays.id });
+
+        affected += result.length;
+        continue;
+      }
+
+      const result = await db
+        .insert(attendanceDays)
+        .values({
+          employeeId: row.employeeId,
+          shiftDate: row.shiftDate,
+          status: row.status,
+          source: row.source,
+          checkInAt: row.checkInAt,
+          checkOutAt: row.checkOutAt,
+          checkInLat: null,
+          checkInLng: null,
+          checkOutLat: null,
+          checkOutLng: null,
+          isLate: row.isLate,
+          isEarlyLeave: row.isEarlyLeave,
+          isMissedCheckout: row.isMissedCheckout,
+          overtimeStartedAt: row.overtimeStartedAt,
+          overtimeEndedAt: row.overtimeEndedAt,
+          overtimeSeconds: row.overtimeSeconds,
+          totalBreakSeconds: row.totalBreakSeconds,
+        })
+        .returning({ id: attendanceDays.id });
+
+      affected += result.length;
+    }
   }
 
   return affected;
@@ -176,6 +338,7 @@ export async function runProcessMachinePunchesJob(
     .select({
       employeeId: machinePunches.employeeId,
       punchAt: machinePunches.punchAt,
+      rawPunchAt: machinePunches.rawPunchAt,
       companySlug: companies.slug,
     })
     .from(machinePunches)
@@ -190,19 +353,51 @@ export async function runProcessMachinePunchesJob(
             employeeId: row.employeeId,
             punchAt: row.punchAt,
             companySlug: row.companySlug,
+            direction: parseMachinePunchDirection(row.rawPunchAt),
           },
         ]
       : [],
   );
 
   const groups = groupPunches(mappedPunches);
-  const attendanceRows = groups.map((group) => buildAttendanceRow(group));
-  const inserted = await upsertAttendanceRows(attendanceRows);
+  if (groups.length === 0) {
+    return {
+      punchRows: mappedPunches.length,
+      groups: 0,
+      inserted: 0,
+      skipped: 0,
+    };
+  }
+
+  const employeeIds = [...new Set(groups.map((group) => group.employeeId))];
+  const shiftDates = [...new Set(groups.map((group) => group.shiftDate))];
+
+  const existingRows = await db
+    .select()
+    .from(attendanceDays)
+    .where(
+      and(
+        inArray(attendanceDays.employeeId, employeeIds),
+        inArray(attendanceDays.shiftDate, shiftDates),
+      ),
+    );
+
+  const existingByKey = new Map(
+    existingRows.map((row) => [`${row.employeeId}:${row.shiftDate}`, row]),
+  );
+
+  const attendanceRows = groups.flatMap((group) => {
+    const existing = existingByKey.get(`${group.employeeId}:${group.shiftDate}`) ?? null;
+    const merged = buildMergedAttendanceRow(group, existing);
+    return merged ? [merged] : [];
+  });
+
+  const inserted = await upsertAttendanceRows(attendanceRows, existingByKey);
 
   return {
     punchRows: mappedPunches.length,
     groups: groups.length,
     inserted,
-    skipped: groups.length - inserted,
+    skipped: groups.length - attendanceRows.length,
   };
 }
