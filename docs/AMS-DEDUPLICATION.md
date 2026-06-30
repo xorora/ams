@@ -134,20 +134,44 @@ Example response:
 
 ### Endpoint
 
-```
 GET https://ams.xorora.com/api/sync/attendance?since=<timestamp>
 Authorization: Bearer <AMS_CRON_SECRET>
-```
 
 ### Incremental sync rules
 
-1. **First sync:** use `since=2000-01-01 00:00:00` or omit `since` (uses env default).
-2. **Later syncs:** pass `latestUploadTime` from the **previous successful** response as `since`.
-3. **Do not** pass current timestamp as `since` — that returns 0 records.
+1. **First sync / backfill:** use since=2000-01-01 00:00:00 or start of day local: 2026-06-30 00:00:00.
+2. **Later syncs:** store and pass **next_since** from the previous bridge response — **not** latest_punch_time or latestUploadTime directly.
+3. **Do not** pass current timestamp as since — that returns 0 records.
 
-The bridge uses **inclusive** filtering: `CHECKTIME >= since`.
+The bridge uses **exclusive** filtering: CHECKTIME > since.
 
-ISO-8601 UTC is supported (`2026-06-30T17:04:11Z` → converted to server local time).
+Example export response:
+
+json
+{
+  "count": 3,
+  "data": [ /* punches */ ],
+  "since_requested": "2026-06-30 00:00:00",
+  "since_parsed_local": "2026-06-30 00:00:00",
+  "latest_punch_time": "2026-06-30 22:04:11",
+  "next_since": "2026-06-30 22:04:11"
+}
+
+Next cron call:
+
+GET /api/sync/attendance?since=2026-06-30%2022:04:11
+
+That returns only punches **after** 22:04:11 (none yet), avoiding duplicates.
+
+ISO-8601 UTC is supported (2026-06-30T17:04:11Z → converted to server local time).
+
+### One-time backfill if punches were missed
+
+If AMS previously used a since cursor that was too far ahead (e.g. last punch time before earlier punches were synced), reset once:
+
+GET /api/sync/attendance?since=2026-06-30%2000:00:00
+
+Then resume using next_since from each response.
 
 ### AMS-side deduplication (required)
 
