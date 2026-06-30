@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -19,24 +20,50 @@ export type LeaveFiltersState = {
   employeeId?: string;
 };
 
+const ALL = "__all__";
+
+const STATUS_ITEMS: Record<string, string> = {
+  [ALL]: "All statuses",
+  pending: "Pending",
+  approved: "Approved",
+  rejected: "Rejected",
+  cancelled: "Cancelled",
+};
+
 type LeaveFiltersProps = {
   filters: LeaveFiltersState;
   employees?: SerializedEmployee[];
-  onChange: (filters: LeaveFiltersState) => void;
+  onChange: (patch: Partial<LeaveFiltersState>) => void;
 };
 
 export function LeaveFilters({ filters, employees, onChange }: LeaveFiltersProps) {
+  const employeeItems = useMemo(() => {
+    const items: Record<string, string> = { [ALL]: "All employees" };
+    for (const employee of employees ?? []) {
+      items[employee.id] = employee.fullName;
+    }
+    return items;
+  }, [employees]);
+
+  const leaveTypeItems = useMemo(() => {
+    const items: Record<string, string> = { [ALL]: "All types" };
+    for (const type of [...ENTITLED_LEAVE_TYPES, "unpaid" as const]) {
+      items[type] = leaveTypeLabel(type);
+    }
+    return items;
+  }, []);
+
   return (
     <div className="flex flex-wrap items-end gap-4">
       {employees ? (
         <div className="flex min-w-[200px] flex-col gap-1.5">
           <Label>Employee</Label>
           <Select
-            value={filters.employeeId ?? "all"}
+            items={employeeItems}
+            value={filters.employeeId ?? ALL}
             onValueChange={(value) =>
               onChange({
-                ...filters,
-                employeeId: !value || value === "all" ? undefined : value,
+                employeeId: !value || value === ALL ? undefined : (value as string),
               })
             }
           >
@@ -44,7 +71,7 @@ export function LeaveFilters({ filters, employees, onChange }: LeaveFiltersProps
               <SelectValue placeholder="All employees" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All employees</SelectItem>
+              <SelectItem value={ALL}>All employees</SelectItem>
               {employees.map((employee) => (
                 <SelectItem key={employee.id} value={employee.id}>
                   {employee.fullName}
@@ -58,11 +85,11 @@ export function LeaveFilters({ filters, employees, onChange }: LeaveFiltersProps
       <div className="flex min-w-[160px] flex-col gap-1.5">
         <Label>Status</Label>
         <Select
-          value={filters.status ?? "all"}
+          items={STATUS_ITEMS}
+          value={filters.status ?? ALL}
           onValueChange={(value) =>
             onChange({
-              ...filters,
-              status: value === "all" ? undefined : (value as LeaveRequestStatus),
+              status: !value || value === ALL ? undefined : (value as LeaveRequestStatus),
             })
           }
         >
@@ -70,7 +97,7 @@ export function LeaveFilters({ filters, employees, onChange }: LeaveFiltersProps
             <SelectValue placeholder="All statuses" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
+            <SelectItem value={ALL}>All statuses</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="approved">Approved</SelectItem>
             <SelectItem value="rejected">Rejected</SelectItem>
@@ -82,11 +109,11 @@ export function LeaveFilters({ filters, employees, onChange }: LeaveFiltersProps
       <div className="flex min-w-[160px] flex-col gap-1.5">
         <Label>Leave type</Label>
         <Select
-          value={filters.leaveType ?? "all"}
+          items={leaveTypeItems}
+          value={filters.leaveType ?? ALL}
           onValueChange={(value) =>
             onChange({
-              ...filters,
-              leaveType: value === "all" ? undefined : (value as LeaveType),
+              leaveType: !value || value === ALL ? undefined : (value as LeaveType),
             })
           }
         >
@@ -94,7 +121,7 @@ export function LeaveFilters({ filters, employees, onChange }: LeaveFiltersProps
             <SelectValue placeholder="All types" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All types</SelectItem>
+            <SelectItem value={ALL}>All types</SelectItem>
             {[...ENTITLED_LEAVE_TYPES, "unpaid" as const].map((type) => (
               <SelectItem key={type} value={type}>
                 {leaveTypeLabel(type)}

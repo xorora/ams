@@ -1,6 +1,10 @@
 import { ReportsEmployeeView } from "@/components/admin/reports-employee-view";
 import { serializeEmployeeReport } from "@/lib/admin/reports-serialize";
-import { defaultReportDateRange, getEmployeeReport } from "@/lib/admin/reports-service";
+import {
+  defaultReportDateRange,
+  getEmployeeReport,
+  resolveReportDateRange,
+} from "@/lib/admin/reports-service";
 import { requireSelectedCompanyId } from "@/lib/admin/selected-company";
 import { requireAdminSession } from "@/lib/auth/require-session";
 
@@ -15,8 +19,7 @@ export default async function AdminEmployeeReportPage({ params, searchParams }: 
   const { employeeId } = await params;
   const query = await searchParams;
   const defaults = defaultReportDateRange();
-  const from = query.from ?? defaults.from;
-  const to = query.to ?? defaults.to;
+  const { from, to } = resolveReportDateRange(query.from, query.to, defaults);
 
   const reportResult = await getEmployeeReport(employeeId, from, to, companyId);
   const report = reportResult.ok ? serializeEmployeeReport(reportResult.data) : null;

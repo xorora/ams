@@ -1,6 +1,10 @@
 import { EmployeeAttendanceHistory } from "@/components/attendance/employee-attendance-history";
 import { serializeEmployeeReport } from "@/lib/admin/reports-serialize";
-import { defaultReportDateRange, getEmployeeReport } from "@/lib/admin/reports-service";
+import {
+  defaultReportDateRange,
+  getEmployeeReport,
+  resolveReportDateRange,
+} from "@/lib/admin/reports-service";
 import { requireEmployeeSession } from "@/lib/auth/require-session";
 
 type PageProps = {
@@ -17,8 +21,7 @@ export default async function AttendanceHistoryPage({ searchParams }: PageProps)
 
   const query = await searchParams;
   const defaults = defaultReportDateRange();
-  const from = query.from ?? defaults.from;
-  const to = query.to ?? defaults.to;
+  const { from, to } = resolveReportDateRange(query.from, query.to, defaults);
 
   const reportResult = await getEmployeeReport(employeeId, from, to);
   const report = reportResult.ok ? serializeEmployeeReport(reportResult.data) : null;

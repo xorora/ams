@@ -21,7 +21,7 @@ import {
   markAttendanceStatusAction,
   updateAttendanceAction,
 } from "@/lib/admin/actions";
-import { attendanceListQuery } from "@/lib/admin/query-params";
+import { attendanceListQuery, normalizeAttendanceDateRange } from "@/lib/admin/query-params";
 import type { SerializedAttendance, SerializedEmployee } from "@/lib/admin/serialize";
 import { toastAsync, toastError } from "@/lib/toast";
 
@@ -48,10 +48,15 @@ export function AttendanceManager({
     setFilters(initialFilters);
   }, [initialFilters]);
 
-  function applyFilters(next: AttendanceFiltersState) {
-    setFilters(next);
-    startTransition(() => {
-      router.replace(`/admin/attendance${attendanceListQuery(next)}`);
+  function applyFilters(updater: React.SetStateAction<AttendanceFiltersState>) {
+    setFilters((current) => {
+      const nextRaw = typeof updater === "function" ? updater(current) : updater;
+      const { from, to } = normalizeAttendanceDateRange(nextRaw.from, nextRaw.to);
+      const next = { ...nextRaw, from, to };
+      startTransition(() => {
+        router.replace(`/admin/attendance${attendanceListQuery(next)}`);
+      });
+      return next;
     });
   }
 
@@ -201,10 +206,7 @@ export function AttendanceManager({
       <div className="shrink-0 space-y-4">
         <AttendanceFilters
           filters={filters}
-          onFiltersChange={(updater) => {
-            const next = typeof updater === "function" ? updater(filters) : updater;
-            applyFilters(next);
-          }}
+          onFiltersChange={applyFilters}
           employees={employees}
           onAddRecord={openCreate}
         />

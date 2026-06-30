@@ -5,6 +5,7 @@ import { useEffect, useState, useTransition } from "react";
 import { ReportDateToolbar } from "@/components/reports/report-date-toolbar";
 import { ReportsSummaryTable } from "@/components/reports/reports-summary-table";
 import { reportDateQuery } from "@/lib/admin/query-params";
+import { validateReportDateRangeInput } from "@/lib/admin/reports-date-range";
 import type { SummaryReport } from "@/lib/admin/reports-service";
 import { downloadResponseBlob, toastAsync, toastError } from "@/lib/toast";
 import { cn } from "@/lib/utils";
@@ -42,19 +43,40 @@ export function ReportsSummaryView({
   }, [loadError]);
 
   function handleRefresh() {
+    const validation = validateReportDateRangeInput(from, to);
+    if (!validation.ok) {
+      toastError(validation.message);
+      return;
+    }
+
+    setFrom(validation.from);
+    setTo(validation.to);
     startTransition(() => {
-      router.push(`/admin/reports${reportDateQuery(from, to)}`);
+      router.push(`/admin/reports${reportDateQuery(validation.from, validation.to)}`);
     });
   }
 
   async function handleExport() {
+    const validation = validateReportDateRangeInput(from, to);
+    if (!validation.ok) {
+      toastError(validation.message);
+      return;
+    }
+
     setExporting(true);
 
     try {
-      const params = new URLSearchParams({ scope: "summary", from, to });
+      const params = new URLSearchParams({
+        scope: "summary",
+        from: validation.from,
+        to: validation.to,
+      });
       await toastAsync(
         fetch(`/api/admin/reports/export?${params.toString()}`).then((response) =>
-          downloadResponseBlob(response, `attendance-summary_${from}_${to}.xlsx`),
+          downloadResponseBlob(
+            response,
+            `attendance-summary_${validation.from}_${validation.to}.xlsx`,
+          ),
         ),
         {
           loading: "Exporting Excel file…",

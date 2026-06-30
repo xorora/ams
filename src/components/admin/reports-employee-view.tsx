@@ -8,6 +8,7 @@ import { ReportsEmployeeHeader } from "@/components/reports/reports-employee-hea
 import { ReportsEmployeeStats } from "@/components/reports/reports-employee-stats";
 import { ReportsEmployeeTable } from "@/components/reports/reports-employee-table";
 import { reportDateQuery } from "@/lib/admin/query-params";
+import { validateReportDateRangeInput } from "@/lib/admin/reports-date-range";
 import type { SerializedEmployeeReport } from "@/lib/admin/reports-serialize";
 import { downloadResponseBlob, toastAsync, toastError } from "@/lib/toast";
 import { cn } from "@/lib/utils";
@@ -47,24 +48,41 @@ export function ReportsEmployeeView({
   }, [loadError]);
 
   function handleRefresh() {
+    const validation = validateReportDateRangeInput(from, to);
+    if (!validation.ok) {
+      toastError(validation.message);
+      return;
+    }
+
+    setFrom(validation.from);
+    setTo(validation.to);
     startTransition(() => {
-      router.push(`/admin/reports/${employeeId}${reportDateQuery(from, to)}`);
+      router.push(`/admin/reports/${employeeId}${reportDateQuery(validation.from, validation.to)}`);
     });
   }
 
   async function handleExport() {
+    const validation = validateReportDateRangeInput(from, to);
+    if (!validation.ok) {
+      toastError(validation.message);
+      return;
+    }
+
     setExporting(true);
 
     try {
       const params = new URLSearchParams({
         scope: "employee",
         employeeId,
-        from,
-        to,
+        from: validation.from,
+        to: validation.to,
       });
       await toastAsync(
         fetch(`/api/admin/reports/export?${params.toString()}`).then((response) =>
-          downloadResponseBlob(response, `attendance-employee_${from}_${to}.xlsx`),
+          downloadResponseBlob(
+            response,
+            `attendance-employee_${validation.from}_${validation.to}.xlsx`,
+          ),
         ),
         {
           loading: "Exporting Excel file…",

@@ -55,10 +55,18 @@ export function LeaveManager({
     setFilters(initialFilters);
   }, [initialFilters]);
 
-  function applyFilters(next: LeaveFiltersState) {
-    setFilters(next);
-    startTransition(() => {
-      router.replace(`/admin/leave${leaveListQuery(next)}`);
+  function applyFilterPatch(patch: Partial<LeaveFiltersState>) {
+    setFilters((current) => {
+      const next = { ...current, ...patch };
+      for (const key of Object.keys(patch) as (keyof LeaveFiltersState)[]) {
+        if (patch[key] === undefined) {
+          delete next[key];
+        }
+      }
+      startTransition(() => {
+        router.replace(`/admin/leave${leaveListQuery(next)}`);
+      });
+      return next;
     });
   }
 
@@ -134,7 +142,7 @@ export function LeaveManager({
   return (
     <div className="flex flex-col gap-6 md:min-h-0 md:flex-1 md:overflow-hidden">
       <div className="shrink-0">
-        <LeaveFilters filters={filters} employees={employees} onChange={applyFilters} />
+        <LeaveFilters filters={filters} employees={employees} onChange={applyFilterPatch} />
       </div>
 
       <LeaveTable

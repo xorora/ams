@@ -1,5 +1,9 @@
 import { ReportsSummaryView } from "@/components/admin/reports-summary-view";
-import { defaultReportDateRange, getSummaryReport } from "@/lib/admin/reports-service";
+import {
+  defaultReportDateRange,
+  getSummaryReport,
+  resolveReportDateRange,
+} from "@/lib/admin/reports-service";
 import { requireSelectedCompanyId } from "@/lib/admin/selected-company";
 import { requireAdminSession } from "@/lib/auth/require-session";
 
@@ -12,8 +16,7 @@ export default async function AdminReportsPage({ searchParams }: PageProps) {
   const companyId = await requireSelectedCompanyId();
   const params = await searchParams;
   const defaults = defaultReportDateRange();
-  const from = params.from ?? defaults.from;
-  const to = params.to ?? defaults.to;
+  const { from, to } = resolveReportDateRange(params.from, params.to, defaults);
 
   const reportResult = await getSummaryReport(from, to, companyId);
   const report = reportResult.ok ? reportResult.data : null;

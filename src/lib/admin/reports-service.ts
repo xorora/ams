@@ -9,7 +9,11 @@ import type { ReportDateRange } from "./reports-date-range";
 import { adminFailure, type ServiceFailure, type ServiceSuccess } from "./types";
 
 export type { ReportDateRange } from "./reports-date-range";
-export { defaultReportDateRange } from "./reports-date-range";
+export {
+  defaultReportDateRange,
+  resolveReportDateRange,
+  validateReportDateRangeInput,
+} from "./reports-date-range";
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 

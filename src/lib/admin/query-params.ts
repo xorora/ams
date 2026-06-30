@@ -36,6 +36,25 @@ export function attendanceListQuery(filters: AttendanceListQuery): string {
   return query ? `?${query}` : "";
 }
 
+/** Swap from/to when both are set and from is after to. */
+export function normalizeAttendanceDateRange(
+  from: string,
+  to: string,
+): { from: string; to: string } {
+  if (from && to && from > to) {
+    return { from: to, to: from };
+  }
+  return { from, to };
+}
+
 export function reportDateQuery(from: string, to: string): string {
-  return `?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+  const params = new URLSearchParams();
+  if (from) {
+    params.set("from", from);
+  }
+  if (to) {
+    params.set("to", to);
+  }
+  const query = params.toString();
+  return query ? `?${query}` : "";
 }

@@ -6,6 +6,7 @@ import { ReportDateToolbar } from "@/components/reports/report-date-toolbar";
 import { ReportsEmployeeStats } from "@/components/reports/reports-employee-stats";
 import { ReportsEmployeeTable } from "@/components/reports/reports-employee-table";
 import { reportDateQuery } from "@/lib/admin/query-params";
+import { validateReportDateRangeInput } from "@/lib/admin/reports-date-range";
 import type { SerializedEmployeeReport } from "@/lib/admin/reports-serialize";
 import { toastError } from "@/lib/toast";
 import { cn } from "@/lib/utils";
@@ -42,8 +43,16 @@ export function EmployeeAttendanceHistory({
   }, [loadError]);
 
   function handleRefresh() {
+    const validation = validateReportDateRangeInput(from, to);
+    if (!validation.ok) {
+      toastError(validation.message);
+      return;
+    }
+
+    setFrom(validation.from);
+    setTo(validation.to);
     startTransition(() => {
-      router.push(`/attendance/history${reportDateQuery(from, to)}`);
+      router.push(`/attendance/history${reportDateQuery(validation.from, validation.to)}`);
     });
   }
 

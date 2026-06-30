@@ -33,10 +33,18 @@ export function OvertimeManager({
     setFilters(initialFilters);
   }, [initialFilters]);
 
-  function applyFilters(next: OvertimeFiltersState) {
-    setFilters(next);
-    startTransition(() => {
-      router.replace(`/admin/overtime${overtimeListQuery(next)}`);
+  function applyFilterPatch(patch: Partial<OvertimeFiltersState>) {
+    setFilters((current) => {
+      const next = { ...current, ...patch };
+      for (const key of Object.keys(patch) as (keyof OvertimeFiltersState)[]) {
+        if (patch[key] === undefined) {
+          delete next[key];
+        }
+      }
+      startTransition(() => {
+        router.replace(`/admin/overtime${overtimeListQuery(next)}`);
+      });
+      return next;
     });
   }
 
@@ -114,7 +122,7 @@ export function OvertimeManager({
   return (
     <div className="flex flex-col gap-6 md:min-h-0 md:flex-1 md:overflow-hidden">
       <div className="shrink-0">
-        <OvertimeFilters filters={filters} employees={employees} onChange={applyFilters} />
+        <OvertimeFilters filters={filters} employees={employees} onChange={applyFilterPatch} />
       </div>
 
       <OvertimeTable

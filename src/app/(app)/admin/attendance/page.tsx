@@ -1,6 +1,7 @@
 import { AttendanceManager } from "@/components/admin/attendance-manager";
 import { type AttendanceStatus, listAttendance } from "@/lib/admin/attendance-service";
 import { listEmployees } from "@/lib/admin/employees-service";
+import { normalizeAttendanceDateRange } from "@/lib/admin/query-params";
 import { requireSelectedCompanyId } from "@/lib/admin/selected-company";
 import { serializeAttendance, serializeEmployee } from "@/lib/admin/serialize";
 import { requireAdminSession } from "@/lib/auth/require-session";
@@ -20,9 +21,10 @@ export default async function AdminAttendancePage({ searchParams }: PageProps) {
   const params = await searchParams;
 
   const statusParam = params.status ?? "";
+  const { from, to } = normalizeAttendanceDateRange(params.from ?? "", params.to ?? "");
   const filters = {
-    from: params.from ?? "",
-    to: params.to ?? "",
+    from,
+    to,
     employeeId: params.employeeId ?? "",
     status: (statusParam === "present" ||
     statusParam === "absent" ||
