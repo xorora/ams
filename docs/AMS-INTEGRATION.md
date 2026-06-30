@@ -8,7 +8,7 @@ AMS connects to K40 biometric devices through the ZKTime bridge API.
 |-----------|-----------|-----------------|--------------|
 | Pull attendance | `GET /api/sync/attendance` | `GET /api/v1/transactions/export` | `CHECKINOUT` |
 | Pull employees | `GET /api/sync/employees` | `GET /api/v1/employees` | `USERINFO` |
-| Push employees | `POST /api/sync/employees` | `POST /api/v1/employees` | `USERINFO`, `UsersMachines`, `UserUpdates` |
+| Push employees | `POST /api/sync/employees` | `POST /api/v1/sync/master-data` | `USERINFO`, `UsersMachines`, `UserUpdates` |
 
 Join key in AMS: **`emp_code`** ↔ ZKTime **`Badgenumber`**.
 
@@ -43,11 +43,23 @@ curl -s -H "Authorization: Bearer $CRON_SECRET" \
 
 ### Push new AMS hires to device
 
+Targeted push:
+
 ```bash
 curl -s -X POST \
   -H "Authorization: Bearer $CRON_SECRET" \
   -H "Content-Type: application/json" \
-  -d '{"employees":[{"emp_code":"1001","full_name":"Ali Khan","department_id":1}]}' \
+  -d '{"departments":[{"id":1,"name":"Xorora - Engineering"}],"employees":[{"emp_code":"1001","full_name":"Ali Khan","department_id":1,"department_name":"Xorora - Engineering"}],"queue_to_device":true}' \
+  "https://ams.xorora.com/api/sync/employees"
+```
+
+Push all active AMS employees (empty body or `{"pushAll": true}`):
+
+```bash
+curl -s -X POST \
+  -H "Authorization: Bearer $CRON_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"pushAll": true}' \
   "https://ams.xorora.com/api/sync/employees"
 ```
 
@@ -68,4 +80,5 @@ Interactive docs: `https://lahore-server.tailca4ca9.ts.net/docs`
 - Only one app can use TCP 4370 on the K40. Keep ZKTime running on the office server.
 - The bridge listens on **port 8090** — run `setup-tailscale-funnel.ps1` to expose it via Tailscale.
 - Attendance appears in AMS only after employees exist in ZKTime with matching badge numbers.
-- Implement Prisma upsert TODOs in the AMS sync routes for production reconciliation.
+- `GET /api/sync/attendance` upserts punches into AMS and returns `latestUploadTime` for the next cron run.
+- `GET /api/sync/employees` upserts employees into AMS and returns a summary list from ZKTime.

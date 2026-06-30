@@ -6,6 +6,7 @@ import { getDefaultCompanySlug } from "@/lib/zktime/config";
 import {
   buildDepartmentIdMap,
   pushAllOrganizationalDataToZktime,
+  pushMasterDataToZktime,
 } from "@/lib/zktime/organizational-push";
 import {
   setSyncStateValue,
@@ -40,10 +41,18 @@ async function resolveDefaultCompanyId(): Promise<string | null> {
   return company?.id ?? null;
 }
 
+export type EmployeePullSummary = {
+  emp_code: string;
+  full_name: string;
+  department: string | null;
+  status: number | null | undefined;
+};
+
 export type EmployeePullResult = {
   fetched: number;
   updated: number;
   created: number;
+  employees: EmployeePullSummary[];
 };
 
 export async function pullEmployeesFromZktime(client: ZktimeClient): Promise<EmployeePullResult> {
@@ -56,8 +65,19 @@ export async function pullEmployeesFromZktime(client: ZktimeClient): Promise<Emp
 
   let updated = 0;
   let created = 0;
+  const employeeSummaries: EmployeePullSummary[] = [];
 
   for (const zktimeEmp of zktimeEmployees) {
+    const fullName = zktimeEmp.full_name.trim();
+    const department = zktimeEmp.department?.dept_name?.trim() || null;
+
+    employeeSummaries.push({
+      emp_code: zktimeEmp.emp_code,
+      full_name: fullName || zktimeEmp.emp_code,
+      department,
+      status: zktimeEmp.app_status,
+    });
+
     if (
       zktimeEmp.app_status !== undefined &&
       zktimeEmp.app_status !== 0 &&
@@ -65,9 +85,6 @@ export async function pullEmployeesFromZktime(client: ZktimeClient): Promise<Emp
     ) {
       continue;
     }
-
-    const fullName = zktimeEmp.full_name.trim();
-    const department = zktimeEmp.department?.dept_name?.trim() || null;
 
     const existing = await db.query.employees.findFirst({
       where: eq(employees.employeeCode, zktimeEmp.emp_code),
@@ -118,7 +135,7 @@ export async function pullEmployeesFromZktime(client: ZktimeClient): Promise<Emp
 
   await setSyncStateValue(ZKTIME_LAST_EMPLOYEE_SYNC_AT, new Date().toISOString());
 
-  return { fetched: zktimeEmployees.length, updated, created };
+  return { fetched: zktimeEmployees.length, updated, created, employees: employeeSummaries };
 }
 
 export type EmployeePushResult = {
@@ -129,48 +146,38 @@ export type EmployeePushResult = {
 
 export async function pushEmployeesToZktime(
   client: ZktimeClient,
-  payload: ZktimeEmployeeUpsertRequest[],
+  payload: {
+    departments?: Array<{ id: number; name: string }>;
+    employees: ZktimeEmployeeUpsertRequest[];
+    queue_to_device?: boolean;
+  },
 ): Promise<EmployeePushResult> {
-  if (payload.length === 0) {
+  if (payload.employees.length === 0) {
     return { pushed: 0, queued: 0, failures: [] };
   }
 
-  const failures: EmployeePushResult["failures"] = [];
-  let pushed = 0;
+  const result = await pushMasterDataToZktime(client, payload);
+  const failures = Array.isArray(result.failures)
+    ? result.failures.filter((failure): failure is { emp_code: string; message: string } =>
+        Boolean(
+          failure &&
+            typeof failure === "object" &&
+            typeof (failure as { emp_code?: unknown }).emp_code === "string" &&
+            typeof (failure as { message?: unknown }).message === "string",
+        ),
+      )
+    : [];
 
-  for (const employee of payload) {
-    try {
-      await client.upsertEmployee({
-        emp_code: employee.emp_code,
-        full_name: employee.full_name.trim().slice(0, 40),
-        department_id: employee.department_id ?? 1,
-      });
-      pushed += 1;
-    } catch (error) {
-      failures.push({
-        emp_code: employee.emp_code,
-        message: error instanceof Error ? error.message : "Unknown push failure",
-      });
-    }
-  }
+  const pushed =
+    typeof result.employees_synced === "number"
+      ? result.employees_synced
+      : payload.employees.length - failures.length;
 
-  if (pushed > 0) {
-    const syncResult = await client.syncEmployeesToDevice({
-      emp_codes: payload
-        .map((employee) => employee.emp_code)
-        .filter((code) => !failures.some((failure) => failure.emp_code === code)),
-    });
-
-    await setSyncStateValue(ZKTIME_LAST_EMPLOYEE_PUSH_AT, new Date().toISOString());
-
-    return {
-      pushed,
-      queued: syncResult.queued,
-      failures,
-    };
-  }
-
-  return { pushed: 0, queued: 0, failures };
+  return {
+    pushed,
+    queued: typeof result.queued === "number" ? result.queued : 0,
+    failures,
+  };
 }
 
 export async function pushActiveEmployeesToZktime(
@@ -213,13 +220,17 @@ export async function pushEmployeeById(employeeId: string): Promise<void> {
   const departmentId =
     buildDepartmentIdMap(zktimeDepartments, [label]).get(normalizeDepartmentKey(label)) ?? 1;
 
-  await pushEmployeesToZktime(client, [
-    {
-      emp_code: employee.employeeCode,
-      full_name: employee.fullName,
-      department_id: departmentId,
-    },
-  ]);
+  await pushEmployeesToZktime(client, {
+    employees: [
+      {
+        emp_code: employee.employeeCode,
+        full_name: employee.fullName,
+        department_id: departmentId,
+        department_name: label.slice(0, 30),
+        ams_department_id: departmentId,
+      },
+    ],
+  });
 }
 
 export async function syncTerminalsFromZktime(client: ZktimeClient): Promise<number> {

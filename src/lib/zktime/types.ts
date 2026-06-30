@@ -51,6 +51,29 @@ export type ZktimeEmployeeUpsertRequest = {
   emp_code: string;
   full_name: string;
   department_id?: number;
+  ams_department_id?: number;
+  department_name?: string;
+};
+
+export type ZktimeDepartmentSyncRequest = {
+  ams_id: number;
+  name: string;
+};
+
+export type ZktimeMasterDataSyncRequest = {
+  departments?: ZktimeDepartmentSyncRequest[];
+  employees: ZktimeEmployeeUpsertRequest[];
+  queue_to_device?: boolean;
+};
+
+export type ZktimeMasterDataSyncResponse = {
+  msg?: string;
+  code?: number;
+  departments_synced?: number;
+  employees_synced?: number;
+  queued?: number;
+  failures?: Array<{ emp_code: string; message: string }>;
+  [key: string]: unknown;
 };
 
 export type ZktimeEmployeeUpsertResponse = {

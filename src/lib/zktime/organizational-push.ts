@@ -3,10 +3,15 @@ import { db } from "@/db";
 import { companies, employees } from "@/db/schema";
 import type { ZktimeClient } from "@/lib/zktime/client";
 import { setSyncStateValue, ZKTIME_LAST_EMPLOYEE_PUSH_AT } from "@/lib/zktime/sync-state";
-import type { OrganizationalPushResult, ZktimeEmployeeUpsertRequest } from "@/lib/zktime/types";
+import type {
+  OrganizationalPushResult,
+  ZktimeEmployeeUpsertRequest,
+  ZktimeMasterDataSyncResponse,
+} from "@/lib/zktime/types";
 
 const DEFAULT_DEPARTMENT_NAME = "General";
 const MAX_FULL_NAME_LENGTH = 40;
+const MAX_DEPARTMENT_NAME_LENGTH = 30;
 
 type AmsEmployeeRow = {
   employeeCode: string;
@@ -81,6 +86,35 @@ export function buildDepartmentIdMap(
   return map;
 }
 
+function normalizeBridgeEmployees(
+  employees: ZktimeEmployeeUpsertRequest[],
+): ZktimeEmployeeUpsertRequest[] {
+  return employees.map((employee) => ({
+    emp_code: employee.emp_code,
+    full_name: truncateFullName(employee.full_name),
+    ams_department_id: employee.ams_department_id ?? employee.department_id,
+    department_name: employee.department_name?.trim().slice(0, MAX_DEPARTMENT_NAME_LENGTH),
+    department_id: employee.department_id,
+  }));
+}
+
+function parseMasterDataFailures(
+  result: ZktimeMasterDataSyncResponse,
+): Array<{ emp_code: string; message: string }> {
+  if (!Array.isArray(result.failures)) {
+    return [];
+  }
+
+  return result.failures.filter((failure): failure is { emp_code: string; message: string } =>
+    Boolean(
+      failure &&
+        typeof failure === "object" &&
+        typeof (failure as { emp_code?: unknown }).emp_code === "string" &&
+        typeof (failure as { message?: unknown }).message === "string",
+    ),
+  );
+}
+
 async function loadActiveEmployees(): Promise<AmsEmployeeRow[]> {
   return db
     .select({
@@ -116,41 +150,39 @@ export async function pushAllOrganizationalDataToZktime(
   const zktimeDepartments = await client.getAllDepartments();
   const departmentIdByLabel = buildDepartmentIdMap(zktimeDepartments, departmentLabels);
 
-  const failures: OrganizationalPushResult["failures"] = [];
-  let employeesPushed = 0;
+  const departments = departmentLabels.map((label) => {
+    const amsId = departmentIdByLabel.get(normalizeKey(label)) ?? 1;
+    return {
+      ams_id: amsId,
+      name: label.slice(0, MAX_DEPARTMENT_NAME_LENGTH),
+    };
+  });
 
-  for (const employee of activeEmployees) {
+  const bridgeEmployees = activeEmployees.map((employee) => {
     const label = departmentLabel(employee.companyName, employee.department);
     const departmentId = departmentIdByLabel.get(normalizeKey(label)) ?? 1;
 
-    const payload: ZktimeEmployeeUpsertRequest = {
+    return {
       emp_code: employee.employeeCode,
       full_name: truncateFullName(employee.fullName),
-      department_id: departmentId,
+      ams_department_id: departmentId,
+      department_name: label.slice(0, MAX_DEPARTMENT_NAME_LENGTH),
     };
+  });
 
-    try {
-      await client.upsertEmployee(payload);
-      employeesPushed += 1;
-    } catch (error) {
-      failures.push({
-        emp_code: employee.employeeCode,
-        message: error instanceof Error ? error.message : "Unknown push failure",
-      });
-    }
-  }
-
-  let deviceSyncQueued = 0;
-  if (employeesPushed > 0) {
-    const syncResult = await client.syncEmployeesToDevice({
-      emp_codes: activeEmployees
-        .map((employee) => employee.employeeCode)
-        .filter((code) => !failures.some((failure) => failure.emp_code === code)),
-    });
-    deviceSyncQueued = syncResult.queued;
-  }
+  const result = await client.syncMasterData({
+    departments,
+    employees: bridgeEmployees,
+    queue_to_device: true,
+  });
 
   await setSyncStateValue(ZKTIME_LAST_EMPLOYEE_PUSH_AT, new Date().toISOString());
+
+  const failures = parseMasterDataFailures(result);
+  const employeesPushed =
+    typeof result.employees_synced === "number"
+      ? result.employees_synced
+      : bridgeEmployees.length - failures.length;
 
   return {
     companies: companySlugs.size,
@@ -158,11 +190,32 @@ export async function pushAllOrganizationalDataToZktime(
     rolesTracked,
     employeesPushed,
     employeesFailed: failures.length,
-    deviceSyncQueued,
+    deviceSyncQueued: typeof result.queued === "number" ? result.queued : 0,
     failures,
     notes: [
       "ZKTime bridge has no company or role APIs; companies map to department groups and designations are tracked in AMS only.",
       "Department names are assigned stable ZKTime department_id values; create department names in ZKTime admin if you need them visible on the device UI.",
     ],
   };
+}
+
+export async function pushMasterDataToZktime(
+  client: ZktimeClient,
+  payload: {
+    departments?: Array<{ id: number; name: string }>;
+    employees: ZktimeEmployeeUpsertRequest[];
+    queue_to_device?: boolean;
+  },
+): Promise<ZktimeMasterDataSyncResponse> {
+  const result = await client.syncMasterData({
+    departments: payload.departments?.map((department) => ({
+      ams_id: department.id,
+      name: department.name.trim().slice(0, MAX_DEPARTMENT_NAME_LENGTH),
+    })),
+    employees: normalizeBridgeEmployees(payload.employees),
+    queue_to_device: payload.queue_to_device ?? true,
+  });
+
+  await setSyncStateValue(ZKTIME_LAST_EMPLOYEE_PUSH_AT, new Date().toISOString());
+  return result;
 }

@@ -7,6 +7,8 @@ import type {
   ZktimeEmployee,
   ZktimeEmployeeUpsertRequest,
   ZktimeEmployeeUpsertResponse,
+  ZktimeMasterDataSyncRequest,
+  ZktimeMasterDataSyncResponse,
   ZktimePaginatedResponse,
   ZktimeTerminal,
   ZktimeTransaction,
@@ -107,6 +109,11 @@ export class ZktimeClient {
     };
   }
 
+  async getAllTransactionsSince(since: string): Promise<ZktimeTransaction[]> {
+    const { transactions } = await this.exportTransactions(since);
+    return transactions;
+  }
+
   async getAllDepartments(): Promise<ZktimeDepartment[]> {
     return this.fetchAllPages<ZktimeDepartment>("/api/v1/departments");
   }
@@ -115,10 +122,24 @@ export class ZktimeClient {
     return this.fetchAllPages<ZktimeEmployee>("/api/v1/employees");
   }
 
+  async getAllEmployees(pageSize = 500): Promise<ZktimeEmployee[]> {
+    return this.fetchAllPages<ZktimeEmployee>("/api/v1/employees", pageSize);
+  }
+
   async upsertEmployee(
     payload: ZktimeEmployeeUpsertRequest,
   ): Promise<ZktimeEmployeeUpsertResponse> {
     return this.request<ZktimeEmployeeUpsertResponse>("/api/v1/employees", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async syncMasterData(
+    payload: ZktimeMasterDataSyncRequest,
+  ): Promise<ZktimeMasterDataSyncResponse> {
+    return this.request<ZktimeMasterDataSyncResponse>("/api/v1/sync/master-data", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

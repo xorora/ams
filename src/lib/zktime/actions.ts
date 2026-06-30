@@ -133,7 +133,10 @@ export async function triggerZktimeEmployeePushAction(
 
   try {
     const client = ZktimeClient.fromEnv();
-    const result = await pushEmployeesToZktime(client, employees);
+    const result = await pushEmployeesToZktime(client, {
+      employees,
+      queue_to_device: true,
+    });
     revalidateAdminDevices();
     return actionSuccess(result);
   } catch (error) {

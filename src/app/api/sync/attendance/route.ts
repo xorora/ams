@@ -8,12 +8,27 @@ import {
 } from "@/lib/cron/auth";
 import { syncAttendanceFromZktime } from "@/lib/zktime/attendance-sync";
 import { ZktimeClient } from "@/lib/zktime/client";
-import { isZktimeConfigured } from "@/lib/zktime/config";
+import { getZktimeDefaultSyncSince, isZktimeConfigured } from "@/lib/zktime/config";
 import { syncTerminalsFromZktime } from "@/lib/zktime/employee-sync";
+import { getLastAttendanceUploadTime } from "@/lib/zktime/sync-state";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
+
+async function resolveSince(request: Request): Promise<string> {
+  const querySince = new URL(request.url).searchParams.get("since");
+  if (querySince) {
+    return querySince;
+  }
+
+  const storedSince = await getLastAttendanceUploadTime();
+  if (storedSince !== getZktimeDefaultSyncSince()) {
+    return storedSince;
+  }
+
+  return getZktimeDefaultSyncSince();
+}
 
 export async function GET(request: Request) {
   if (!getCronSecret()) {
@@ -29,14 +44,17 @@ export async function GET(request: Request) {
   }
 
   try {
-    const since = new URL(request.url).searchParams.get("since") ?? undefined;
+    const since = await resolveSince(request);
     const client = ZktimeClient.fromEnv();
     const attendance = await syncAttendanceFromZktime(client, { since });
     const terminals = await syncTerminalsFromZktime(client);
 
     return NextResponse.json({
-      ok: true,
-      attendance,
+      source: "zktime",
+      synced: attendance.fetched,
+      inserted: attendance.inserted,
+      since: attendance.since,
+      latestUploadTime: attendance.latestUploadTime ?? since,
       terminals,
     });
   } catch (error) {
