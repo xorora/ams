@@ -88,7 +88,9 @@ export function DevicesManager({ unmappedPunches, syncState }: DevicesManagerPro
           loading: "Pushing companies, departments, and employees to device…",
           success: (data) => {
             const failed = data.employeesFailed;
-            const base = `${data.employeesPushed} employee(s) pushed across ${data.companies} company(ies) and ${data.departmentsMapped} department group(s). ${data.deviceSyncQueued} queued for device sync.`;
+            const skipped =
+              data.skippedUnchanged > 0 ? ` ${data.skippedUnchanged} unchanged (skipped).` : "";
+            const base = `${data.employeesPushed} employee(s) pushed across ${data.companies} company(ies) and ${data.departmentsMapped} department group(s). ${data.deviceSyncQueued} queued for device sync.${skipped}`;
             return failed > 0 ? `${base} ${failed} failed.` : base;
           },
         },

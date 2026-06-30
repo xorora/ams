@@ -197,6 +197,7 @@ export const machinePunches = pgTable(
       table.sourceSystem,
       table.sourcePunchId,
     ),
+    uniqueIndex("machine_punches_card_no_punch_at_idx").on(table.cardNo, table.punchAt),
     index("machine_punches_punch_at_idx").on(table.punchAt),
     index("machine_punches_card_no_idx").on(table.cardNo),
     index("machine_punches_employee_id_idx").on(table.employeeId),

@@ -87,7 +87,7 @@ export async function syncAttendanceFromZktime(
     .insert(machinePunches)
     .values(rows)
     .onConflictDoNothing({
-      target: [machinePunches.sourceSystem, machinePunches.sourcePunchId],
+      target: [machinePunches.cardNo, machinePunches.punchAt],
     })
     .returning({
       id: machinePunches.id,

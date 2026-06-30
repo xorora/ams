@@ -71,15 +71,98 @@ export type ZktimeMasterDataSyncRequest = {
   queue_to_device?: boolean;
 };
 
+export type ZktimeEmployeeSyncAction = "created" | "updated" | "unchanged";
+
+export type ZktimeEmployeeSyncResultItem = {
+  emp_code: string;
+  full_name: string;
+  sync_action: ZktimeEmployeeSyncAction;
+  queued_for_device: boolean;
+};
+
 export type ZktimeMasterDataSyncResponse = {
   msg?: string;
   code?: number;
   departments_synced?: number;
   employees_synced?: number;
   queued?: number;
+  queuedForDevice?: number;
+  skipped_unchanged?: number;
+  skippedUnchanged?: number;
   failures?: Array<{ emp_code: string; message: string }>;
+  employees?: Array<{
+    emp_code: string;
+    full_name: string;
+    sync_action?: ZktimeEmployeeSyncAction | string;
+    queued_for_device?: boolean;
+    queuedForDevice?: boolean;
+  }>;
   [key: string]: unknown;
 };
+
+export type NormalizedMasterDataSyncResult = {
+  departmentsSynced: number;
+  employeesSynced: number;
+  queuedForDevice: number;
+  skippedUnchanged: number;
+  failures: Array<{ emp_code: string; message: string }>;
+  employees: ZktimeEmployeeSyncResultItem[];
+};
+
+function readNumber(...values: unknown[]): number | undefined {
+  for (const value of values) {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function isSyncAction(value: unknown): value is ZktimeEmployeeSyncAction {
+  return value === "created" || value === "updated" || value === "unchanged";
+}
+
+export function normalizeMasterDataSyncResponse(
+  result: ZktimeMasterDataSyncResponse,
+): NormalizedMasterDataSyncResult {
+  const failures = Array.isArray(result.failures)
+    ? result.failures.filter((failure): failure is { emp_code: string; message: string } =>
+        Boolean(
+          failure &&
+            typeof failure === "object" &&
+            typeof failure.emp_code === "string" &&
+            typeof failure.message === "string",
+        ),
+      )
+    : [];
+
+  const employees = Array.isArray(result.employees)
+    ? result.employees
+        .filter((employee): employee is NonNullable<typeof employee> =>
+          Boolean(
+            employee &&
+              typeof employee === "object" &&
+              typeof employee.emp_code === "string" &&
+              typeof employee.full_name === "string",
+          ),
+        )
+        .map((employee) => ({
+          emp_code: employee.emp_code,
+          full_name: employee.full_name,
+          sync_action: isSyncAction(employee.sync_action) ? employee.sync_action : "updated",
+          queued_for_device: Boolean(employee.queued_for_device ?? employee.queuedForDevice),
+        }))
+    : [];
+
+  return {
+    departmentsSynced: readNumber(result.departments_synced) ?? 0,
+    employeesSynced: readNumber(result.employees_synced) ?? 0,
+    queuedForDevice: readNumber(result.queuedForDevice, result.queued) ?? 0,
+    skippedUnchanged: readNumber(result.skippedUnchanged, result.skipped_unchanged) ?? 0,
+    failures,
+    employees,
+  };
+}
 
 export type ZktimeEmployeeUpsertResponse = {
   msg: string;
@@ -134,6 +217,8 @@ export type OrganizationalPushResult = {
   employeesPushed: number;
   employeesFailed: number;
   deviceSyncQueued: number;
+  skippedUnchanged: number;
   failures: Array<{ emp_code: string; message: string }>;
+  employees: ZktimeEmployeeSyncResultItem[];
   notes: string[];
 };

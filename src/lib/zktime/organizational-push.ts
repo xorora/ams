@@ -8,6 +8,7 @@ import type {
   ZktimeEmployeeUpsertRequest,
   ZktimeMasterDataSyncResponse,
 } from "@/lib/zktime/types";
+import { normalizeMasterDataSyncResponse } from "@/lib/zktime/types";
 
 const DEFAULT_DEPARTMENT_NAME = "General";
 const MAX_FULL_NAME_LENGTH = 40;
@@ -98,23 +99,6 @@ function normalizeBridgeEmployees(
   }));
 }
 
-function parseMasterDataFailures(
-  result: ZktimeMasterDataSyncResponse,
-): Array<{ emp_code: string; message: string }> {
-  if (!Array.isArray(result.failures)) {
-    return [];
-  }
-
-  return result.failures.filter((failure): failure is { emp_code: string; message: string } =>
-    Boolean(
-      failure &&
-        typeof failure === "object" &&
-        typeof (failure as { emp_code?: unknown }).emp_code === "string" &&
-        typeof (failure as { message?: unknown }).message === "string",
-    ),
-  );
-}
-
 async function loadActiveEmployees(): Promise<AmsEmployeeRow[]> {
   return db
     .select({
@@ -178,20 +162,22 @@ export async function pushAllOrganizationalDataToZktime(
 
   await setSyncStateValue(ZKTIME_LAST_EMPLOYEE_PUSH_AT, new Date().toISOString());
 
-  const failures = parseMasterDataFailures(result);
+  const normalized = normalizeMasterDataSyncResponse(result);
   const employeesPushed =
-    typeof result.employees_synced === "number"
-      ? result.employees_synced
-      : bridgeEmployees.length - failures.length;
+    normalized.employeesSynced > 0
+      ? normalized.employeesSynced
+      : bridgeEmployees.length - normalized.failures.length;
 
   return {
     companies: companySlugs.size,
     departmentsMapped: departmentLabels.length,
     rolesTracked,
     employeesPushed,
-    employeesFailed: failures.length,
-    deviceSyncQueued: typeof result.queued === "number" ? result.queued : 0,
-    failures,
+    employeesFailed: normalized.failures.length,
+    deviceSyncQueued: normalized.queuedForDevice,
+    skippedUnchanged: normalized.skippedUnchanged,
+    failures: normalized.failures,
+    employees: normalized.employees,
     notes: [
       "ZKTime bridge has no company or role APIs; companies map to department groups and designations are tracked in AMS only.",
       "Department names are assigned stable ZKTime department_id values; create department names in ZKTime admin if you need them visible on the device UI.",

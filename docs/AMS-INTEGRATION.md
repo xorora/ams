@@ -81,5 +81,5 @@ Interactive docs: `https://lahore-server.tailca4ca9.ts.net/docs`
 - Only one app can use TCP 4370 on the K40. Keep ZKTime running on the office server.
 - The bridge listens on **port 8090** — run `setup-tailscale-funnel.ps1` to expose it via Tailscale.
 - Attendance appears in AMS only after employees exist in ZKTime with matching badge numbers.
-- `GET /api/sync/attendance` upserts punches into AMS and returns `latestUploadTime` for the next cron run.
+- `GET /api/sync/attendance` upserts punches into AMS (deduped on `emp_code` + `punch_time`) and returns `latestUploadTime` for the next cron run.
 - `GET /api/sync/employees` upserts employees into AMS and returns a summary list from ZKTime.

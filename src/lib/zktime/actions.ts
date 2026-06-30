@@ -126,7 +126,15 @@ export async function triggerZktimeEmployeePushAction(
   ActionResult<{
     pushed: number;
     queued: number;
+    queuedForDevice: number;
+    skippedUnchanged: number;
     failures: Array<{ emp_code: string; message: string }>;
+    employees: Array<{
+      emp_code: string;
+      full_name: string;
+      sync_action: "created" | "updated" | "unchanged";
+      queued_for_device: boolean;
+    }>;
   }>
 > {
   await requireAdminSession();

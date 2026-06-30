@@ -105,7 +105,18 @@ export async function POST(request: Request) {
 
     if (!isSyncEmployeesPostBody(body) || body.pushAll === true || Object.keys(body).length === 0) {
       const result = await pushAllOrganizationalDataToZktime(client);
-      return NextResponse.json({ source: "zktime", ...result });
+      return NextResponse.json({
+        source: "zktime",
+        pushed: result.employeesPushed,
+        queuedForDevice: result.deviceSyncQueued,
+        skippedUnchanged: result.skippedUnchanged,
+        employees: result.employees,
+        failures: result.failures,
+        companies: result.companies,
+        departmentsMapped: result.departmentsMapped,
+        rolesTracked: result.rolesTracked,
+        notes: result.notes,
+      });
     }
 
     const employees = body.employees ?? [];
@@ -122,7 +133,15 @@ export async function POST(request: Request) {
       queue_to_device: body.queue_to_device,
     });
 
-    return NextResponse.json({ source: "zktime", ...result });
+    return NextResponse.json({
+      source: "zktime",
+      pushed: result.pushed,
+      queued: result.queuedForDevice,
+      queuedForDevice: result.queuedForDevice,
+      skippedUnchanged: result.skippedUnchanged,
+      employees: result.employees,
+      failures: result.failures,
+    });
   } catch (error) {
     console.error("[sync/employees] push", error);
     return NextResponse.json(
