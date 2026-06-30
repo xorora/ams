@@ -9,7 +9,9 @@ import {
   pushMasterDataToZktime,
 } from "@/lib/zktime/organizational-push";
 import {
+  getSyncStateValue,
   setSyncStateValue,
+  ZKTIME_LAST_ATTENDANCE_NEXT_SINCE,
   ZKTIME_LAST_EMPLOYEE_PUSH_AT,
   ZKTIME_LAST_EMPLOYEE_SYNC_AT,
   ZKTIME_LAST_TERMINAL_SYNC_AT,
@@ -364,12 +366,11 @@ export async function listUnmappedPunches(): Promise<UnmappedZktimePunch[]> {
 }
 
 export async function listDevicesWithSyncState() {
-  const { getSyncStateValue } = await import("@/lib/zktime/sync-state");
   const devices = await db.select().from(deviceTerminals).orderBy(desc(deviceTerminals.lastSeenAt));
 
   const [lastAttendanceSync, lastEmployeeSync, lastTerminalSync, lastEmployeePush] =
     await Promise.all([
-      getSyncStateValue("zktime_last_attendance_upload_time"),
+      getSyncStateValue(ZKTIME_LAST_ATTENDANCE_NEXT_SINCE),
       getSyncStateValue(ZKTIME_LAST_EMPLOYEE_SYNC_AT),
       getSyncStateValue(ZKTIME_LAST_TERMINAL_SYNC_AT),
       getSyncStateValue(ZKTIME_LAST_EMPLOYEE_PUSH_AT),

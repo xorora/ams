@@ -22,7 +22,7 @@ ZKTIME_DEFAULT_COMPANY_SLUG=xorora
 ZKTIME_TIMEZONE=Asia/Karachi
 ```
 
-First attendance sync (no stored cursor) uses **today at 00:00:00** in `ZKTIME_TIMEZONE`. Later runs use `latestUploadTime` saved in AMS `sync_state`.
+First attendance sync (no stored cursor) uses **today at 00:00:00** in `ZKTIME_TIMEZONE`. Later runs use **`next_since`** from the previous sync response, stored in AMS `sync_state` (`zktime_last_attendance_next_since`).
 
 ## Cron jobs
 
@@ -33,7 +33,7 @@ curl -s -H "Authorization: Bearer $CRON_SECRET" \
   "https://ams.xorora.com/api/sync/attendance?since=2026-06-29%2000:00:00"
 ```
 
-Store `latestUploadTime` from the response and pass it as `since` on the next run.
+Store **`next_since`** from the response and pass it as `since` on the next run.
 
 ### Pull employees daily
 
@@ -81,5 +81,5 @@ Interactive docs: `https://lahore-server.tailca4ca9.ts.net/docs`
 - Only one app can use TCP 4370 on the K40. Keep ZKTime running on the office server.
 - The bridge listens on **port 8090** — run `setup-tailscale-funnel.ps1` to expose it via Tailscale.
 - Attendance appears in AMS only after employees exist in ZKTime with matching badge numbers.
-- `GET /api/sync/attendance` upserts punches into AMS (deduped on `emp_code` + `punch_time`) and returns `latestUploadTime` for the next cron run.
+- `GET /api/sync/attendance` upserts punches into AMS (deduped on `emp_code` + `punch_time`) and returns **`next_since`** for the next cron run.
 - `GET /api/sync/employees` upserts employees into AMS and returns a summary list from ZKTime.

@@ -114,7 +114,7 @@ export class ZktimeClient {
       const pageUrl = this.appendPageSize(path, 500);
       const response = await this.request<ZktimeTransactionsExportPageResponse>(pageUrl);
 
-      if (nextSince === null && response.next_since) {
+      if (response.next_since) {
         nextSince = response.next_since;
       }
 

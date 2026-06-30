@@ -225,7 +225,7 @@ ZKTIME_DEFAULT_SYNC_SINCE=2000-01-01 00:00:00
 
 | Job | Schedule | Endpoint |
 |-----|----------|----------|
-| Pull attendance | Every 5–10 min | `GET /api/sync/attendance?since=<last latestUploadTime>` |
+| Pull attendance | Every 5–10 min | `GET /api/sync/attendance?since=<last next_since>` |
 | Pull employees | Daily (optional) | `GET /api/sync/employees` |
 | Push new/changed hires | On demand or hourly | `POST /api/sync/employees` |
 
