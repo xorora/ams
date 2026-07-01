@@ -12,7 +12,6 @@ import {
 } from "./company-shift";
 import { BUSINESS_TIMEZONE, MAX_BREAK_SECONDS } from "./constants";
 import { buildMonthlyLateWarnings, type MonthlyLateSummary } from "./late-fines";
-import { computeOvertimeSnapshot, type OvertimeSnapshot } from "./overtime";
 import {
   type BreakSessionInput,
   canEndBreak,
@@ -33,9 +32,6 @@ export type AttendanceDaySnapshot = {
   isLate: boolean;
   isEarlyLeave: boolean;
   isMissedCheckout: boolean;
-  overtimeStartedAt: Date | null;
-  overtimeEndedAt: Date | null;
-  overtimeSeconds: number | null;
   totalBreakSeconds: number;
 };
 
@@ -58,7 +54,6 @@ export type TodayStatusPayload = {
   totalBreakSeconds: number;
   breakRemainingSeconds: number;
   elapsedShiftSeconds: number | null;
-  overtime: OvertimeSnapshot;
   statusAt: string;
   activeBreakStartedAt: string | null;
   wouldBeEarlyLeave: boolean;
@@ -137,13 +132,6 @@ export function buildTodayStatus(
     );
   }
 
-  const overtime = day
-    ? computeOvertimeSnapshot(day, now, shiftConfig)
-    : { isActive: false, startedAt: null, endedAt: null, elapsedSeconds: 0 };
-
-  if (overtime.isActive) {
-    warnings.push(`Overtime is in progress (past ${shiftScheduleLabels.expectedCheckOutTime}).`);
-  }
   if (
     hasOpenShift &&
     day &&
@@ -192,7 +180,6 @@ export function buildTodayStatus(
     totalBreakSeconds,
     breakRemainingSeconds,
     elapsedShiftSeconds,
-    overtime,
     statusAt: now.toISOString(),
     activeBreakStartedAt: activeBreak ? activeBreak.startedAt.toISOString() : null,
     wouldBeEarlyLeave,

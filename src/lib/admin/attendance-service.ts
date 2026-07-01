@@ -6,7 +6,6 @@ import {
   isEarlyLeaveForCompany,
   isLateCheckInForCompany,
 } from "@/lib/attendance/company-shift";
-import { overtimeFieldsFromTimes, overtimeFieldsOnCheckout } from "@/lib/attendance/overtime";
 import { adminFailure, type ServiceFailure, type ServiceSuccess } from "./types";
 
 export type { EmployeeRecord } from "./employees-service";
@@ -31,9 +30,6 @@ export type AttendanceListItem = {
   isLate: boolean;
   isEarlyLeave: boolean;
   isMissedCheckout: boolean;
-  overtimeStartedAt: Date | null;
-  overtimeEndedAt: Date | null;
-  overtimeSeconds: number | null;
   totalBreakSeconds: number;
   notes: string | null;
   editedByUserId: string | null;
@@ -66,9 +62,6 @@ export type UpdateAttendanceInput = {
   checkOutAt?: string | null;
   isLate?: boolean;
   isEarlyLeave?: boolean;
-  overtimeStartedAt?: string | null;
-  overtimeEndedAt?: string | null;
-  overtimeSeconds?: number | null;
   totalBreakSeconds?: number;
   notes?: string | null;
 };
@@ -146,9 +139,6 @@ function mapAttendanceRow(
     isLate: row.isLate,
     isEarlyLeave: row.isEarlyLeave,
     isMissedCheckout: row.isMissedCheckout,
-    overtimeStartedAt: row.overtimeStartedAt,
-    overtimeEndedAt: row.overtimeEndedAt,
-    overtimeSeconds: row.overtimeSeconds,
     totalBreakSeconds: row.totalBreakSeconds,
     notes: row.notes,
     editedByUserId: row.editedByUserId,
@@ -304,9 +294,6 @@ export async function createAttendance(
     checkOutAt && checkInAt
       ? isEarlyLeaveForCompany(checkOutAt, shiftDateResult.data, shiftConfig)
       : false;
-  const overtime = checkOutAt
-    ? overtimeFieldsOnCheckout(shiftDateResult.data, checkOutAt, null, shiftConfig)
-    : null;
   const now = new Date();
 
   const [created] = await db
@@ -320,9 +307,6 @@ export async function createAttendance(
       checkOutAt: checkOutAt ?? null,
       isLate,
       isEarlyLeave: earlyLeave,
-      overtimeStartedAt: overtime?.overtimeStartedAt ?? null,
-      overtimeEndedAt: overtime?.overtimeEndedAt ?? null,
-      overtimeSeconds: overtime?.overtimeSeconds ?? null,
       notes: input.notes?.trim() || null,
       editedByUserId: adminUserId,
       updatedAt: now,
@@ -407,62 +391,6 @@ export async function updateAttendance(
     updates.isEarlyLeave = isEarlyLeaveForCompany(nextCheckOut, row.shiftDate, shiftConfig);
   }
 
-  const overtimeStartedAt = parseOptionalDate(input.overtimeStartedAt);
-  const overtimeEndedAt = parseOptionalDate(input.overtimeEndedAt);
-
-  if (
-    input.overtimeStartedAt !== undefined &&
-    input.overtimeStartedAt &&
-    overtimeStartedAt === null
-  ) {
-    return adminFailure(400, "INVALID_OVERTIME_START", "Overtime start time is invalid.");
-  }
-  if (input.overtimeEndedAt !== undefined && input.overtimeEndedAt && overtimeEndedAt === null) {
-    return adminFailure(400, "INVALID_OVERTIME_END", "Overtime end time is invalid.");
-  }
-  if (input.overtimeSeconds != null && input.overtimeSeconds < 0) {
-    return adminFailure(400, "INVALID_OVERTIME", "Overtime duration cannot be negative.");
-  }
-
-  const autoOvertime = overtimeFieldsFromTimes(
-    row.shiftDate,
-    nextCheckIn,
-    nextCheckOut,
-    {
-      overtimeStartedAt: row.overtimeStartedAt,
-      overtimeEndedAt: row.overtimeEndedAt,
-      overtimeSeconds: row.overtimeSeconds,
-    },
-    shiftConfig,
-  );
-
-  let nextOvertimeStart = autoOvertime.overtimeStartedAt;
-  let nextOvertimeEnd = autoOvertime.overtimeEndedAt;
-  let nextOvertimeSeconds = autoOvertime.overtimeSeconds;
-
-  if (input.overtimeStartedAt !== undefined) {
-    nextOvertimeStart = overtimeStartedAt ?? null;
-  }
-  if (input.overtimeEndedAt !== undefined) {
-    nextOvertimeEnd = overtimeEndedAt ?? null;
-  }
-  if (input.overtimeSeconds !== undefined) {
-    nextOvertimeSeconds = input.overtimeSeconds;
-  } else if (
-    (input.overtimeStartedAt !== undefined || input.overtimeEndedAt !== undefined) &&
-    nextOvertimeStart &&
-    nextOvertimeEnd
-  ) {
-    nextOvertimeSeconds = Math.max(
-      0,
-      Math.floor((nextOvertimeEnd.getTime() - nextOvertimeStart.getTime()) / 1000),
-    );
-  }
-
-  updates.overtimeStartedAt = nextOvertimeStart;
-  updates.overtimeEndedAt = nextOvertimeEnd;
-  updates.overtimeSeconds = nextOvertimeSeconds;
-
   const [updated] = await db
     .update(attendanceDays)
     .set(updates)
@@ -508,9 +436,6 @@ export async function markAttendanceStatus(
     updates.isLate = false;
     updates.isEarlyLeave = false;
     updates.isMissedCheckout = false;
-    updates.overtimeStartedAt = null;
-    updates.overtimeEndedAt = null;
-    updates.overtimeSeconds = null;
     updates.totalBreakSeconds = 0;
   }
 

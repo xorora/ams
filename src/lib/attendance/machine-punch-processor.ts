@@ -7,7 +7,6 @@ import {
   isEarlyLeaveForCompany,
   isLateCheckInForCompany,
 } from "./company-shift";
-import { overtimeFieldsOnCheckout } from "./overtime";
 
 const INSERT_BATCH_SIZE = 100;
 
@@ -57,9 +56,6 @@ type AttendanceUpsertRow = {
   isLate: boolean;
   isEarlyLeave: boolean;
   isMissedCheckout: boolean;
-  overtimeStartedAt: Date | null;
-  overtimeEndedAt: Date | null;
-  overtimeSeconds: number | null;
   totalBreakSeconds: number;
 };
 
@@ -202,28 +198,6 @@ function buildMergedAttendanceRow(
     ? isEarlyLeaveForCompany(checkOutAt, group.shiftDate, config)
     : false;
 
-  let overtimeStartedAt: Date | null = existing?.overtimeStartedAt ?? null;
-  let overtimeEndedAt: Date | null = existing?.overtimeEndedAt ?? null;
-  let overtimeSeconds: number | null = existing?.overtimeSeconds ?? null;
-
-  if (checkOutAt) {
-    const overtime = overtimeFieldsOnCheckout(
-      group.shiftDate,
-      checkOutAt,
-      existing?.overtimeStartedAt ?? null,
-      config,
-    );
-    if (overtime) {
-      overtimeStartedAt = overtime.overtimeStartedAt;
-      overtimeEndedAt = overtime.overtimeEndedAt;
-      overtimeSeconds = overtime.overtimeSeconds;
-    } else {
-      overtimeStartedAt = null;
-      overtimeEndedAt = null;
-      overtimeSeconds = null;
-    }
-  }
-
   return {
     employeeId: group.employeeId,
     shiftDate: group.shiftDate,
@@ -234,9 +208,6 @@ function buildMergedAttendanceRow(
     isLate,
     isEarlyLeave,
     isMissedCheckout: checkOutAt ? false : (existing?.isMissedCheckout ?? false),
-    overtimeStartedAt,
-    overtimeEndedAt,
-    overtimeSeconds,
     totalBreakSeconds: existing?.totalBreakSeconds ?? 0,
   };
 }
@@ -264,9 +235,6 @@ async function upsertAttendanceRows(
             isLate: row.isLate,
             isEarlyLeave: row.isEarlyLeave,
             isMissedCheckout: row.isMissedCheckout,
-            overtimeStartedAt: row.overtimeStartedAt,
-            overtimeEndedAt: row.overtimeEndedAt,
-            overtimeSeconds: row.overtimeSeconds,
             updatedAt: sql`now()`,
           })
           .where(eq(attendanceDays.id, existing.id))
@@ -292,9 +260,6 @@ async function upsertAttendanceRows(
           isLate: row.isLate,
           isEarlyLeave: row.isEarlyLeave,
           isMissedCheckout: row.isMissedCheckout,
-          overtimeStartedAt: row.overtimeStartedAt,
-          overtimeEndedAt: row.overtimeEndedAt,
-          overtimeSeconds: row.overtimeSeconds,
           totalBreakSeconds: row.totalBreakSeconds,
         })
         .returning({ id: attendanceDays.id });

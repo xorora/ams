@@ -1,45 +1,23 @@
 import type { TodayStatusPayload } from "./status";
 
-export type SerializedTodayStatus = Omit<
-  TodayStatusPayload,
-  "attendanceDay" | "breakSessions" | "overtime"
-> & {
+export type SerializedTodayStatus = Omit<TodayStatusPayload, "attendanceDay" | "breakSessions"> & {
   attendanceDay:
-    | (Omit<
-        NonNullable<TodayStatusPayload["attendanceDay"]>,
-        "checkInAt" | "checkOutAt" | "overtimeStartedAt" | "overtimeEndedAt"
-      > & {
+    | (Omit<NonNullable<TodayStatusPayload["attendanceDay"]>, "checkInAt" | "checkOutAt"> & {
         checkInAt: string | null;
         checkOutAt: string | null;
-        overtimeStartedAt: string | null;
-        overtimeEndedAt: string | null;
       })
     | null;
-  overtime: {
-    isActive: boolean;
-    startedAt: string | null;
-    endedAt: string | null;
-    elapsedSeconds: number;
-  };
 };
 
 export function serializeTodayStatus(payload: TodayStatusPayload): SerializedTodayStatus {
-  const { breakSessions: _sessions, attendanceDay, overtime, ...rest } = payload;
+  const { breakSessions: _sessions, attendanceDay, ...rest } = payload;
   return {
     ...rest,
-    overtime: {
-      isActive: overtime.isActive,
-      startedAt: overtime.startedAt?.toISOString() ?? null,
-      endedAt: overtime.endedAt?.toISOString() ?? null,
-      elapsedSeconds: overtime.elapsedSeconds,
-    },
     attendanceDay: attendanceDay
       ? {
           ...attendanceDay,
           checkInAt: attendanceDay.checkInAt?.toISOString() ?? null,
           checkOutAt: attendanceDay.checkOutAt?.toISOString() ?? null,
-          overtimeStartedAt: attendanceDay.overtimeStartedAt?.toISOString() ?? null,
-          overtimeEndedAt: attendanceDay.overtimeEndedAt?.toISOString() ?? null,
         }
       : null,
   };

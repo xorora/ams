@@ -42,9 +42,6 @@ export type EmployeeReportRow = {
   isEarlyLeave: boolean;
   isMissedCheckout: boolean;
   lateFinePkr: number;
-  overtimeStartedAt: Date | null;
-  overtimeEndedAt: Date | null;
-  overtimeSeconds: number | null;
   totalBreakSeconds: number;
   notes: string | null;
 };
@@ -156,9 +153,6 @@ function mapAttendanceRow(
     isLate: row.isLate,
     isEarlyLeave: row.isEarlyLeave,
     isMissedCheckout: row.isMissedCheckout,
-    overtimeStartedAt: row.overtimeStartedAt,
-    overtimeEndedAt: row.overtimeEndedAt,
-    overtimeSeconds: row.overtimeSeconds,
     totalBreakSeconds: row.totalBreakSeconds,
     notes: row.notes,
     editedByUserId: row.editedByUserId,
@@ -240,9 +234,6 @@ export async function getEmployeeReport(
     isEarlyLeave: row.isEarlyLeave,
     isMissedCheckout: row.isMissedCheckout,
     lateFinePkr: lateFinesByShiftDate.get(row.shiftDate) ?? 0,
-    overtimeStartedAt: row.overtimeStartedAt,
-    overtimeEndedAt: row.overtimeEndedAt,
-    overtimeSeconds: row.overtimeSeconds,
     totalBreakSeconds: row.totalBreakSeconds,
     notes: row.notes,
   }));

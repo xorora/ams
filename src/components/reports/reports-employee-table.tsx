@@ -8,7 +8,6 @@ import {
   formatAttendanceStatus,
   formatBreakDuration,
   formatPktIso,
-  formatShiftDuration,
 } from "@/lib/admin/display";
 import type { SerializedEmployeeReport } from "@/lib/admin/reports-serialize";
 import { formatLateFinePkr } from "@/lib/attendance/late-fines-utils";
@@ -63,34 +62,6 @@ export function ReportsEmployeeTable({ days, resetDeps, className }: ReportsEmpl
         accessorFn: (row) => formatPktIso(row.checkOutAt),
         header: "Check-out",
         cell: ({ row }) => <span className="text-xs">{formatPktIso(row.original.checkOutAt)}</span>,
-      },
-      {
-        id: "overtime",
-        accessorFn: (row) =>
-          row.overtimeSeconds != null && row.overtimeSeconds > 0
-            ? formatShiftDuration(row.overtimeSeconds)
-            : "—",
-        header: "Overtime",
-        cell: ({ row }) => {
-          const day = row.original;
-          return (
-            <span className="text-xs">
-              {day.overtimeSeconds != null && day.overtimeSeconds > 0 ? (
-                <div>
-                  <div>{formatShiftDuration(day.overtimeSeconds)}</div>
-                  {day.overtimeStartedAt && (
-                    <div className="text-muted-foreground">
-                      {formatPktIso(day.overtimeStartedAt)}
-                      {day.overtimeEndedAt ? ` → ${formatPktIso(day.overtimeEndedAt)}` : ""}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                "—"
-              )}
-            </span>
-          );
-        },
       },
       {
         id: "lateFine",

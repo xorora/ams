@@ -28,12 +28,6 @@ export const leaveRequestStatusEnum = pgEnum("leave_request_status", [
   "rejected",
   "cancelled",
 ]);
-export const overtimeRequestStatusEnum = pgEnum("overtime_request_status", [
-  "pending",
-  "approved",
-  "rejected",
-  "cancelled",
-]);
 export const machinePunchSourceEnum = pgEnum("machine_punch_source", ["ebio", "zkteco", "wdms"]);
 
 export const companies = pgTable("companies", {
@@ -106,9 +100,6 @@ export const attendanceDays = pgTable(
     isLate: boolean("is_late").notNull().default(false),
     isEarlyLeave: boolean("is_early_leave").notNull().default(false),
     isMissedCheckout: boolean("is_missed_checkout").notNull().default(false),
-    overtimeStartedAt: timestamp("overtime_started_at", { withTimezone: true }),
-    overtimeEndedAt: timestamp("overtime_ended_at", { withTimezone: true }),
-    overtimeSeconds: integer("overtime_seconds"),
     totalBreakSeconds: integer("total_break_seconds").notNull().default(0),
     notes: text("notes"),
     editedByUserId: uuid("edited_by_user_id").references(() => users.id),
@@ -145,31 +136,6 @@ export const leaveRequests = pgTable(
     index("leave_requests_employee_id_idx").on(table.employeeId),
     index("leave_requests_status_idx").on(table.status),
     index("leave_requests_start_date_idx").on(table.startDate),
-  ],
-);
-
-export const overtimeRequests = pgTable(
-  "overtime_requests",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    employeeId: uuid("employee_id")
-      .notNull()
-      .references(() => employees.id),
-    attendanceDayId: uuid("attendance_day_id")
-      .notNull()
-      .references(() => attendanceDays.id),
-    workDescription: text("work_description").notNull(),
-    status: overtimeRequestStatusEnum("status").notNull().default("pending"),
-    reviewedByUserId: uuid("reviewed_by_user_id").references(() => users.id),
-    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
-    reviewNotes: text("review_notes"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (table) => [
-    index("overtime_requests_employee_id_idx").on(table.employeeId),
-    index("overtime_requests_attendance_day_id_idx").on(table.attendanceDayId),
-    index("overtime_requests_status_idx").on(table.status),
   ],
 );
 

@@ -11,7 +11,6 @@ export default auth((req) => {
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/attendance") ||
     pathname.startsWith("/leave") ||
-    pathname.startsWith("/overtime") ||
     pathname.startsWith("/admin");
 
   const isAttendanceApi = pathname.startsWith("/api/attendance");
@@ -55,7 +54,6 @@ export default auth((req) => {
       pathname.startsWith("/dashboard") ||
       pathname.startsWith("/attendance") ||
       pathname.startsWith("/leave") ||
-      pathname.startsWith("/overtime") ||
       isAttendanceApi;
     if (mustRegister) {
       if (pathname.startsWith("/api/")) {
@@ -85,8 +83,6 @@ export const config = {
     "/attendance/:path*",
     "/leave",
     "/leave/:path*",
-    "/overtime",
-    "/overtime/:path*",
     "/admin",
     "/admin/:path*",
     "/api/admin/:path*",

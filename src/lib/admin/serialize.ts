@@ -10,12 +10,10 @@ export type SerializedEmployee = Omit<EmployeeRecord, "createdAt" | "updatedAt">
 
 export type SerializedAttendance = Omit<
   AttendanceListItem,
-  "checkInAt" | "checkOutAt" | "overtimeStartedAt" | "overtimeEndedAt" | "createdAt" | "updatedAt"
+  "checkInAt" | "checkOutAt" | "createdAt" | "updatedAt"
 > & {
   checkInAt: string | null;
   checkOutAt: string | null;
-  overtimeStartedAt: string | null;
-  overtimeEndedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -41,8 +39,6 @@ export function serializeAttendance(record: AttendanceListItem): SerializedAtten
     ...record,
     checkInAt: record.checkInAt?.toISOString() ?? null,
     checkOutAt: record.checkOutAt?.toISOString() ?? null,
-    overtimeStartedAt: record.overtimeStartedAt?.toISOString() ?? null,
-    overtimeEndedAt: record.overtimeEndedAt?.toISOString() ?? null,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
   };

@@ -20,12 +20,6 @@ import {
   getEmployeeMonthlyLateSummary,
 } from "./late-fines";
 import {
-  computeOvertimeSnapshot,
-  getDefaultOvertimeStart,
-  isInOvertimePeriod,
-  overtimeFieldsOnCheckout,
-} from "./overtime";
-import {
   type BreakSessionInput,
   canEndBreak,
   canStartBreak,
@@ -66,9 +60,6 @@ function toDaySnapshot(row: typeof attendanceDays.$inferSelect): AttendanceDaySn
     isLate: row.isLate,
     isEarlyLeave: row.isEarlyLeave,
     isMissedCheckout: row.isMissedCheckout,
-    overtimeStartedAt: row.overtimeStartedAt,
-    overtimeEndedAt: row.overtimeEndedAt,
-    overtimeSeconds: row.overtimeSeconds,
     totalBreakSeconds: row.totalBreakSeconds,
   };
 }
@@ -81,7 +72,7 @@ async function loadShiftAttendance(employeeId: string, shiftDate: string) {
     .limit(1);
 
   if (!day) {
-    return { day: null, sessions: [] as BreakSessionInput[], rawDay: null };
+    return { day: null, sessions: [] as BreakSessionInput[] };
   }
 
   const sessions = await db
@@ -95,35 +86,7 @@ async function loadShiftAttendance(employeeId: string, shiftDate: string) {
     durationSeconds: s.durationSeconds,
   }));
 
-  return { day: toDaySnapshot(day), sessions: breakInputs, rawDay: day };
-}
-
-async function ensureOvertimeStarted(
-  day: typeof attendanceDays.$inferSelect,
-  now: Date,
-  shiftConfig: ReturnType<typeof getCompanyShiftConfig>,
-): Promise<AttendanceDaySnapshot> {
-  const snapshot = toDaySnapshot(day);
-
-  if (
-    day.checkInAt &&
-    !day.checkOutAt &&
-    isInOvertimePeriod(snapshot, now, shiftConfig) &&
-    !day.overtimeStartedAt
-  ) {
-    const overtimeStartedAt = getDefaultOvertimeStart(day.shiftDate, shiftConfig);
-    await db
-      .update(attendanceDays)
-      .set({ overtimeStartedAt, updatedAt: now })
-      .where(eq(attendanceDays.id, day.id));
-
-    return {
-      ...snapshot,
-      overtimeStartedAt,
-    };
-  }
-
-  return snapshot;
+  return { day: toDaySnapshot(day), sessions: breakInputs };
 }
 
 async function guardEmployeeAndGeofence(
@@ -156,12 +119,11 @@ export async function getTodayStatus(
   const now = new Date();
   const shiftConfig = await loadEmployeeShiftConfig(employeeId);
   const shiftDate = getShiftDateForCompany(now, shiftConfig);
-  const { day, sessions, rawDay } = await loadShiftAttendance(employeeId, shiftDate);
-  const resolvedDay = rawDay && day ? await ensureOvertimeStarted(rawDay, now, shiftConfig) : day;
+  const { day, sessions } = await loadShiftAttendance(employeeId, shiftDate);
   const monthlyLate = await getEmployeeMonthlyLateSummary(employeeId, shiftDate, {
     includeTodayLate: true,
   });
-  const status = buildTodayStatus(resolvedDay, sessions, monthlyLate, shiftConfig, now);
+  const status = buildTodayStatus(day, sessions, monthlyLate, shiftConfig, now);
 
   const [employee] = await db
     .select({ isActive: employees.isActive })
@@ -303,26 +265,14 @@ export async function checkOut(
       checkOutLat: coords.lat,
       checkOutLng: coords.lng,
       isEarlyLeave: early,
-      ...(overtimeFieldsOnCheckout(day.shiftDate, now, day.overtimeStartedAt, shiftConfig) ?? {
-        overtimeStartedAt: null,
-        overtimeEndedAt: null,
-        overtimeSeconds: null,
-      }),
       updatedAt: now,
     })
     .where(eq(attendanceDays.id, day.id));
 
   const status = await getTodayStatus(employeeId);
-  const overtime = computeOvertimeSnapshot(
-    { ...day, checkOutAt: now, overtimeEndedAt: now },
-    now,
-    shiftConfig,
-  );
   const message = early
     ? `Checked out. Early leave recorded (before ${shiftSchedule.expectedCheckOutTime}).`
-    : overtime.elapsedSeconds > 0
-      ? `Checked out. Overtime recorded (${Math.ceil(overtime.elapsedSeconds / 60)} min).`
-      : "Checked out successfully.";
+    : "Checked out successfully.";
 
   return { ok: true, data: { message, status: status.data } };
 }

@@ -17,7 +17,6 @@ import {
   attendanceStatusBadgeVariant,
   formatAttendanceStatus,
   formatPktIso,
-  formatShiftDuration,
 } from "@/lib/admin/display";
 import type { SerializedAttendance } from "@/lib/admin/serialize";
 
@@ -69,32 +68,6 @@ export function AttendanceTable({
         id: "checkOutAt",
         header: "Check-out",
         cell: ({ row }) => <span className="text-xs">{formatPktIso(row.original.checkOutAt)}</span>,
-      },
-      {
-        id: "overtime",
-        header: "Overtime",
-        cell: ({ row }) => {
-          const record = row.original;
-          return (
-            <span className="text-xs">
-              {record.overtimeSeconds != null && record.overtimeSeconds > 0 ? (
-                <div>
-                  <div>{formatShiftDuration(record.overtimeSeconds)}</div>
-                  {record.overtimeStartedAt && (
-                    <div className="text-muted-foreground">
-                      {formatPktIso(record.overtimeStartedAt)}
-                      {record.overtimeEndedAt ? ` → ${formatPktIso(record.overtimeEndedAt)}` : ""}
-                    </div>
-                  )}
-                </div>
-              ) : !record.checkOutAt && record.overtimeStartedAt ? (
-                <span className="text-amber-700">Active</span>
-              ) : (
-                "—"
-              )}
-            </span>
-          );
-        },
       },
       {
         id: "flags",

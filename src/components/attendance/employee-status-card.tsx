@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { formatPktDateTime, formatPktTime, formatShiftDuration } from "@/lib/admin/display";
+import { formatPktTime, formatShiftDuration } from "@/lib/admin/display";
 import {
   formatLateFinePkr,
   LATE_FINE_AMOUNT_PKR,
@@ -31,15 +31,6 @@ function getLiveElapsedShiftSeconds(status: SerializedTodayStatus, now: Date): n
   return status.elapsedShiftSeconds + deltaSeconds;
 }
 
-function getLiveOvertimeSeconds(status: SerializedTodayStatus, now: Date): number {
-  if (!status.overtime.isActive) {
-    return status.overtime.elapsedSeconds;
-  }
-  const statusAt = new Date(status.statusAt).getTime();
-  const deltaSeconds = Math.max(0, Math.floor((now.getTime() - statusAt) / 1000));
-  return status.overtime.elapsedSeconds + deltaSeconds;
-}
-
 type EmployeeStatusCardProps = {
   status: SerializedTodayStatus;
 };
@@ -48,14 +39,10 @@ export function EmployeeStatusCard({ status }: EmployeeStatusCardProps) {
   const [elapsedShiftSeconds, setElapsedShiftSeconds] = useState<number | null>(() =>
     getLiveElapsedShiftSeconds(status, new Date()),
   );
-  const [overtimeSeconds, setOvertimeSeconds] = useState(() =>
-    getLiveOvertimeSeconds(status, new Date()),
-  );
 
   useEffect(() => {
     const tick = () => {
       setElapsedShiftSeconds(getLiveElapsedShiftSeconds(status, new Date()));
-      setOvertimeSeconds(getLiveOvertimeSeconds(status, new Date()));
     };
     tick();
     const id = window.setInterval(tick, 1000);
@@ -72,10 +59,6 @@ export function EmployeeStatusCard({ status }: EmployeeStatusCardProps) {
 
   const stateLabel = status.isWeekendOff ? "Weekend — office closed" : STATE_LABELS[status.state];
   const badgeLabel = status.isWeekendOff ? "weekend off" : status.state.replaceAll("_", " ");
-  const hasOvertime =
-    status.overtime.isActive ||
-    status.overtime.elapsedSeconds > 0 ||
-    status.overtime.startedAt != null;
 
   return (
     <Card>
@@ -108,34 +91,6 @@ export function EmployeeStatusCard({ status }: EmployeeStatusCardProps) {
         )}
         {status.attendanceDay?.isMissedCheckout && (
           <p className="text-destructive text-sm">Marked absent — missed check-out</p>
-        )}
-
-        {hasOvertime && (
-          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2">
-            <div className="flex items-center justify-between gap-2">
-              <p className="font-medium text-amber-900 text-sm">
-                {status.overtime.isActive ? "Overtime in progress" : "Overtime"}
-              </p>
-              {status.overtime.isActive && (
-                <Badge variant="outline" className="border-amber-400 text-amber-800">
-                  Active
-                </Badge>
-              )}
-            </div>
-            {status.overtime.startedAt && (
-              <p className="mt-1 text-amber-800 text-sm">
-                Started: {formatPktDateTime(status.overtime.startedAt)}
-              </p>
-            )}
-            {status.overtime.endedAt && (
-              <p className="text-amber-800 text-sm">
-                Ended: {formatPktDateTime(status.overtime.endedAt)}
-              </p>
-            )}
-            <p className="mt-1 font-mono font-semibold text-amber-900 tabular-nums">
-              Elapsed: {formatShiftDuration(overtimeSeconds)}
-            </p>
-          </div>
         )}
 
         {status.state !== "checked_out" && (

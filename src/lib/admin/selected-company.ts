@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { companies } from "@/db/schema";
 import { type ActionResult, actionFailure, actionSuccess } from "@/lib/actions/result";
 import { requireAdminSession } from "@/lib/auth/require-session";
+import { getDefaultCompanySlug } from "@/lib/zktime/config";
 
 const COMPANY_COOKIE = "ams_company";
 
@@ -41,7 +42,10 @@ export async function getSelectedCompanyId(): Promise<string | null> {
     return cookieValue;
   }
 
-  return activeCompanies[0]?.id ?? null;
+  const preferredSlug = getDefaultCompanySlug();
+  const preferredCompany = activeCompanies.find((company) => company.slug === preferredSlug);
+
+  return preferredCompany?.id ?? activeCompanies[0]?.id ?? null;
 }
 
 export async function requireSelectedCompanyId(): Promise<string> {
