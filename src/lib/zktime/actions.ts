@@ -35,6 +35,7 @@ export async function triggerZktimeAttendanceSyncAction(): Promise<
   ActionResult<{
     fetched: number;
     inserted: number;
+    processed: number;
     since: string;
     nextSince: string | null;
   }>

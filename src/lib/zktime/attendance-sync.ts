@@ -1,5 +1,5 @@
 import { fromZonedTime } from "date-fns-tz";
-import { inArray } from "drizzle-orm";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { db } from "@/db";
 import { employees, machinePunches } from "@/db/schema";
 import {
@@ -8,7 +8,10 @@ import {
 } from "@/lib/attendance/machine-punch-processor";
 import type { ZktimeClient } from "@/lib/zktime/client";
 import { getZktimeTimezone } from "@/lib/zktime/config";
-import { getLastAttendanceNextSince, setLastAttendanceNextSince } from "@/lib/zktime/sync-state";
+import {
+  advanceLastAttendanceNextSince,
+  getLastAttendanceNextSince,
+} from "@/lib/zktime/sync-state";
 
 function parsePunchAt(datetime: string): Date {
   return fromZonedTime(datetime, getZktimeTimezone());
@@ -48,9 +51,29 @@ async function resolveEmployeeIdsByCode(codes: string[]): Promise<Map<string, st
   return resolved;
 }
 
+async function resolveEmployeeIdsForSourcePunchIds(sourcePunchIds: number[]): Promise<string[]> {
+  if (sourcePunchIds.length === 0) {
+    return [];
+  }
+
+  const rows = await db
+    .select({ employeeId: machinePunches.employeeId })
+    .from(machinePunches)
+    .where(
+      and(
+        eq(machinePunches.sourceSystem, "zkteco"),
+        inArray(machinePunches.sourcePunchId, sourcePunchIds),
+        isNotNull(machinePunches.employeeId),
+      ),
+    );
+
+  return [...new Set(rows.flatMap((row) => (row.employeeId ? [row.employeeId] : [])))];
+}
+
 export type AttendanceSyncResult = {
   fetched: number;
   inserted: number;
+  processed: number;
   since: string;
   nextSince: string | null;
 };
@@ -62,12 +85,11 @@ export async function syncAttendanceFromZktime(
   const since = options.since ?? (await getLastAttendanceNextSince());
   const { transactions, nextSince } = await client.exportTransactions(since);
 
-  if (nextSince) {
-    await setLastAttendanceNextSince(nextSince);
-  }
-
   if (transactions.length === 0) {
-    return { fetched: 0, inserted: 0, since, nextSince };
+    if (nextSince) {
+      await advanceLastAttendanceNextSince(nextSince);
+    }
+    return { fetched: 0, inserted: 0, processed: 0, since, nextSince };
   }
 
   const employeeIdsByCode = await resolveEmployeeIdsByCode(transactions.map((tx) => tx.emp_code));
@@ -91,34 +113,29 @@ export async function syncAttendanceFromZktime(
     .insert(machinePunches)
     .values(rows)
     .onConflictDoNothing({
-      target: [machinePunches.cardNo, machinePunches.punchAt],
+      target: [machinePunches.sourceSystem, machinePunches.sourcePunchId],
     })
-    .returning({
-      id: machinePunches.id,
-      employeeId: machinePunches.employeeId,
-    });
+    .returning({ id: machinePunches.id });
 
-  if (insertedRows.length > 0) {
-    await relinkMachinePunchesToEmployees();
+  await relinkMachinePunchesToEmployees();
 
-    const insertedIds = insertedRows.map((row) => row.id);
-    const linkedRows = await db
-      .select({ employeeId: machinePunches.employeeId })
-      .from(machinePunches)
-      .where(inArray(machinePunches.id, insertedIds));
+  const sourcePunchIds = transactions.map((tx) => tx.id);
+  const employeeIds = await resolveEmployeeIdsForSourcePunchIds(sourcePunchIds);
 
-    const affectedEmployeeIds = [
-      ...new Set(linkedRows.flatMap((row) => (row.employeeId ? [row.employeeId] : []))),
-    ];
+  let processed = 0;
+  if (employeeIds.length > 0) {
+    const jobResult = await runProcessMachinePunchesJob({ employeeIds });
+    processed = jobResult.inserted;
+  }
 
-    if (affectedEmployeeIds.length > 0) {
-      await runProcessMachinePunchesJob({ employeeIds: affectedEmployeeIds });
-    }
+  if (nextSince) {
+    await advanceLastAttendanceNextSince(nextSince);
   }
 
   return {
     fetched: transactions.length,
     inserted: insertedRows.length,
+    processed,
     since,
     nextSince,
   };

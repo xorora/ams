@@ -45,7 +45,8 @@ export function DevicesManager({ unmappedPunches, syncState }: DevicesManagerPro
         }),
         {
           loading: "Pulling attendance from ZKTime…",
-          success: (data) => `Synced ${data.inserted} new punch(es) from ${data.fetched} fetched.`,
+          success: (data) =>
+            `Synced ${data.inserted} new punch(es), ${data.processed} attendance row(s) updated (${data.fetched} fetched).`,
         },
       );
       refreshPage();

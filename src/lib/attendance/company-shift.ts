@@ -189,3 +189,13 @@ export function getAutoAbsentShiftDateForCompany(runAt: Date, config: CompanyShi
   }
   return getShiftDateForCompany(runAt, config);
 }
+
+/** Default admin attendance filter: current shift date plus prior day (night-shift checkouts). */
+export function getDefaultAttendanceFilterRange(
+  at: Date,
+  config: CompanyShiftConfig,
+): { from: string; to: string } {
+  const to = getShiftDateForCompany(at, config);
+  const from = shiftDateAddDays(to, -1);
+  return { from, to };
+}

@@ -53,6 +53,7 @@ export async function GET(request: Request) {
       source: "zktime",
       synced: attendance.fetched,
       inserted: attendance.inserted,
+      processed: attendance.processed,
       since: attendance.since,
       next_since: attendance.nextSince ?? since,
       terminals,

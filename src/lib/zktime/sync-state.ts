@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { syncState } from "@/db/schema";
-import { getTodayAttendanceSyncSince } from "@/lib/zktime/config";
+import { getDefaultAttendanceSyncSince } from "@/lib/zktime/config";
 
 export const ZKTIME_LAST_ATTENDANCE_NEXT_SINCE = "zktime_last_attendance_next_since";
 /** @deprecated Stored value was upload_time; migrated reads fall back here once. */
@@ -31,9 +31,17 @@ export async function getLastAttendanceNextSince(): Promise<string> {
   const stored =
     (await getSyncStateValue(ZKTIME_LAST_ATTENDANCE_NEXT_SINCE)) ??
     (await getSyncStateValue(ZKTIME_LAST_ATTENDANCE_UPLOAD_TIME));
-  return stored ?? getTodayAttendanceSyncSince();
+  return stored ?? getDefaultAttendanceSyncSince();
 }
 
 export async function setLastAttendanceNextSince(value: string): Promise<void> {
   await setSyncStateValue(ZKTIME_LAST_ATTENDANCE_NEXT_SINCE, value);
+}
+
+/** Persist bridge cursor; never move backwards (bridge timestamps are YYYY-MM-DD HH:mm:ss). */
+export async function advanceLastAttendanceNextSince(nextSince: string): Promise<void> {
+  const current = await getSyncStateValue(ZKTIME_LAST_ATTENDANCE_NEXT_SINCE);
+  if (!current || nextSince > current) {
+    await setLastAttendanceNextSince(nextSince);
+  }
 }

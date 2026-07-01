@@ -1,9 +1,16 @@
+import { eq } from "drizzle-orm";
 import { AttendanceManager } from "@/components/admin/attendance-manager";
+import { db } from "@/db";
+import { companies } from "@/db/schema";
 import { type AttendanceStatus, listAttendance } from "@/lib/admin/attendance-service";
 import { listEmployees } from "@/lib/admin/employees-service";
 import { normalizeAttendanceDateRange } from "@/lib/admin/query-params";
 import { requireSelectedCompanyId } from "@/lib/admin/selected-company";
 import { serializeAttendance, serializeEmployee } from "@/lib/admin/serialize";
+import {
+  getCompanyShiftConfig,
+  getDefaultAttendanceFilterRange,
+} from "@/lib/attendance/company-shift";
 import { requireAdminSession } from "@/lib/auth/require-session";
 
 type PageProps = {
@@ -21,7 +28,18 @@ export default async function AdminAttendancePage({ searchParams }: PageProps) {
   const params = await searchParams;
 
   const statusParam = params.status ?? "";
-  const { from, to } = normalizeAttendanceDateRange(params.from ?? "", params.to ?? "");
+  const [company] = await db
+    .select({ slug: companies.slug })
+    .from(companies)
+    .where(eq(companies.id, companyId))
+    .limit(1);
+  const shiftConfig = getCompanyShiftConfig(company?.slug ?? "xorora");
+  const defaultShiftRange =
+    !params.from && !params.to ? getDefaultAttendanceFilterRange(new Date(), shiftConfig) : null;
+  const { from, to } = normalizeAttendanceDateRange(
+    params.from ?? defaultShiftRange?.from ?? "",
+    params.to ?? defaultShiftRange?.to ?? "",
+  );
   const filters = {
     from,
     to,
