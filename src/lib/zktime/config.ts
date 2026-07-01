@@ -1,6 +1,9 @@
-import { subDays } from "date-fns";
+import { subDays, subMinutes } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
-import { BUSINESS_TIMEZONE, EXPECTED_CHECK_IN_HOUR } from "@/lib/attendance/constants";
+import { BUSINESS_TIMEZONE } from "@/lib/attendance/constants";
+
+/** Overlap window applied when advancing the sync cursor, to tolerate punches the bridge delivers out of order (e.g. a device uploads a delayed early check-in after a later checkout has already been synced). */
+const DEFAULT_SYNC_OVERLAP_MINUTES = 30;
 
 export function getZktimeBaseUrl(): string | undefined {
   const url = process.env.ZKTIME_BASE_URL?.trim();
@@ -18,8 +21,12 @@ export function isZktimeConfigured(): boolean {
 
 /**
  * Default `since` when no attendance sync cursor exists.
- * Uses ZKTIME_DEFAULT_SYNC_SINCE when set; otherwise previous calendar day at
- * night-shift check-in (18:00) so punches after midnight still belong to the prior shift.
+ * Uses ZKTIME_DEFAULT_SYNC_SINCE when set; otherwise midnight of the previous calendar day.
+ *
+ * Anchored at midnight (not an expected check-in hour) so early check-ins — someone
+ * badging in at 17:40 for an 18:00 shift, for example — are never excluded by the
+ * default cursor. Any employee-specific "expected" time is a scheduling concept, not
+ * a bound on when a real punch can occur.
  */
 export function getDefaultAttendanceSyncSince(at: Date = new Date()): string {
   const envDefault = process.env.ZKTIME_DEFAULT_SYNC_SINCE?.trim();
@@ -28,15 +35,22 @@ export function getDefaultAttendanceSyncSince(at: Date = new Date()): string {
   }
 
   const timezone = getZktimeTimezone();
-  const calendarDate = formatInTimeZone(at, timezone, "yyyy-MM-dd");
-  const anchor = fromZonedTime(`${calendarDate} 12:00:00`, timezone);
-  const previousDay = formatInTimeZone(subDays(anchor, 1), timezone, "yyyy-MM-dd");
-  return `${previousDay} ${String(EXPECTED_CHECK_IN_HOUR).padStart(2, "0")}:00:00`;
+  const previousDay = formatInTimeZone(subDays(at, 1), timezone, "yyyy-MM-dd");
+  return `${previousDay} 00:00:00`;
 }
 
-/** @deprecated Use getDefaultAttendanceSyncSince — midnight missed evening check-ins. */
-export function getTodayAttendanceSyncSince(): string {
-  return getDefaultAttendanceSyncSince();
+/**
+ * Rewinds a bridge-provided `next_since` by a small overlap window before persisting it as
+ * the sync cursor. Devices can upload punches to the bridge out of order (e.g. a delayed
+ * early check-in syncs to the bridge after a later checkout already advanced the cursor
+ * past it). Re-requesting a trailing window each cycle is safe: AMS dedupes inserts on
+ * (source_system, source_punch_id), so re-fetched punches already saved are no-ops.
+ */
+export function applySyncOverlapBuffer(nextSince: string): string {
+  const timezone = getZktimeTimezone();
+  const parsed = fromZonedTime(nextSince, timezone);
+  const buffered = subMinutes(parsed, DEFAULT_SYNC_OVERLAP_MINUTES);
+  return formatInTimeZone(buffered, timezone, "yyyy-MM-dd HH:mm:ss");
 }
 
 /** Punch timestamps from the ZKTime bridge are in this timezone. */
