@@ -24,6 +24,7 @@ type EmployeeTableProps = {
   employees: SerializedEmployee[];
   loading: boolean;
   onEdit: (employee: SerializedEmployee) => void;
+  onClearanceForm?: (employee: SerializedEmployee) => void;
   onDeactivate: (id: string, name: string) => void;
   onReactivate: (id: string) => void;
   onStartProbation?: (id: string, name: string) => void;
@@ -46,6 +47,7 @@ export function EmployeeTable({
   employees,
   loading,
   onEdit,
+  onClearanceForm,
   onDeactivate,
   onReactivate,
   onStartProbation,
@@ -139,6 +141,11 @@ export function EmployeeTable({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => onEdit(employee)}>Edit</DropdownMenuItem>
+                {onClearanceForm ? (
+                  <DropdownMenuItem onClick={() => onClearanceForm(employee)}>
+                    Clearance form
+                  </DropdownMenuItem>
+                ) : null}
                 {employee.isActive && onProbation && onEndProbation ? (
                   <DropdownMenuItem onClick={() => onEndProbation(employee.id, employee.fullName)}>
                     End probation
@@ -175,7 +182,7 @@ export function EmployeeTable({
         },
       },
     ],
-    [onDeactivate, onEdit, onEndProbation, onReactivate, onStartProbation],
+    [onClearanceForm, onDeactivate, onEdit, onEndProbation, onReactivate, onStartProbation],
   );
 
   return (

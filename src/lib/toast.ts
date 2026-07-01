@@ -30,24 +30,48 @@ export async function toastAsync<T>(
 
 export { toast };
 
-export async function downloadResponseBlob(
+async function readPdfResponseBlob(
   response: Response,
   fallbackFilename: string,
-): Promise<string> {
+): Promise<{ blob: Blob; filename: string }> {
   if (!response.ok) {
     const err = (await response.json().catch(() => ({}))) as { error?: string };
-    throw new Error(err.error ?? "Download failed");
+    throw new Error(err.error ?? "PDF request failed");
   }
 
   const blob = await response.blob();
   const disposition = response.headers.get("Content-Disposition");
   const match = disposition?.match(/filename="([^"]+)"/);
   const filename = match?.[1] ?? fallbackFilename;
+
+  return { blob, filename };
+}
+
+export async function downloadResponseBlob(
+  response: Response,
+  fallbackFilename: string,
+): Promise<string> {
+  const { blob, filename } = await readPdfResponseBlob(response, fallbackFilename);
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = filename;
   anchor.click();
   URL.revokeObjectURL(url);
+  return filename;
+}
+
+export async function previewResponseBlob(
+  response: Response,
+  fallbackFilename: string,
+): Promise<string> {
+  const { blob, filename } = await readPdfResponseBlob(response, fallbackFilename);
+  const url = URL.createObjectURL(blob);
+  const previewWindow = window.open(url, "_blank", "noopener,noreferrer");
+  if (!previewWindow) {
+    URL.revokeObjectURL(url);
+    throw new Error("Pop-up blocked. Allow pop-ups to preview the PDF.");
+  }
+  previewWindow.addEventListener("beforeunload", () => URL.revokeObjectURL(url));
   return filename;
 }

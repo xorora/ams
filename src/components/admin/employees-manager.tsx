@@ -2,6 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
+import {
+  ClearanceFormSheet,
+  type ClearanceFormValues,
+  employeeToClearanceForm,
+} from "@/components/employee/clearance-form-sheet";
 import { EmployeeFilters } from "@/components/employee/employee-filters";
 import {
   type EmployeeFormValues,
@@ -22,7 +27,7 @@ import {
 import { DEFAULT_PROBATION_PERIOD_MONTHS, getTodayPkt } from "@/lib/admin/probation";
 import { employeesListQuery } from "@/lib/admin/query-params";
 import type { SerializedEmployee } from "@/lib/admin/serialize";
-import { toastAsync, toastError } from "@/lib/toast";
+import { downloadResponseBlob, previewResponseBlob, toastAsync, toastError } from "@/lib/toast";
 
 type EmployeesManagerProps = {
   employees: SerializedEmployee[];
@@ -39,6 +44,12 @@ export function EmployeesManager({ employees, search, includeInactive }: Employe
   const [form, setForm] = useState<EmployeeFormValues>(emptyEmployeeForm);
   const [saving, setSaving] = useState(false);
   const [probationActionPending, setProbationActionPending] = useState(false);
+  const [clearanceOpen, setClearanceOpen] = useState(false);
+  const [clearanceEmployee, setClearanceEmployee] = useState<SerializedEmployee | null>(null);
+  const [clearanceForm, setClearanceForm] = useState<ClearanceFormValues>(
+    employeeToClearanceForm(),
+  );
+  const [clearanceGenerating, setClearanceGenerating] = useState(false);
 
   useEffect(() => {
     setSearchInput(search);
@@ -70,6 +81,57 @@ export function EmployeesManager({ employees, search, includeInactive }: Employe
     setEditingId(null);
     setForm(emptyEmployeeForm);
     setFormOpen(true);
+  }
+
+  function openClearanceForm(employee: SerializedEmployee) {
+    setClearanceEmployee(employee);
+    setClearanceForm(employeeToClearanceForm());
+    setClearanceOpen(true);
+  }
+
+  function closeClearanceForm() {
+    setClearanceOpen(false);
+    setClearanceEmployee(null);
+    setClearanceForm(employeeToClearanceForm());
+  }
+
+  async function generateClearancePdf(disposition: "inline" | "attachment") {
+    if (!clearanceEmployee) {
+      return;
+    }
+
+    setClearanceGenerating(true);
+
+    try {
+      const response = await fetch(`/api/admin/employees/${clearanceEmployee.id}/clearance/pdf`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          departmentEntries: clearanceForm.departmentEntries,
+          disposition,
+        }),
+      });
+
+      const fallbackFilename = `clearance-${clearanceEmployee.employeeCode}.pdf`;
+
+      if (disposition === "inline") {
+        await toastAsync(previewResponseBlob(response, fallbackFilename), {
+          loading: "Generating clearance PDF…",
+          success: "Clearance PDF opened in a new tab.",
+        });
+      } else {
+        await toastAsync(downloadResponseBlob(response, fallbackFilename), {
+          loading: "Generating clearance PDF…",
+          success: "Clearance PDF downloaded.",
+        });
+      }
+    } catch {
+      // toastAsync already surfaced the error toast
+    } finally {
+      setClearanceGenerating(false);
+    }
   }
 
   function openEdit(employee: SerializedEmployee) {
@@ -332,6 +394,22 @@ export function EmployeesManager({ employees, search, includeInactive }: Employe
           onEndProbation={editingId ? handleSheetEndProbation : undefined}
           probationActionPending={probationActionPending}
         />
+
+        <ClearanceFormSheet
+          open={clearanceOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              closeClearanceForm();
+            }
+          }}
+          employee={clearanceEmployee}
+          form={clearanceForm}
+          onFormChange={setClearanceForm}
+          generating={clearanceGenerating}
+          onPreview={() => void generateClearancePdf("inline")}
+          onDownload={() => void generateClearancePdf("attachment")}
+          onCancel={closeClearanceForm}
+        />
       </div>
 
       <EmployeeTable
@@ -339,6 +417,7 @@ export function EmployeesManager({ employees, search, includeInactive }: Employe
         employees={employees}
         loading={isPending}
         onEdit={openEdit}
+        onClearanceForm={openClearanceForm}
         onDeactivate={handleDeactivate}
         onReactivate={handleReactivate}
         onStartProbation={handleStartProbation}
