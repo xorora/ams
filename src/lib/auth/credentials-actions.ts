@@ -51,6 +51,7 @@ export async function credentialsSignInAction(input: {
       id: user.id,
       role: user.role,
       employeeId: user.employeeId,
+      assignedCompanyId: null,
       email: user.email,
       name: user.name,
     }),

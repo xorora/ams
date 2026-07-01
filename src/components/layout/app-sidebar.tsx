@@ -19,7 +19,8 @@ type AppSidebarProps = {
 
 export function AppSidebar({ user, hasLinkedEmployee = false }: AppSidebarProps) {
   const navItems = getNavItemsForUser(user, { hasLinkedEmployee });
-  const roleLabel = user.role === "admin" ? "Admin" : "Employee";
+  const roleLabel =
+    user.role === "admin" ? "Admin" : user.role === "accounting_admin" ? "Accounting" : "Employee";
 
   return (
     <Sidebar collapsible="icon">

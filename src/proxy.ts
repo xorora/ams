@@ -1,6 +1,28 @@
 import { NextResponse } from "next/server";
+import type { Session } from "next-auth";
 import { auth } from "@/auth";
-import { getPostAuthRedirect, needsEmployeeRegistration } from "@/lib/auth/navigation";
+import { hasLinkedEmployee } from "@/lib/auth/attendance-access";
+import {
+  getDefaultAuthenticatedPath,
+  getPostAuthRedirect,
+  needsEmployeeRegistration,
+} from "@/lib/auth/navigation";
+
+function isAccountingRoute(pathname: string): boolean {
+  return pathname.startsWith("/admin/accounting") || pathname.startsWith("/api/admin/accounting");
+}
+
+function isAdminRoute(pathname: string): boolean {
+  return pathname.startsWith("/admin") || pathname.startsWith("/api/admin");
+}
+
+function isSalaryRoute(pathname: string): boolean {
+  return pathname.startsWith("/salary") || pathname.startsWith("/api/salary");
+}
+
+function canAccessSalaryRoute(user: Session["user"]): boolean {
+  return user.role === "employee" && hasLinkedEmployee({ user } as Session);
+}
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
@@ -11,11 +33,11 @@ export default auth((req) => {
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/attendance") ||
     pathname.startsWith("/leave") ||
+    pathname.startsWith("/salary") ||
     pathname.startsWith("/admin");
 
   const isAttendanceApi = pathname.startsWith("/api/attendance");
-
-  const isAdminRoute = pathname.startsWith("/admin") || pathname.startsWith("/api/admin");
+  const isSalaryApi = pathname.startsWith("/api/salary");
 
   if (pathname === "/" && isLoggedIn && user) {
     return NextResponse.redirect(new URL(getPostAuthRedirect(user), req.nextUrl.origin));
@@ -39,7 +61,10 @@ export default auth((req) => {
     return NextResponse.redirect(new URL(getPostAuthRedirect(user), req.nextUrl.origin));
   }
 
-  if ((isProtectedPage || isAdminRoute || isAttendanceApi) && !isLoggedIn) {
+  if (
+    (isProtectedPage || isAdminRoute(pathname) || isAttendanceApi || isSalaryApi) &&
+    !isLoggedIn
+  ) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -54,7 +79,9 @@ export default auth((req) => {
       pathname.startsWith("/dashboard") ||
       pathname.startsWith("/attendance") ||
       pathname.startsWith("/leave") ||
-      isAttendanceApi;
+      pathname.startsWith("/salary") ||
+      isAttendanceApi ||
+      isSalaryApi;
     if (mustRegister) {
       if (pathname.startsWith("/api/")) {
         return NextResponse.json(
@@ -66,12 +93,34 @@ export default auth((req) => {
     }
   }
 
-  if (isAdminRoute && user?.role !== "admin") {
-    if (pathname.startsWith("/api/")) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+  if (isSalaryRoute(pathname) && user) {
+    if (!canAccessSalaryRoute(user)) {
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
 
-    return NextResponse.redirect(new URL("/dashboard", req.nextUrl.origin));
+      return NextResponse.redirect(new URL("/dashboard", req.nextUrl.origin));
+    }
+  }
+
+  if (isAdminRoute(pathname) && user) {
+    if (isAccountingRoute(pathname)) {
+      if (user.role !== "admin" && user.role !== "accounting_admin") {
+        if (pathname.startsWith("/api/")) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        return NextResponse.redirect(new URL("/dashboard", req.nextUrl.origin));
+      }
+    } else if (user.role !== "admin") {
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+
+      const redirectPath =
+        user.role === "accounting_admin" ? getDefaultAuthenticatedPath(user.role) : "/dashboard";
+      return NextResponse.redirect(new URL(redirectPath, req.nextUrl.origin));
+    }
   }
 });
 
@@ -83,9 +132,12 @@ export const config = {
     "/attendance/:path*",
     "/leave",
     "/leave/:path*",
+    "/salary",
+    "/salary/:path*",
     "/admin",
     "/admin/:path*",
     "/api/admin/:path*",
+    "/api/salary/:path*",
     "/api/attendance/:path*",
   ],
 };

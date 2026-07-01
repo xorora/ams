@@ -13,7 +13,8 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-export const userRoleEnum = pgEnum("user_role", ["admin", "employee"]);
+export const userRoleEnum = pgEnum("user_role", ["admin", "employee", "accounting_admin"]);
+export type UserRole = (typeof userRoleEnum.enumValues)[number];
 export const attendanceStatusEnum = pgEnum("attendance_status", [
   "present",
   "absent",
@@ -196,3 +197,78 @@ export const breakSessions = pgTable("break_sessions", {
   endedAt: timestamp("ended_at", { withTimezone: true }),
   durationSeconds: integer("duration_seconds"),
 });
+
+export const userCompanyAssignments = pgTable(
+  "user_company_assignments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("user_company_assignments_user_id_idx").on(table.userId)],
+);
+
+export const employeeCompensation = pgTable(
+  "employee_compensation",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    employeeId: uuid("employee_id")
+      .notNull()
+      .references(() => employees.id, { onDelete: "cascade" }),
+    grossSalaryPkr: integer("gross_salary_pkr").notNull(),
+    bankName: text("bank_name"),
+    bankAccountNumber: text("bank_account_number"),
+    fixedSecurityDeductionPkr: integer("fixed_security_deduction_pkr").notNull().default(0),
+    fixedOtherPayPkr: integer("fixed_other_pay_pkr").notNull().default(0),
+    updatedByUserId: uuid("updated_by_user_id").references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("employee_compensation_employee_id_idx").on(table.employeeId)],
+);
+
+export const salarySlips = pgTable(
+  "salary_slips",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    employeeId: uuid("employee_id")
+      .notNull()
+      .references(() => employees.id),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id),
+    yearMonth: text("year_month").notNull(),
+    incomeTaxPkr: integer("income_tax_pkr").notNull().default(0),
+    additionalDeductionPkr: integer("additional_deduction_pkr").notNull().default(0),
+    deductionDetails: text("deduction_details"),
+    otherPayPkr: integer("other_pay_pkr").notNull().default(0),
+    incrementPkr: integer("increment_pkr").notNull().default(0),
+    otherPayableDetails: text("other_payable_details"),
+    totalDays: integer("total_days").notNull(),
+    earnedDays: integer("earned_days").notNull(),
+    deductDays: integer("deduct_days").notNull(),
+    calculatedSalaryPkr: integer("calculated_salary_pkr").notNull(),
+    autoLeaveDeductionPkr: integer("auto_leave_deduction_pkr").notNull(),
+    securityDeductionPkr: integer("security_deduction_pkr").notNull(),
+    totalOtherPayPkr: integer("total_other_pay_pkr").notNull(),
+    totalDeductionPkr: integer("total_deduction_pkr").notNull(),
+    netSalaryPkr: integer("net_salary_pkr").notNull(),
+    transferDetails: text("transfer_details"),
+    createdByUserId: uuid("created_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    updatedByUserId: uuid("updated_by_user_id").references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("salary_slips_employee_year_month_idx").on(table.employeeId, table.yearMonth),
+    index("salary_slips_company_year_month_idx").on(table.companyId, table.yearMonth),
+  ],
+);

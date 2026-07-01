@@ -1,11 +1,13 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  Banknote,
   CalendarDays,
   CalendarOff,
   FileSpreadsheet,
   Fingerprint,
   LayoutDashboard,
   Users,
+  Wallet,
 } from "lucide-react";
 import type { Session } from "next-auth";
 import { hasLinkedEmployee } from "@/lib/auth/attendance-access";
@@ -21,7 +23,13 @@ export type NavItem = {
 };
 
 export function getDefaultAuthenticatedPath(role: Session["user"]["role"]): string {
-  return role === "admin" ? "/admin/employees" : "/dashboard";
+  if (role === "admin") {
+    return "/admin/employees";
+  }
+  if (role === "accounting_admin") {
+    return "/admin/accounting/salary-slips";
+  }
+  return "/dashboard";
 }
 
 /** Employees must link an admin-created record before using attendance. */
@@ -54,6 +62,27 @@ export function getNavItemsForUser(
       },
       { href: "/leave", label: "Leave", icon: CalendarOff, exact: true },
     );
+
+    if (user.role === "employee") {
+      items.push({ href: "/salary", label: "Salary slips", icon: Banknote, exact: true });
+    }
+  }
+
+  if (user.role === "admin" || user.role === "accounting_admin") {
+    items.push(
+      {
+        href: "/admin/accounting/salary-slips",
+        label: "Salary slips",
+        icon: Banknote,
+        adminOnly: true,
+      },
+      {
+        href: "/admin/accounting/compensation",
+        label: "Compensation",
+        icon: Wallet,
+        adminOnly: true,
+      },
+    );
   }
 
   if (user.role === "admin") {
@@ -68,6 +97,12 @@ export function getNavItemsForUser(
       { href: "/admin/leave", label: "Leave requests", icon: CalendarOff, adminOnly: true },
       { href: "/admin/devices", label: "Devices", icon: Fingerprint, adminOnly: true },
       { href: "/admin/reports", label: "Reports", icon: FileSpreadsheet, adminOnly: true },
+      {
+        href: "/admin/accounting/admins",
+        label: "Accounting admins",
+        icon: Users,
+        adminOnly: true,
+      },
     );
   }
 
