@@ -7,11 +7,8 @@ import {
   runProcessMachinePunchesJob,
 } from "@/lib/attendance/machine-punch-processor";
 import type { ZktimeClient } from "@/lib/zktime/client";
-import { getZktimeTimezone } from "@/lib/zktime/config";
-import {
-  advanceLastAttendanceNextSince,
-  getLastAttendanceNextSince,
-} from "@/lib/zktime/sync-state";
+import { getZktimeTimezone, resolveAttendanceSyncSince } from "@/lib/zktime/config";
+import { advanceLastAttendanceNextSince } from "@/lib/zktime/sync-state";
 
 function parsePunchAt(datetime: string): Date {
   return fromZonedTime(datetime, getZktimeTimezone());
@@ -82,7 +79,7 @@ export async function syncAttendanceFromZktime(
   client: ZktimeClient,
   options: { since?: string } = {},
 ): Promise<AttendanceSyncResult> {
-  const since = options.since ?? (await getLastAttendanceNextSince());
+  const since = resolveAttendanceSyncSince(options.since);
   const { transactions, nextSince } = await client.exportTransactions(since);
 
   if (transactions.length === 0) {

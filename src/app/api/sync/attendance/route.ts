@@ -8,9 +8,8 @@ import {
 } from "@/lib/cron/auth";
 import { syncAttendanceFromZktime } from "@/lib/zktime/attendance-sync";
 import { ZktimeClient } from "@/lib/zktime/client";
-import { isZktimeConfigured } from "@/lib/zktime/config";
+import { isZktimeConfigured, resolveAttendanceSyncSince } from "@/lib/zktime/config";
 import { syncTerminalsFromZktime } from "@/lib/zktime/employee-sync";
-import { getLastAttendanceNextSince } from "@/lib/zktime/sync-state";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,11 +17,7 @@ export const maxDuration = 60;
 
 async function resolveSince(request: Request): Promise<string> {
   const querySince = new URL(request.url).searchParams.get("since");
-  if (querySince) {
-    return querySince;
-  }
-
-  return getLastAttendanceNextSince();
+  return resolveAttendanceSyncSince(querySince);
 }
 
 export async function GET(request: Request) {

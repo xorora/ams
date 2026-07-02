@@ -1,9 +1,11 @@
-import { subDays, subMinutes } from "date-fns";
+import { subDays, subHours, subMinutes } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { BUSINESS_TIMEZONE } from "@/lib/attendance/constants";
 
 /** Overlap window applied when advancing the sync cursor, to tolerate punches the bridge delivers out of order (e.g. a device uploads a delayed early check-in after a later checkout has already been synced). */
 const DEFAULT_SYNC_OVERLAP_MINUTES = 30;
+
+const DEFAULT_ATTENDANCE_SYNC_LOOKBACK_HOURS = 48;
 
 export function getZktimeBaseUrl(): string | undefined {
   const url = process.env.ZKTIME_BASE_URL?.trim();
@@ -39,12 +41,39 @@ export function getDefaultAttendanceSyncSince(at: Date = new Date()): string {
   return `${previousDay} 00:00:00`;
 }
 
+/** Rolling lookback window for attendance pulls (default: 48 hours = yesterday + today). */
+export function getAttendanceSyncLookbackHours(): number {
+  const raw = process.env.ZKTIME_ATTENDANCE_SYNC_LOOKBACK_HOURS?.trim();
+  if (!raw) {
+    return DEFAULT_ATTENDANCE_SYNC_LOOKBACK_HOURS;
+  }
+
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_ATTENDANCE_SYNC_LOOKBACK_HOURS;
+}
+
+export function getAttendanceSyncLookbackSince(at: Date = new Date()): string {
+  const timezone = getZktimeTimezone();
+  const lookbackAt = subHours(at, getAttendanceSyncLookbackHours());
+  return formatInTimeZone(lookbackAt, timezone, "yyyy-MM-dd HH:mm:ss");
+}
+
+/** Default `since` for scheduled/manual attendance sync unless overridden explicitly. */
+export function resolveAttendanceSyncSince(explicitSince?: string | null): string {
+  const trimmed = explicitSince?.trim();
+  if (trimmed) {
+    return trimmed;
+  }
+
+  return getAttendanceSyncLookbackSince();
+}
+
 /**
  * Rewinds a bridge-provided `next_since` by a small overlap window before persisting it as
  * the sync cursor. Devices can upload punches to the bridge out of order (e.g. a delayed
  * early check-in syncs to the bridge after a later checkout already advanced the cursor
  * past it). Re-requesting a trailing window each cycle is safe: AMS dedupes inserts on
- * (source_system, source_punch_id), so re-fetched punches already saved are no-ops.
+ * (card_no, punch_at), so re-fetched punches already saved are no-ops.
  */
 export function applySyncOverlapBuffer(nextSince: string): string {
   const timezone = getZktimeTimezone();
