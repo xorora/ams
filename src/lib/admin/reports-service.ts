@@ -2,6 +2,7 @@ import { and, asc, desc, eq, gte, lte } from "drizzle-orm";
 import { db } from "@/db";
 import { attendanceDays, employees } from "@/db/schema";
 import { effectiveAttendanceStatus } from "@/lib/attendance/effective-status";
+import { assignLateFinesByShiftDate, computeLateFineTotals } from "@/lib/attendance/late-fines-utils";
 import { countWorkingDays } from "@/lib/leave/working-days";
 import type { AttendanceListItem } from "./attendance-service";
 import { getEmployee } from "./employees-service";
