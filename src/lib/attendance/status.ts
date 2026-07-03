@@ -123,7 +123,7 @@ export function buildTodayStatus(
   }
   if (day?.isMissedCheckout) {
     warnings.push(
-      `This shift was marked present without check-out because you did not check out by ${shiftScheduleLabels.lateCheckOutDeadline}.`,
+      `This shift was marked absent because you did not check out by ${shiftScheduleLabels.lateCheckOutDeadline}.`,
     );
   }
   if (wouldBeEarlyLeave && state !== "checked_out") {
@@ -139,7 +139,7 @@ export function buildTodayStatus(
     !day.isMissedCheckout
   ) {
     warnings.push(
-      `You missed the check-out deadline (${shiftScheduleLabels.lateCheckOutDeadline}). Check out now or this shift will be marked present without check-out.`,
+      `You missed the check-out deadline (${shiftScheduleLabels.lateCheckOutDeadline}). Check out now or this shift may be marked absent.`,
     );
   } else if (
     hasOpenShift &&

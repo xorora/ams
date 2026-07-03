@@ -241,7 +241,7 @@ export async function checkOut(
     return failure(
       409,
       "MISSED_CHECKOUT",
-      "This shift was closed for missed check-out and can no longer be updated.",
+      "This shift was marked absent for missed check-out and can no longer be updated.",
     );
   }
 
