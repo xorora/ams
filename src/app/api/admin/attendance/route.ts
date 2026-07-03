@@ -7,7 +7,7 @@ import {
   listAttendance,
 } from "@/lib/admin/attendance-service";
 import { getSelectedCompanyId } from "@/lib/admin/selected-company";
-import { getSelectedCompanyId } from "@/lib/admin/selected-company";
+import { serializeAttendance } from "@/lib/admin/serialize";
 import { requireApiAdminSession } from "@/lib/auth/require-session";
 
 function parseStatus(value: string | null): AttendanceStatus | undefined {
