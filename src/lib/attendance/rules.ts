@@ -87,7 +87,7 @@ export function isEarlyLeave(checkOutAt: Date, shiftDate: string): boolean {
   return checkOutAt.getTime() < getExpectedCheckOutAt(shiftDate).getTime();
 }
 
-/** Open shift past the check-out grace deadline — eligible for missed check-out absent mark. */
+/** Open shift past the check-out grace deadline — eligible for missed check-out finalization. */
 export function isPastMissedCheckOutDeadline(at: Date, shiftDate: string): boolean {
   return at.getTime() > getLateCheckOutDeadline(shiftDate).getTime();
 }

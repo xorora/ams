@@ -90,7 +90,7 @@ export function EmployeeStatusCard({ status }: EmployeeStatusCardProps) {
           </p>
         )}
         {status.attendanceDay?.isMissedCheckout && (
-          <p className="text-destructive text-sm">Marked absent — missed check-out</p>
+          <p className="text-amber-700 text-sm">Present — missed check-out</p>
         )}
 
         {status.state !== "checked_out" && (

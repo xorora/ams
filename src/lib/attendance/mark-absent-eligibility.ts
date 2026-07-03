@@ -63,7 +63,7 @@ export function shouldAutoMarkAbsent(day: AttendanceDayForAutoJob | null): boole
 }
 
 /**
- * Whether the cron should mark an open shift absent for missed check-out.
+ * Whether the cron should finalize an open shift for missed check-out.
  * Applies when the employee checked in but never checked out past the grace deadline.
  */
 export function shouldAutoMarkMissedCheckout(day: AttendanceDayForAutoJob | null): boolean {
@@ -79,7 +79,7 @@ export function shouldAutoMarkMissedCheckout(day: AttendanceDayForAutoJob | null
   if (day.status === "leave") {
     return false;
   }
-  if (day.status === "absent" && day.isMissedCheckout) {
+  if (day.isMissedCheckout) {
     return false;
   }
   if (day.source === "manual") {

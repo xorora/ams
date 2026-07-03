@@ -11,7 +11,7 @@ export type MarkMissedCheckoutJobResult = {
   skipped: number;
 };
 
-const MISSED_CHECKOUT_NOTE = "Marked absent: missed check-out deadline.";
+const MISSED_CHECKOUT_NOTE = "Marked present: missed check-out deadline.";
 
 function appendNote(existing: string | null, note: string): string {
   if (!existing?.trim()) {
@@ -118,7 +118,7 @@ export async function runMarkMissedCheckoutJob(
     await db
       .update(attendanceDays)
       .set({
-        status: "absent",
+        status: "present",
         source: "system",
         isMissedCheckout: true,
         totalBreakSeconds,
