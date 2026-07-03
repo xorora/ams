@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, lte, type SQL } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, isNull, lte, ne, or, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { attendanceDays, companies, employees } from "@/db/schema";
 import {
@@ -6,6 +6,8 @@ import {
   isEarlyLeaveForCompany,
   isLateCheckInForCompany,
 } from "@/lib/attendance/company-shift";
+import { effectiveAttendanceStatus } from "@/lib/attendance/effective-status";
+import { getEmployeeInCompany } from "@/lib/accounting/company-access";
 import { adminFailure, type ServiceFailure, type ServiceSuccess } from "./types";
 
 export type { EmployeeRecord } from "./employees-service";
@@ -128,7 +130,7 @@ function mapAttendanceRow(
     employeeName: employee.fullName,
     employeeEmail: employee.email,
     shiftDate: row.shiftDate,
-    status: row.status,
+    status: effectiveAttendanceStatus(row),
     source: row.source,
     checkInAt: row.checkInAt,
     checkOutAt: row.checkOutAt,
@@ -145,6 +147,27 @@ function mapAttendanceRow(
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
+}
+
+async function loadAttendanceItemInCompany(
+  id: string,
+  companyId: string,
+): Promise<ServiceFailure | ServiceSuccess<AttendanceListItem>> {
+  const [row] = await db
+    .select({
+      attendance: attendanceDays,
+      employee: employees,
+    })
+    .from(attendanceDays)
+    .innerJoin(employees, eq(attendanceDays.employeeId, employees.id))
+    .where(and(eq(attendanceDays.id, id), eq(employees.companyId, companyId)))
+    .limit(1);
+
+  if (!row) {
+    return adminFailure(404, "ATTENDANCE_NOT_FOUND", "Attendance record not found.");
+  }
+
+  return { ok: true, data: mapAttendanceRow(row.attendance, row.employee) };
 }
 
 async function loadAttendanceItem(
@@ -175,7 +198,20 @@ function buildListConditions(filters: ListAttendanceFilters): SQL[] {
   if (filters.employeeId) {
     conditions.push(eq(attendanceDays.employeeId, filters.employeeId));
   }
-  if (filters.status) {
+  if (filters.status === "present") {
+    conditions.push(
+      or(
+        eq(attendanceDays.status, "present"),
+        and(
+          isNotNull(attendanceDays.checkInAt),
+          ne(attendanceDays.status, "leave"),
+          ne(attendanceDays.status, "weekend_off"),
+        ),
+      ) as SQL,
+    );
+  } else if (filters.status === "absent") {
+    conditions.push(and(isNull(attendanceDays.checkInAt), eq(attendanceDays.status, "absent")) as SQL);
+  } else if (filters.status) {
     conditions.push(eq(attendanceDays.status, filters.status));
   }
   if (filters.companyId) {
@@ -188,6 +224,18 @@ function buildListConditions(filters: ListAttendanceFilters): SQL[] {
 export async function listAttendance(
   filters: ListAttendanceFilters = {},
 ): Promise<ServiceSuccess<AttendanceListResult>> {
+  if (!filters.companyId) {
+    return {
+      ok: true,
+      data: {
+        items: [],
+        total: 0,
+        page: 1,
+        limit: filters.limit ?? 50,
+      },
+    };
+  }
+
   const conditions = buildListConditions(filters);
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
   const paginate = filters.page != null || filters.limit != null;
@@ -230,20 +278,27 @@ export async function listAttendance(
 
 export async function getAttendance(
   id: string,
+  companyId?: string,
 ): Promise<ServiceFailure | ServiceSuccess<AttendanceListItem>> {
+  if (companyId) {
+    return loadAttendanceItemInCompany(id, companyId);
+  }
   return loadAttendanceItem(id);
 }
 
 export async function createAttendance(
   adminUserId: string,
   input: CreateAttendanceInput,
+  companyId?: string,
 ): Promise<ServiceFailure | ServiceSuccess<AttendanceListItem>> {
   const shiftDateResult = validateShiftDate(input.shiftDate);
   if (!shiftDateResult.ok) {
     return shiftDateResult;
   }
 
-  const employeeResult = await getActiveEmployee(input.employeeId);
+  const employeeResult = companyId
+    ? await getEmployeeInCompany(input.employeeId, companyId)
+    : await getActiveEmployee(input.employeeId);
   if (!employeeResult.ok) {
     return employeeResult;
   }
@@ -313,15 +368,20 @@ export async function createAttendance(
     })
     .returning();
 
-  return loadAttendanceItem(created.id);
+  return companyId
+    ? loadAttendanceItemInCompany(created.id, companyId)
+    : loadAttendanceItem(created.id);
 }
 
 export async function updateAttendance(
   id: string,
   adminUserId: string,
   input: UpdateAttendanceInput,
+  companyId?: string,
 ): Promise<ServiceFailure | ServiceSuccess<AttendanceListItem>> {
-  const current = await loadAttendanceItem(id);
+  const current = companyId
+    ? await loadAttendanceItemInCompany(id, companyId)
+    : await loadAttendanceItem(id);
   if (!current.ok) {
     return current;
   }
@@ -401,19 +461,24 @@ export async function updateAttendance(
     return adminFailure(404, "ATTENDANCE_NOT_FOUND", "Attendance record not found.");
   }
 
-  return loadAttendanceItem(updated.id);
+  return companyId
+    ? loadAttendanceItemInCompany(updated.id, companyId)
+    : loadAttendanceItem(updated.id);
 }
 
 export async function markAttendanceStatus(
   id: string,
   adminUserId: string,
   status: AttendanceStatus,
+  companyId?: string,
 ): Promise<ServiceFailure | ServiceSuccess<AttendanceListItem>> {
   if (!["present", "absent", "leave"].includes(status)) {
     return adminFailure(400, "INVALID_STATUS", "Status must be present, absent, or leave.");
   }
 
-  const current = await loadAttendanceItem(id);
+  const current = companyId
+    ? await loadAttendanceItemInCompany(id, companyId)
+    : await loadAttendanceItem(id);
   if (!current.ok) {
     return current;
   }
@@ -449,13 +514,18 @@ export async function markAttendanceStatus(
     return adminFailure(404, "ATTENDANCE_NOT_FOUND", "Attendance record not found.");
   }
 
-  return loadAttendanceItem(updated.id);
+  return companyId
+    ? loadAttendanceItemInCompany(updated.id, companyId)
+    : loadAttendanceItem(updated.id);
 }
 
 export async function deleteAttendance(
   id: string,
+  companyId?: string,
 ): Promise<ServiceFailure | ServiceSuccess<{ id: string }>> {
-  const current = await loadAttendanceItem(id);
+  const current = companyId
+    ? await loadAttendanceItemInCompany(id, companyId)
+    : await loadAttendanceItem(id);
   if (!current.ok) {
     return current;
   }

@@ -83,14 +83,16 @@ export function EmployeeStatusCard({ status }: EmployeeStatusCardProps) {
             {status.attendanceDay.isLate ? " (late)" : ""}
           </p>
         )}
-        {status.attendanceDay?.checkOutAt && (
+        {status.attendanceDay?.checkOutAt ? (
           <p className="text-muted-foreground text-sm">
             Check-out: {formatPktTime(status.attendanceDay.checkOutAt)}
             {status.attendanceDay.isEarlyLeave ? " (early)" : ""}
           </p>
-        )}
-        {status.attendanceDay?.isMissedCheckout && (
-          <p className="text-destructive text-sm">Marked absent — missed check-out</p>
+        ) : status.attendanceDay?.checkInAt ? (
+          <p className="text-muted-foreground text-sm">Check-out: —</p>
+        ) : null}
+        {status.attendanceDay?.isMissedCheckout && !status.attendanceDay.checkOutAt && (
+          <p className="text-amber-700 text-sm">Present — check-out not recorded yet</p>
         )}
 
         {status.state !== "checked_out" && (

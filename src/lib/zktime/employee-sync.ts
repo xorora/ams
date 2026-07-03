@@ -1,7 +1,14 @@
 import { desc, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { companies, deviceTerminals, employees, machinePunches } from "@/db/schema";
+import { findEmployeeForZktimeImport, findEmployeeByCodeVariants } from "@/lib/admin/employee-identity";
 import { ZktimeClient } from "@/lib/zktime/client";
+import {
+  emailDomainForCompanySlug,
+  loadActiveCompanies,
+  parseZktimeDepartmentLabel,
+  resolveCompanyFromDepartmentLabel,
+} from "@/lib/zktime/company-from-department";
 import { getDefaultCompanySlug } from "@/lib/zktime/config";
 import {
   buildDepartmentIdMap,
@@ -27,25 +34,13 @@ function normalizeDepartmentKey(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-function emailDomainForSlug(slug: string): string {
-  if (slug === "crest-led") {
-    return "crestled.com";
-  }
-  if (slug === "xorora") {
-    return "xorora.com";
-  }
-  return `${slug.replace(/-/g, "")}.com`;
-}
-
 function normalizeName(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
-async function resolveDefaultCompanyId(): Promise<string | null> {
-  const company = await db.query.companies.findFirst({
-    where: eq(companies.slug, getDefaultCompanySlug()),
-  });
-  return company?.id ?? null;
+async function resolveDefaultCompanyId(activeCompanies: Awaited<ReturnType<typeof loadActiveCompanies>>): Promise<string | null> {
+  const company = activeCompanies.find((item) => item.slug === getDefaultCompanySlug());
+  return company?.id ?? activeCompanies[0]?.id ?? null;
 }
 
 export type EmployeePullSummary = {
@@ -64,7 +59,8 @@ export type EmployeePullResult = {
 
 export async function pullEmployeesFromZktime(client: ZktimeClient): Promise<EmployeePullResult> {
   const zktimeEmployees = await client.getEmployees();
-  const defaultCompanyId = await resolveDefaultCompanyId();
+  const activeCompanies = await loadActiveCompanies();
+  const defaultCompanyId = await resolveDefaultCompanyId(activeCompanies);
 
   if (!defaultCompanyId) {
     throw new Error(`Default company not found: ${getDefaultCompanySlug()}`);
@@ -75,13 +71,21 @@ export async function pullEmployeesFromZktime(client: ZktimeClient): Promise<Emp
   const employeeSummaries: EmployeePullSummary[] = [];
 
   for (const zktimeEmp of zktimeEmployees) {
+    const empCode = zktimeEmp.emp_code.trim();
     const fullName = zktimeEmp.full_name.trim();
-    const department = zktimeEmp.department?.dept_name?.trim() || null;
+    const zktimeDepartmentLabel = zktimeEmp.department?.dept_name?.trim() || null;
+    const { department } = parseZktimeDepartmentLabel(zktimeDepartmentLabel);
+    const resolvedCompany = resolveCompanyFromDepartmentLabel(
+      zktimeDepartmentLabel,
+      activeCompanies,
+      defaultCompanyId,
+    );
+    const companyId = resolvedCompany.id;
 
     employeeSummaries.push({
-      emp_code: zktimeEmp.emp_code,
-      full_name: fullName || zktimeEmp.emp_code,
-      department,
+      emp_code: empCode,
+      full_name: fullName || empCode,
+      department: department ?? zktimeDepartmentLabel,
       status: zktimeEmp.app_status,
     });
 
@@ -93,31 +97,49 @@ export async function pullEmployeesFromZktime(client: ZktimeClient): Promise<Emp
       continue;
     }
 
-    const existing = await db.query.employees.findFirst({
-      where: eq(employees.employeeCode, zktimeEmp.emp_code),
+    const existing = await findEmployeeForZktimeImport({
+      empCode,
+      fullName: fullName || empCode,
+      companyId,
     });
 
     if (existing) {
-      const needsUpdate =
-        existing.fullName !== fullName || (department && existing.department !== department);
+      const resolvedName = fullName || existing.fullName;
+      const updates: Partial<typeof employees.$inferInsert> = {
+        updatedAt: new Date(),
+      };
 
-      if (needsUpdate) {
-        await db
-          .update(employees)
-          .set({
-            fullName: fullName || existing.fullName,
-            department: department ?? existing.department,
-            updatedAt: new Date(),
-          })
-          .where(eq(employees.id, existing.id));
+      if (existing.companyId !== companyId) {
+        updates.companyId = companyId;
+      }
+      if (existing.fullName !== resolvedName) {
+        updates.fullName = resolvedName;
+      }
+      if (department && existing.department !== department) {
+        updates.department = department;
+      } else if (
+        zktimeDepartmentLabel &&
+        !department &&
+        existing.department !== zktimeDepartmentLabel
+      ) {
+        updates.department = zktimeDepartmentLabel;
+      }
+      if (existing.employeeCode !== empCode) {
+        const codeOwner = await findEmployeeByCodeVariants(empCode);
+        if (!codeOwner || codeOwner.id === existing.id) {
+          updates.employeeCode = empCode;
+        }
+      }
+
+      if (Object.keys(updates).length > 1) {
+        await db.update(employees).set(updates).where(eq(employees.id, existing.id));
         updated += 1;
       }
       continue;
     }
 
-    const slug = getDefaultCompanySlug();
-    const domain = emailDomainForSlug(slug);
-    const localPart = normalizeName(fullName) || zktimeEmp.emp_code;
+    const domain = emailDomainForCompanySlug(resolvedCompany.slug);
+    const localPart = normalizeName(fullName) || empCode;
     const email = `${localPart}@${domain}`.toLowerCase();
 
     const [emailConflict] = await db
@@ -127,15 +149,15 @@ export async function pullEmployeesFromZktime(client: ZktimeClient): Promise<Emp
       .limit(1);
 
     const resolvedEmail = emailConflict
-      ? `${localPart}.${zktimeEmp.emp_code}@${domain}`.toLowerCase()
+      ? `${localPart}.${empCode}@${domain}`.toLowerCase()
       : email;
 
     await db.insert(employees).values({
-      employeeCode: zktimeEmp.emp_code,
-      fullName: fullName || zktimeEmp.emp_code,
+      employeeCode: empCode,
+      fullName: fullName || empCode,
       email: resolvedEmail,
-      companyId: defaultCompanyId,
-      department,
+      companyId,
+      department: department ?? zktimeDepartmentLabel,
     });
     created += 1;
   }

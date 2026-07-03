@@ -15,7 +15,7 @@ export const EXPECTED_CHECK_IN_HOUR = 18;
 /** Grace period after expected check-in before a check-in is marked late. */
 export const CHECK_IN_GRACE_MINUTES = 15;
 
-/** Grace period after expected check-out before a shift is marked absent for missed check-out. */
+/** Grace period after expected check-out before a shift is finalized as present without check-out. */
 export const CHECK_OUT_GRACE_MINUTES = 15;
 
 /** Last on-time check-in: expected check-in + grace (18:15 PKT). */

@@ -2,6 +2,10 @@ import { and, asc, eq, ilike, or } from "drizzle-orm";
 import { db } from "@/db";
 import { employees, users } from "@/db/schema";
 import {
+  dedupeEmployeeRecords,
+  findEmployeeByCodeVariants,
+} from "@/lib/admin/employee-identity";
+import {
   DEFAULT_PROBATION_PERIOD_MONTHS,
   defaultProbationValues,
   getTodayPkt,
@@ -252,7 +256,9 @@ export async function listEmployees(
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(asc(employees.fullName));
 
-  return { ok: true, data: rows };
+  const data = filters.companyId ? dedupeEmployeeRecords(rows) : rows;
+
+  return { ok: true, data };
 }
 
 export async function getEmployee(
@@ -275,12 +281,8 @@ export async function createEmployee(
 
   const data = validated.data;
 
-  const [existingCode] = await db
-    .select({ id: employees.id })
-    .from(employees)
-    .where(eq(employees.employeeCode, data.employeeCode))
-    .limit(1);
-  if (existingCode) {
+  const existingByCode = await findEmployeeByCodeVariants(data.employeeCode);
+  if (existingByCode) {
     return adminFailure(409, "DUPLICATE_EMPLOYEE_CODE", "Employee code is already in use.");
   }
 
@@ -341,12 +343,8 @@ export async function updateEmployee(
       return adminFailure(400, "INVALID_EMPLOYEE_CODE", "Employee code cannot be empty.");
     }
     if (code !== employee.employeeCode) {
-      const [duplicate] = await db
-        .select({ id: employees.id })
-        .from(employees)
-        .where(eq(employees.employeeCode, code))
-        .limit(1);
-      if (duplicate) {
+      const duplicate = await findEmployeeByCodeVariants(code);
+      if (duplicate && duplicate.id !== employee.id) {
         return adminFailure(409, "DUPLICATE_EMPLOYEE_CODE", "Employee code is already in use.");
       }
       updates.employeeCode = code;

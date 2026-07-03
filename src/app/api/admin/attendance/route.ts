@@ -7,7 +7,7 @@ import {
   listAttendance,
 } from "@/lib/admin/attendance-service";
 import { getSelectedCompanyId } from "@/lib/admin/selected-company";
-import { serializeAttendance } from "@/lib/admin/serialize";
+import { getSelectedCompanyId } from "@/lib/admin/selected-company";
 import { requireApiAdminSession } from "@/lib/auth/require-session";
 
 function parseStatus(value: string | null): AttendanceStatus | undefined {
@@ -30,7 +30,10 @@ export async function GET(request: Request) {
   const status = parseStatus(searchParams.get("status"));
   const page = Number.parseInt(searchParams.get("page") ?? "1", 10);
   const limit = Number.parseInt(searchParams.get("limit") ?? "50", 10);
-  const companyId = (await getSelectedCompanyId()) ?? undefined;
+  const companyId = await getSelectedCompanyId();
+  if (!companyId) {
+    return NextResponse.json({ error: "No company selected", code: "NO_COMPANY" }, { status: 400 });
+  }
 
   const result = await listAttendance({
     from,
@@ -70,7 +73,12 @@ export async function POST(request: Request) {
     );
   }
 
-  const result = await createAttendance(authResult.session.user.id, body as CreateAttendanceInput);
+  const companyId = await getSelectedCompanyId();
+  if (!companyId) {
+    return NextResponse.json({ error: "No company selected", code: "NO_COMPANY" }, { status: 400 });
+  }
+
+  const result = await createAttendance(authResult.session.user.id, body as CreateAttendanceInput, companyId);
   if (!result.ok) {
     return adminErrorResponse(result);
   }

@@ -77,6 +77,11 @@ export async function setSelectedCompany(companyId: string): Promise<ActionResul
   });
 
   revalidatePath("/", "layout");
+  revalidatePath("/admin/employees");
+  revalidatePath("/admin/attendance");
+  revalidatePath("/admin/leave");
+  revalidatePath("/admin/reports");
+  revalidatePath("/admin/accounting/compensation");
 
   return actionSuccess();
 }

@@ -29,7 +29,7 @@ export default async function AdminAttendancePage({ searchParams }: PageProps) {
 
   const statusParam = params.status ?? "";
   const [company] = await db
-    .select({ slug: companies.slug })
+    .select({ slug: companies.slug, name: companies.name })
     .from(companies)
     .where(eq(companies.id, companyId))
     .limit(1);
@@ -43,7 +43,7 @@ export default async function AdminAttendancePage({ searchParams }: PageProps) {
   const filters = {
     from,
     to,
-    employeeId: params.employeeId ?? "",
+    employeeId: "",
     status: (statusParam === "present" ||
     statusParam === "absent" ||
     statusParam === "leave" ||
@@ -56,6 +56,14 @@ export default async function AdminAttendancePage({ searchParams }: PageProps) {
   const activeEmployees = employeesResult.ok
     ? employeesResult.data.filter((e) => e.isActive).map((employee) => serializeEmployee(employee))
     : [];
+
+  const requestedEmployeeId = params.employeeId ?? "";
+  if (
+    requestedEmployeeId &&
+    activeEmployees.some((employee) => employee.id === requestedEmployeeId)
+  ) {
+    filters.employeeId = requestedEmployeeId;
+  }
 
   const attendanceResult = await listAttendance({
     from: filters.from || undefined,
@@ -72,7 +80,8 @@ export default async function AdminAttendancePage({ searchParams }: PageProps) {
       <div className="shrink-0">
         <h1 className="text-2xl font-semibold">Attendance</h1>
         <p className="mt-1 text-muted-foreground text-sm">
-          Shift dates and expected times depend on the selected company (Xorora night shift vs Crest
+          Showing attendance for <span className="font-medium text-foreground">{company?.name ?? "selected company"}</span>.
+          Shift dates and expected times follow this company&apos;s schedule (Xorora night shift vs Crest
           LED day shift). Geofence, break limits, late fines, and other HR rules are shared. Times
           below are shown in Asia/Karachi.
         </p>

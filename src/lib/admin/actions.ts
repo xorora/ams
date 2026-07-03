@@ -122,7 +122,15 @@ export async function endEmployeeProbationAction(id: string): Promise<ActionResu
 
 export async function createAttendanceAction(input: CreateAttendanceInput): Promise<ActionResult> {
   const session = await requireAdminSession();
-  const result = await createAttendance(session.user.id, input);
+  const companyId = await getSelectedCompanyId();
+  if (!companyId) {
+    return actionFailure({
+      ok: false,
+      message: "No company selected.",
+      code: "NO_COMPANY",
+    });
+  }
+  const result = await createAttendance(session.user.id, input, companyId);
   if (!result.ok) {
     return actionFailure(result);
   }
@@ -135,7 +143,15 @@ export async function updateAttendanceAction(
   input: UpdateAttendanceInput,
 ): Promise<ActionResult> {
   const session = await requireAdminSession();
-  const result = await updateAttendance(id, session.user.id, input);
+  const companyId = await getSelectedCompanyId();
+  if (!companyId) {
+    return actionFailure({
+      ok: false,
+      message: "No company selected.",
+      code: "NO_COMPANY",
+    });
+  }
+  const result = await updateAttendance(id, session.user.id, input, companyId);
   if (!result.ok) {
     return actionFailure(result);
   }
@@ -148,7 +164,15 @@ export async function markAttendanceStatusAction(
   status: AttendanceStatus,
 ): Promise<ActionResult> {
   const session = await requireAdminSession();
-  const result = await markAttendanceStatus(id, session.user.id, status);
+  const companyId = await getSelectedCompanyId();
+  if (!companyId) {
+    return actionFailure({
+      ok: false,
+      message: "No company selected.",
+      code: "NO_COMPANY",
+    });
+  }
+  const result = await markAttendanceStatus(id, session.user.id, status, companyId);
   if (!result.ok) {
     return actionFailure(result);
   }
@@ -158,7 +182,15 @@ export async function markAttendanceStatusAction(
 
 export async function deleteAttendanceAction(id: string): Promise<ActionResult> {
   await requireAdminSession();
-  const result = await deleteAttendance(id);
+  const companyId = await getSelectedCompanyId();
+  if (!companyId) {
+    return actionFailure({
+      ok: false,
+      message: "No company selected.",
+      code: "NO_COMPANY",
+    });
+  }
+  const result = await deleteAttendance(id, companyId);
   if (!result.ok) {
     return actionFailure(result);
   }

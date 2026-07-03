@@ -237,14 +237,6 @@ export async function checkOut(
     return failure(409, "ALREADY_CHECKED_OUT", "You have already checked out for this shift.");
   }
 
-  if (day.isMissedCheckout) {
-    return failure(
-      409,
-      "MISSED_CHECKOUT",
-      "This shift was marked absent for missed check-out and can no longer be updated.",
-    );
-  }
-
   if (getActiveBreak(sessions)) {
     return failure(400, "BREAK_ACTIVE", "End your break before checking out.");
   }
@@ -265,6 +257,7 @@ export async function checkOut(
       checkOutLat: coords.lat,
       checkOutLng: coords.lng,
       isEarlyLeave: early,
+      isMissedCheckout: false,
       updatedAt: now,
     })
     .where(eq(attendanceDays.id, day.id));

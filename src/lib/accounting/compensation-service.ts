@@ -1,7 +1,8 @@
-import { and, asc, eq, ilike, or } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { employeeCompensation, employees } from "@/db/schema";
+import { employeeCompensation } from "@/db/schema";
 import { adminFailure, type ServiceFailure, type ServiceSuccess } from "@/lib/admin/types";
+import { listEmployees } from "@/lib/admin/employees-service";
 import { getEmployeeInCompany } from "./company-access";
 
 export type CompensationRecord = typeof employeeCompensation.$inferSelect;
@@ -85,42 +86,44 @@ function validateCompensationInput(
 export async function listCompensation(
   filters: ListCompensationFilters,
 ): Promise<ServiceSuccess<CompensationListItem[]>> {
-  const conditions = [eq(employees.companyId, filters.companyId), eq(employees.isActive, true)];
+  const employeeResult = await listEmployees({
+    companyId: filters.companyId,
+    search: filters.search,
+    includeInactive: false,
+  });
 
-  const search = filters.search?.trim();
-  if (search) {
-    const pattern = `%${search}%`;
-    const searchCondition = or(
-      ilike(employees.fullName, pattern),
-      ilike(employees.employeeCode, pattern),
-      ilike(employees.department, pattern),
-      ilike(employees.designation, pattern),
-    );
-    if (searchCondition) {
-      conditions.push(searchCondition);
-    }
+  if (employeeResult.data.length === 0) {
+    return { ok: true, data: [] };
   }
 
-  const rows = await db
-    .select({
-      employeeId: employees.id,
-      employeeCode: employees.employeeCode,
-      fullName: employees.fullName,
-      department: employees.department,
-      designation: employees.designation,
-      grossSalaryPkr: employeeCompensation.grossSalaryPkr,
-      bankName: employeeCompensation.bankName,
-      bankAccountNumber: employeeCompensation.bankAccountNumber,
-      fixedSecurityDeductionPkr: employeeCompensation.fixedSecurityDeductionPkr,
-      fixedOtherPayPkr: employeeCompensation.fixedOtherPayPkr,
-      updatedAt: employeeCompensation.updatedAt,
-    })
-    .from(employees)
-    .leftJoin(employeeCompensation, eq(employeeCompensation.employeeId, employees.id))
-    .where(and(...conditions))
-    .orderBy(asc(employees.fullName));
+  const employeeIds = employeeResult.data.map((employee) => employee.id);
+  const compensationRows = await db
+    .select()
+    .from(employeeCompensation)
+    .where(inArray(employeeCompensation.employeeId, employeeIds));
 
-  return { ok: true, data: rows };
+  const compensationByEmployeeId = new Map(
+    compensationRows.map((row) => [row.employeeId, row]),
+  );
+
+  const data = employeeResult.data.map((employee) => {
+    const compensation = compensationByEmployeeId.get(employee.id);
+    return {
+      employeeId: employee.id,
+      employeeCode: employee.employeeCode,
+      fullName: employee.fullName,
+      department: employee.department,
+      designation: employee.designation,
+      grossSalaryPkr: compensation?.grossSalaryPkr ?? null,
+      bankName: compensation?.bankName ?? null,
+      bankAccountNumber: compensation?.bankAccountNumber ?? null,
+      fixedSecurityDeductionPkr: compensation?.fixedSecurityDeductionPkr ?? null,
+      fixedOtherPayPkr: compensation?.fixedOtherPayPkr ?? null,
+      updatedAt: compensation?.updatedAt ?? null,
+    };
+  });
+
+  return { ok: true, data };
 }
 
 export async function getCompensation(

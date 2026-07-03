@@ -74,7 +74,7 @@ function deriveWorkState(
   if (!day?.checkInAt) {
     return "not_checked_in";
   }
-  if (day.checkOutAt || day.isMissedCheckout) {
+  if (day.checkOutAt) {
     return "checked_out";
   }
   if (activeBreak) {
@@ -109,7 +109,7 @@ export function buildTodayStatus(
     day.checkOutAt == null &&
     isEarlyLeaveForCompany(now, day.shiftDate, shiftConfig);
 
-  const hasOpenShift = day?.checkInAt != null && day.checkOutAt == null && !day.isMissedCheckout;
+  const hasOpenShift = day?.checkInAt != null && day.checkOutAt == null;
 
   const warnings: string[] = [];
   if (isWeekendOff) {
@@ -121,9 +121,9 @@ export function buildTodayStatus(
   if (day?.isEarlyLeave) {
     warnings.push(`You checked out early (before ${shiftScheduleLabels.expectedCheckOutTime}).`);
   }
-  if (day?.isMissedCheckout) {
+  if (day?.isMissedCheckout && !day.checkOutAt) {
     warnings.push(
-      `This shift was marked absent because you did not check out by ${shiftScheduleLabels.lateCheckOutDeadline}.`,
+      `You checked in but have not checked out yet. Check-out time will appear here once recorded.`,
     );
   }
   if (wouldBeEarlyLeave && state !== "checked_out") {
@@ -135,11 +135,10 @@ export function buildTodayStatus(
   if (
     hasOpenShift &&
     day &&
-    isPastMissedCheckOutDeadlineForCompany(now, day.shiftDate, shiftConfig) &&
-    !day.isMissedCheckout
+    isPastMissedCheckOutDeadlineForCompany(now, day.shiftDate, shiftConfig)
   ) {
     warnings.push(
-      `You missed the check-out deadline (${shiftScheduleLabels.lateCheckOutDeadline}). Check out now or this shift may be marked absent.`,
+      `You missed the check-out deadline (${shiftScheduleLabels.lateCheckOutDeadline}). Check out now to record your check-out time.`,
     );
   } else if (
     hasOpenShift &&

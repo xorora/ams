@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, gte, lte } from "drizzle-orm";
 import { db } from "@/db";
 import { attendanceDays, employees } from "@/db/schema";
-import { assignLateFinesByShiftDate, computeLateFineTotals } from "@/lib/attendance/late-fines";
+import { effectiveAttendanceStatus } from "@/lib/attendance/effective-status";
 import { countWorkingDays } from "@/lib/leave/working-days";
 import type { AttendanceListItem } from "./attendance-service";
 import { getEmployee } from "./employees-service";
@@ -142,7 +142,7 @@ function mapAttendanceRow(
     employeeName: employee.fullName,
     employeeEmail: employee.email,
     shiftDate: row.shiftDate,
-    status: row.status,
+    status: effectiveAttendanceStatus(row),
     source: row.source,
     checkInAt: row.checkInAt,
     checkOutAt: row.checkOutAt,

@@ -82,7 +82,9 @@ export function ReportsEmployeeTable({ days, resetDeps, className }: ReportsEmpl
           <span className="text-xs">
             {row.original.isLate && <span className="mr-1 text-amber-700">Late</span>}
             {row.original.isEarlyLeave && <span className="mr-1 text-amber-700">Early</span>}
-            {row.original.isMissedCheckout && <span className="text-destructive">No checkout</span>}
+            {row.original.isMissedCheckout && !row.original.checkOutAt && (
+              <span className="text-muted-foreground">No checkout</span>
+            )}
             {!row.original.isLate &&
               !row.original.isEarlyLeave &&
               !row.original.isMissedCheckout &&
