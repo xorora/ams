@@ -9,6 +9,8 @@ import {
   LATE_FINE_AMOUNT_PKR,
   MONTHLY_LATE_ALLOWANCE,
 } from "@/lib/attendance/late-fines-utils";
+import { getLiveBreakSeconds, getLiveElapsedShiftSeconds } from "@/lib/attendance/live-shift-time";
+import { MAX_BREAK_SECONDS } from "@/lib/attendance/constants";
 import type { SerializedTodayStatus } from "@/lib/attendance/serialize";
 import type { WorkState } from "@/lib/attendance/status";
 
@@ -19,18 +21,6 @@ const STATE_LABELS: Record<WorkState, string> = {
   checked_out: "Checked out",
 };
 
-function getLiveElapsedShiftSeconds(status: SerializedTodayStatus, now: Date): number | null {
-  if (status.elapsedShiftSeconds == null) {
-    return null;
-  }
-  if (status.state !== "checked_in" && status.state !== "on_break") {
-    return status.elapsedShiftSeconds;
-  }
-  const statusAt = new Date(status.statusAt).getTime();
-  const deltaSeconds = Math.max(0, Math.floor((now.getTime() - statusAt) / 1000));
-  return status.elapsedShiftSeconds + deltaSeconds;
-}
-
 type EmployeeStatusCardProps = {
   status: SerializedTodayStatus;
 };
@@ -39,10 +29,15 @@ export function EmployeeStatusCard({ status }: EmployeeStatusCardProps) {
   const [elapsedShiftSeconds, setElapsedShiftSeconds] = useState<number | null>(() =>
     getLiveElapsedShiftSeconds(status, new Date()),
   );
+  const [liveBreakSeconds, setLiveBreakSeconds] = useState(() =>
+    getLiveBreakSeconds(status, new Date()),
+  );
 
   useEffect(() => {
     const tick = () => {
-      setElapsedShiftSeconds(getLiveElapsedShiftSeconds(status, new Date()));
+      const now = new Date();
+      setElapsedShiftSeconds(getLiveElapsedShiftSeconds(status, now));
+      setLiveBreakSeconds(getLiveBreakSeconds(status, now));
     };
     tick();
     const id = window.setInterval(tick, 1000);
@@ -97,8 +92,8 @@ export function EmployeeStatusCard({ status }: EmployeeStatusCardProps) {
 
         {status.state !== "checked_out" && (
           <p className="mt-3 text-muted-foreground text-sm">
-            Break used: {formatShiftDuration(status.totalBreakSeconds)} / 60:00 · Remaining:&nbsp;
-            {formatShiftDuration(status.breakRemainingSeconds)}
+            Break used: {formatShiftDuration(liveBreakSeconds)} / 60:00 · Remaining:&nbsp;
+            {formatShiftDuration(Math.max(0, MAX_BREAK_SECONDS - liveBreakSeconds))}
           </p>
         )}
 
