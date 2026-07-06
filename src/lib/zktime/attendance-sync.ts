@@ -6,6 +6,7 @@ import {
   relinkMachinePunchesToEmployees,
   runProcessMachinePunchesJob,
 } from "@/lib/attendance/machine-punch-processor";
+import { reconcileAttendanceFromLogForEmployees } from "@/lib/attendance/attendance-log-sync";
 import type { ZktimeClient } from "@/lib/zktime/client";
 import { getZktimeTimezone, resolveAttendanceSyncSince } from "@/lib/zktime/config";
 import { advanceLastAttendanceNextSince } from "@/lib/zktime/sync-state";
@@ -131,7 +132,10 @@ export async function syncAttendanceFromZktime(
   let processed = 0;
   if (employeeIds.length > 0) {
     const jobResult = await runProcessMachinePunchesJob({ employeeIds });
-    processed = jobResult.inserted;
+    const backfilled = await reconcileAttendanceFromLogForEmployees(employeeIds, new Date(), {
+      skipPunchJob: true,
+    });
+    processed = jobResult.inserted + backfilled;
   }
 
   if (nextSince) {

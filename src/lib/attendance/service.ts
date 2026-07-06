@@ -11,6 +11,7 @@ import {
   type CompanyShiftConfig,
 } from "./company-shift";
 import { findActiveOpenShift } from "./close-open-shift";
+import { reconcileEmployeeAttendanceFromLog } from "./attendance-log-sync";
 import type { Coordinates } from "./coords";
 import {
   getEmployeeCompanySlug,
@@ -110,13 +111,19 @@ async function resolveShiftAttendance(
   const current = await loadShiftAttendance(employeeId, shiftDate);
 
   if (current.day) {
-    if (
-      hasActiveShift(current.day) &&
-      !isActiveShiftWindow(current.day.shiftDate, now, shiftConfig)
-    ) {
-      return { day: null, sessions: [], shiftConfig, shiftDate };
+    const logShowsPresent =
+      current.day.checkInAt != null ||
+      (current.day.status === "present" && current.day.checkOutAt == null);
+
+    if (logShowsPresent && isActiveShiftWindow(current.day.shiftDate, now, shiftConfig)) {
+      return { ...current, shiftConfig, shiftDate };
     }
-    return { ...current, shiftConfig, shiftDate };
+
+    if (!hasActiveShift(current.day)) {
+      return { ...current, shiftConfig, shiftDate };
+    }
+
+    return { day: null, sessions: [], shiftConfig, shiftDate };
   }
 
   const openShift = await findActiveOpenShift(employeeId, now);
@@ -158,6 +165,7 @@ export async function getTodayStatus(
   employeeId: string,
 ): Promise<ServiceSuccess<TodayStatusPayload>> {
   const now = new Date();
+  await reconcileEmployeeAttendanceFromLog(employeeId, now);
   const { day, sessions, shiftConfig, shiftDate } = await resolveShiftAttendance(employeeId, now);
   const monthlyLate = await getEmployeeMonthlyLateSummary(employeeId, shiftDate, {
     includeTodayLate: true,
