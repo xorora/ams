@@ -1,6 +1,7 @@
 import { and, desc, eq, isNotNull, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
-import { attendanceDays, breakSessions } from "@/db/schema";
+import { attendanceDays, breakSessions, companies, employees } from "@/db/schema";
+import { getCompanyShiftConfig, isActiveShiftWindow } from "./company-shift";
 import {
   type BreakSessionInput,
   computeTotalBreakSeconds,
@@ -52,6 +53,31 @@ export async function findOpenShift(employeeId: string): Promise<OpenShiftInfo |
     checkInAt: day.checkInAt,
     state: getActiveBreak(breakInputs) ? "on_break" : "checked_in",
   };
+}
+
+/** Open shift that is still within the active check-out window for the employee's company. */
+export async function findActiveOpenShift(
+  employeeId: string,
+  now: Date = new Date(),
+): Promise<OpenShiftInfo | null> {
+  const open = await findOpenShift(employeeId);
+  if (!open) {
+    return null;
+  }
+
+  const [row] = await db
+    .select({ slug: companies.slug })
+    .from(employees)
+    .innerJoin(companies, eq(employees.companyId, companies.id))
+    .where(eq(employees.id, employeeId))
+    .limit(1);
+
+  const config = getCompanyShiftConfig(row?.slug ?? "xorora");
+  if (!isActiveShiftWindow(open.shiftDate, now, config)) {
+    return null;
+  }
+
+  return open;
 }
 
 const DEACTIVATION_NOTE = "Shift closed on employee deactivation.";

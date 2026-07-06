@@ -179,6 +179,22 @@ export function isPastMissedCheckOutDeadlineForCompany(
 }
 
 /**
+ * Whether an open shift for `shiftDate` should still drive the employee dashboard.
+ * Returns false once the check-out grace deadline has passed so a new shift day can start.
+ */
+export function isActiveShiftWindow(
+  shiftDate: string,
+  at: Date,
+  config: CompanyShiftConfig,
+): boolean {
+  const currentShiftDate = getShiftDateForCompany(at, config);
+  if (shiftDate > currentShiftDate) {
+    return false;
+  }
+  return !isPastMissedCheckOutDeadlineForCompany(at, shiftDate, config);
+}
+
+/**
  * Shift date to evaluate when the daily absent / missed-checkout cron runs (~04:00 PKT).
  * Night shift uses the noon boundary; day shift uses the previous calendar date.
  */
@@ -190,12 +206,11 @@ export function getAutoAbsentShiftDateForCompany(runAt: Date, config: CompanyShi
   return getShiftDateForCompany(runAt, config);
 }
 
-/** Default admin attendance filter: current shift date plus prior day (night-shift checkouts). */
+/** Default admin attendance filter: current shift date only. */
 export function getDefaultAttendanceFilterRange(
   at: Date,
   config: CompanyShiftConfig,
 ): { from: string; to: string } {
-  const to = getShiftDateForCompany(at, config);
-  const from = shiftDateAddDays(to, -1);
-  return { from, to };
+  const shiftDate = getShiftDateForCompany(at, config);
+  return { from: shiftDate, to: shiftDate };
 }

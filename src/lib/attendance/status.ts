@@ -103,9 +103,10 @@ export function buildTodayStatus(
   monthlyLate: MonthlyLateSummary,
   shiftConfig: CompanyShiftConfig,
   now: Date = new Date(),
+  shiftDateOverride?: string,
 ): TodayStatusPayload {
   const shiftScheduleLabels = getShiftScheduleLabels(shiftConfig);
-  const shiftDate = day?.shiftDate ?? getShiftDateForCompany(now, shiftConfig);
+  const shiftDate = shiftDateOverride ?? day?.shiftDate ?? getShiftDateForCompany(now, shiftConfig);
   const isWeekendOff = isWeekendDate(shiftDate);
   const activeBreak = getActiveBreak(breakSessions);
   const state = deriveWorkState(day, activeBreak);
