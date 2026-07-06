@@ -1,6 +1,8 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { employees, users } from "@/db/schema";
+import { findEmployeeByCodeVariants } from "@/lib/admin/employee-identity";
+import { linkUserToEmployeeRecord } from "@/lib/auth/employee-link";
 import { defaultProbationValues } from "@/lib/admin/probation";
 import { getDefaultCompanyId } from "@/lib/auth/company";
 import { hashPassword, validatePassword, verifyPassword } from "@/lib/auth/password";
@@ -27,9 +29,7 @@ function displayName(email: string, name?: string | null): string {
 }
 
 async function linkUserToEmployee(userId: string, employeeId: string): Promise<void> {
-  const now = new Date();
-  await db.update(employees).set({ userId, updatedAt: now }).where(eq(employees.id, employeeId));
-  await db.update(users).set({ employeeId, updatedAt: now }).where(eq(users.id, userId));
+  await linkUserToEmployeeRecord(userId, employeeId);
 }
 
 async function resolveBootstrapRole(email: string): Promise<"admin" | "employee"> {
@@ -143,13 +143,9 @@ async function createUserWithEmployee(
 ): Promise<AuthenticatedUser> {
   const fullName = displayName(email, name);
   const role = await resolveBootstrapRole(email);
-  const [employeeByCode] = await db
-    .select()
-    .from(employees)
-    .where(eq(employees.employeeCode, employeeCode))
-    .limit(1);
+  const employeeMatch = await findEmployeeByCodeVariants(employeeCode);
 
-  if (role === "admin" && !employeeByCode) {
+  if (role === "admin" && !employeeMatch) {
     const [createdUser] = await db
       .insert(users)
       .values({
@@ -163,8 +159,8 @@ async function createUserWithEmployee(
     return createdUser;
   }
 
-  if (employeeByCode) {
-    await assertEmployeeAvailable(employeeByCode, null);
+  if (employeeMatch) {
+    await assertEmployeeAvailable(employeeMatch, null);
 
     const [createdUser] = await db
       .insert(users)
@@ -173,7 +169,7 @@ async function createUserWithEmployee(
         name: fullName,
         passwordHash,
         role,
-        employeeId: employeeByCode.id,
+        employeeId: employeeMatch.id,
       })
       .returning();
 
@@ -182,11 +178,11 @@ async function createUserWithEmployee(
       .update(employees)
       .set({
         email,
-        fullName: name?.trim() || employeeByCode.fullName,
+        fullName: name?.trim() || employeeMatch.fullName,
         userId: createdUser.id,
         updatedAt: now,
       })
-      .where(eq(employees.id, employeeByCode.id));
+      .where(eq(employees.id, employeeMatch.id));
 
     return createdUser;
   }
@@ -233,11 +229,7 @@ export async function authenticateWithCredentials(
 
   const passwordHash = await hashPassword(password);
   const [existingUser] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-  const [employeeByCode] = await db
-    .select()
-    .from(employees)
-    .where(eq(employees.employeeCode, employeeCode))
-    .limit(1);
+  const employeeMatch = await findEmployeeByCodeVariants(employeeCode);
 
   if (existingUser) {
     if (!existingUser.passwordHash) {
@@ -249,7 +241,7 @@ export async function authenticateWithCredentials(
       throw new Error("Invalid email or password.");
     }
 
-    if (existingUser.role === "admin" && !employeeByCode) {
+    if (existingUser.role === "admin" && !employeeMatch) {
       const [updatedAdmin] = await db
         .update(users)
         .set({
@@ -262,8 +254,8 @@ export async function authenticateWithCredentials(
       return updatedAdmin ?? existingUser;
     }
 
-    if (employeeByCode) {
-      return linkExistingEmployee(employeeByCode, existingUser, email, passwordHash, input.name);
+    if (employeeMatch) {
+      return linkExistingEmployee(employeeMatch, existingUser, email, passwordHash, input.name);
     }
 
     const fullName = displayName(email, input.name);

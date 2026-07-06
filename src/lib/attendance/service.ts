@@ -168,13 +168,21 @@ async function loadEmployeeShiftConfig(employeeId: string) {
   return getCompanyShiftConfig(companySlug ?? "xorora");
 }
 
+async function resolveEmployeeId(employeeId: string, now: Date = new Date()): Promise<string> {
+  return resolveEmployeeIdForAttendance(employeeId, now);
+}
+
 export async function getTodayStatus(
   employeeId: string,
 ): Promise<ServiceSuccess<TodayStatusPayload>> {
   const now = new Date();
-  await reconcileEmployeeAttendanceFromLog(employeeId, now);
-  const { day, sessions, shiftConfig, shiftDate } = await resolveShiftAttendance(employeeId, now);
-  const monthlyLate = await getEmployeeMonthlyLateSummary(employeeId, shiftDate, {
+  const resolvedEmployeeId = await resolveEmployeeIdForAttendance(employeeId, now);
+  await reconcileEmployeeAttendanceFromLog(resolvedEmployeeId, now);
+  const { day, sessions, shiftConfig, shiftDate } = await resolveShiftAttendance(
+    resolvedEmployeeId,
+    now,
+  );
+  const monthlyLate = await getEmployeeMonthlyLateSummary(resolvedEmployeeId, shiftDate, {
     includeTodayLate: true,
   });
   const status = buildTodayStatus(day, sessions, monthlyLate, shiftConfig, now, shiftDate);
@@ -182,7 +190,7 @@ export async function getTodayStatus(
   const [employee] = await db
     .select({ isActive: employees.isActive })
     .from(employees)
-    .where(eq(employees.id, employeeId))
+    .where(eq(employees.id, resolvedEmployeeId))
     .limit(1);
 
   if (employee && !employee.isActive) {
@@ -214,13 +222,14 @@ export async function checkIn(
   }
 
   const now = new Date();
-  const shiftConfig = await loadEmployeeShiftConfig(employeeId);
+  const resolvedEmployeeId = await resolveEmployeeId(employeeId, now);
+  const shiftConfig = await loadEmployeeShiftConfig(resolvedEmployeeId);
   const shiftDate = getShiftDateForCompany(now, shiftConfig);
   if (isWeekendDate(shiftDate)) {
     return weekendOffFailure();
   }
 
-  const openShift = await findActiveOpenShift(employeeId, now);
+  const openShift = await findActiveOpenShift(resolvedEmployeeId, now);
   if (openShift && openShift.shiftDate !== shiftDate) {
     return failure(
       409,
@@ -229,7 +238,7 @@ export async function checkIn(
     );
   }
 
-  const { day } = await loadShiftAttendance(employeeId, shiftDate);
+  const { day } = await loadShiftAttendance(resolvedEmployeeId, shiftDate);
 
   if (day?.checkInAt || (day?.status === "present" && !day?.checkOutAt)) {
     return failure(409, "ALREADY_CHECKED_IN", "You have already checked in for this shift.");
@@ -241,7 +250,7 @@ export async function checkIn(
 
   const isLate = lateFlagForCheckIn(now, shiftDate, shiftConfig);
   const priorMonthlyLates = isLate
-    ? await countMonthlyLatesBeforeCheckIn(employeeId, shiftDate)
+    ? await countMonthlyLatesBeforeCheckIn(resolvedEmployeeId, shiftDate)
     : 0;
 
   if (day) {
@@ -259,7 +268,7 @@ export async function checkIn(
       .where(eq(attendanceDays.id, day.id));
   } else {
     await db.insert(attendanceDays).values({
-      employeeId,
+      employeeId: resolvedEmployeeId,
       shiftDate,
       status: "present",
       source: "auto",
@@ -287,7 +296,8 @@ export async function checkOut(
   }
 
   const now = new Date();
-  const { day, sessions, shiftConfig } = await resolveShiftAttendance(employeeId, now);
+  const resolvedEmployeeId = await resolveEmployeeId(employeeId, now);
+  const { day, sessions, shiftConfig } = await resolveShiftAttendance(resolvedEmployeeId, now);
   const shiftSchedule = getShiftScheduleLabels(shiftConfig);
 
   if (!day?.checkInAt && day?.status !== "present") {
@@ -341,7 +351,8 @@ export async function startBreak(
   }
 
   const now = new Date();
-  const { day, sessions } = await resolveShiftAttendance(employeeId, now);
+  const resolvedEmployeeId = await resolveEmployeeId(employeeId, now);
+  const { day, sessions } = await resolveShiftAttendance(resolvedEmployeeId, now);
 
   if (!day?.checkInAt && day?.status !== "present") {
     return failure(400, "NOT_CHECKED_IN", "Check in before starting a break.");
@@ -375,7 +386,8 @@ export async function endBreak(
   }
 
   const now = new Date();
-  const { day, sessions } = await resolveShiftAttendance(employeeId, now);
+  const resolvedEmployeeId = await resolveEmployeeId(employeeId, now);
+  const { day, sessions } = await resolveShiftAttendance(resolvedEmployeeId, now);
 
   if (!day?.checkInAt && day?.status !== "present") {
     return failure(400, "NOT_CHECKED_IN", "Check in before ending a break.");
