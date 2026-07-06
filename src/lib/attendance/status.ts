@@ -67,15 +67,29 @@ export type TodayStatusPayload = {
   };
 };
 
+/** Open shift: checked in (or marked present) without a check-out yet. */
+export function hasActiveShift(day: AttendanceDaySnapshot | null): boolean {
+  if (!day || day.checkOutAt != null) {
+    return false;
+  }
+  if (day.checkInAt != null) {
+    return true;
+  }
+  return day.status === "present";
+}
+
 function deriveWorkState(
   day: AttendanceDaySnapshot | null,
   activeBreak: BreakSessionInput | undefined,
 ): WorkState {
-  if (!day?.checkInAt) {
+  if (!day) {
     return "not_checked_in";
   }
-  if (day.checkOutAt) {
+  if (day.checkOutAt != null && day.checkInAt == null) {
     return "checked_out";
+  }
+  if (!hasActiveShift(day)) {
+    return day.checkOutAt != null ? "checked_out" : "not_checked_in";
   }
   if (activeBreak) {
     return "on_break";
@@ -91,7 +105,7 @@ export function buildTodayStatus(
   now: Date = new Date(),
 ): TodayStatusPayload {
   const shiftScheduleLabels = getShiftScheduleLabels(shiftConfig);
-  const shiftDate = getShiftDateForCompany(now, shiftConfig);
+  const shiftDate = day?.shiftDate ?? getShiftDateForCompany(now, shiftConfig);
   const isWeekendOff = isWeekendDate(shiftDate);
   const activeBreak = getActiveBreak(breakSessions);
   const state = deriveWorkState(day, activeBreak);
@@ -109,7 +123,7 @@ export function buildTodayStatus(
     day.checkOutAt == null &&
     isEarlyLeaveForCompany(now, day.shiftDate, shiftConfig);
 
-  const hasOpenShift = day?.checkInAt != null && day.checkOutAt == null;
+  const hasOpenShift = hasActiveShift(day);
 
   const warnings: string[] = [];
   if (isWeekendOff) {
@@ -185,7 +199,7 @@ export function buildTodayStatus(
     monthlyLate,
     warnings,
     actions: {
-      canCheckIn: !isWeekendOff && !day?.checkInAt,
+      canCheckIn: !isWeekendOff && !hasOpenShift,
       canCheckOut: hasOpenShift && !activeBreak,
       canStartBreak: hasOpenShift && startBreakResult.ok,
       canEndBreak: hasOpenShift && endBreakResult.ok,

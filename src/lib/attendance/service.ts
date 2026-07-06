@@ -7,7 +7,9 @@ import {
   getShiftDateForCompany,
   getShiftScheduleLabels,
   isEarlyLeaveForCompany,
+  type CompanyShiftConfig,
 } from "./company-shift";
+import { findOpenShift } from "./close-open-shift";
 import type { Coordinates } from "./coords";
 import {
   getEmployeeCompanySlug,
@@ -89,6 +91,27 @@ async function loadShiftAttendance(employeeId: string, shiftDate: string) {
   return { day: toDaySnapshot(day), sessions: breakInputs };
 }
 
+type ShiftAttendanceContext = {
+  day: AttendanceDaySnapshot | null;
+  sessions: BreakSessionInput[];
+  shiftConfig: CompanyShiftConfig;
+  shiftDate: string;
+};
+
+/** Resolves the shift day the employee is on, including open shifts from prior shift dates. */
+async function resolveShiftAttendance(
+  employeeId: string,
+  now: Date,
+): Promise<ShiftAttendanceContext> {
+  const shiftConfig = await loadEmployeeShiftConfig(employeeId);
+  const calendarShiftDate = getShiftDateForCompany(now, shiftConfig);
+  const openShift = await findOpenShift(employeeId);
+  const shiftDate = openShift?.shiftDate ?? calendarShiftDate;
+  const { day, sessions } = await loadShiftAttendance(employeeId, shiftDate);
+
+  return { day, sessions, shiftConfig, shiftDate };
+}
+
 async function guardEmployeeAndGeofence(
   employeeId: string,
   coords: Coordinates,
@@ -117,9 +140,7 @@ export async function getTodayStatus(
   employeeId: string,
 ): Promise<ServiceSuccess<TodayStatusPayload>> {
   const now = new Date();
-  const shiftConfig = await loadEmployeeShiftConfig(employeeId);
-  const shiftDate = getShiftDateForCompany(now, shiftConfig);
-  const { day, sessions } = await loadShiftAttendance(employeeId, shiftDate);
+  const { day, sessions, shiftConfig, shiftDate } = await resolveShiftAttendance(employeeId, now);
   const monthlyLate = await getEmployeeMonthlyLateSummary(employeeId, shiftDate, {
     includeTodayLate: true,
   });
@@ -166,9 +187,18 @@ export async function checkIn(
     return weekendOffFailure();
   }
 
+  const openShift = await findOpenShift(employeeId);
+  if (openShift && openShift.shiftDate !== shiftDate) {
+    return failure(
+      409,
+      "OPEN_SHIFT",
+      `You still have an open shift for ${openShift.shiftDate}. Check out before starting a new shift.`,
+    );
+  }
+
   const { day } = await loadShiftAttendance(employeeId, shiftDate);
 
-  if (day?.checkInAt) {
+  if (day?.checkInAt || (day?.status === "present" && !day?.checkOutAt)) {
     return failure(409, "ALREADY_CHECKED_IN", "You have already checked in for this shift.");
   }
 
@@ -224,12 +254,10 @@ export async function checkOut(
   }
 
   const now = new Date();
-  const shiftConfig = await loadEmployeeShiftConfig(employeeId);
+  const { day, sessions, shiftConfig } = await resolveShiftAttendance(employeeId, now);
   const shiftSchedule = getShiftScheduleLabels(shiftConfig);
-  const shiftDate = getShiftDateForCompany(now, shiftConfig);
-  const { day, sessions } = await loadShiftAttendance(employeeId, shiftDate);
 
-  if (!day?.checkInAt) {
+  if (!day?.checkInAt && day?.status !== "present") {
     return failure(400, "NOT_CHECKED_IN", "Check in before checking out.");
   }
 
@@ -280,11 +308,9 @@ export async function startBreak(
   }
 
   const now = new Date();
-  const shiftConfig = await loadEmployeeShiftConfig(employeeId);
-  const shiftDate = getShiftDateForCompany(now, shiftConfig);
-  const { day, sessions } = await loadShiftAttendance(employeeId, shiftDate);
+  const { day, sessions } = await resolveShiftAttendance(employeeId, now);
 
-  if (!day?.checkInAt) {
+  if (!day?.checkInAt && day?.status !== "present") {
     return failure(400, "NOT_CHECKED_IN", "Check in before starting a break.");
   }
 
@@ -316,11 +342,9 @@ export async function endBreak(
   }
 
   const now = new Date();
-  const shiftConfig = await loadEmployeeShiftConfig(employeeId);
-  const shiftDate = getShiftDateForCompany(now, shiftConfig);
-  const { day, sessions } = await loadShiftAttendance(employeeId, shiftDate);
+  const { day, sessions } = await resolveShiftAttendance(employeeId, now);
 
-  if (!day?.checkInAt) {
+  if (!day?.checkInAt && day?.status !== "present") {
     return failure(400, "NOT_CHECKED_IN", "Check in before ending a break.");
   }
 

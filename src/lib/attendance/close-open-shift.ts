@@ -1,4 +1,4 @@
-import { and, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
 import { attendanceDays, breakSessions } from "@/db/schema";
 import {
@@ -13,7 +13,7 @@ export type OpenShiftState = "checked_in" | "on_break";
 export type OpenShiftInfo = {
   attendanceDayId: string;
   shiftDate: string;
-  checkInAt: Date;
+  checkInAt: Date | null;
   state: OpenShiftState;
 };
 
@@ -24,13 +24,14 @@ export async function findOpenShift(employeeId: string): Promise<OpenShiftInfo |
     .where(
       and(
         eq(attendanceDays.employeeId, employeeId),
-        isNotNull(attendanceDays.checkInAt),
         isNull(attendanceDays.checkOutAt),
+        or(isNotNull(attendanceDays.checkInAt), eq(attendanceDays.status, "present")),
       ),
     )
+    .orderBy(desc(attendanceDays.shiftDate))
     .limit(1);
 
-  if (!day?.checkInAt) {
+  if (!day || (!day.checkInAt && day.status !== "present")) {
     return null;
   }
 
@@ -81,7 +82,10 @@ export async function closeOpenShiftForEmployee(
     .where(eq(attendanceDays.id, open.attendanceDayId))
     .limit(1);
 
-  if (!day?.checkInAt || day.checkOutAt) {
+  if (!day || day.checkOutAt) {
+    return { closed: false, attendanceDayId: null };
+  }
+  if (!day.checkInAt && day.status !== "present") {
     return { closed: false, attendanceDayId: null };
   }
 
