@@ -279,7 +279,10 @@ export async function relinkMachinePunchesToEmployees(): Promise<number> {
     FROM employees AS e
     WHERE mp.employee_id IS NULL
       AND mp.machine_emp_code IS NOT NULL
-      AND e.employee_code = mp.machine_emp_code
+      AND (
+        e.employee_code = mp.machine_emp_code
+        OR ltrim(e.employee_code, '0') = ltrim(mp.machine_emp_code, '0')
+      )
   `);
 
   return Number(result.rowCount ?? 0);

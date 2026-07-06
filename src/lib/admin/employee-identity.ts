@@ -31,7 +31,7 @@ function numericCodeVariants(code: string): string[] {
   return [...variants];
 }
 
-function codesMatch(left: string, right: string): boolean {
+export function codesMatch(left: string, right: string): boolean {
   const leftNormalized = normalizeEmployeeCodeForMatch(left);
   const rightNormalized = normalizeEmployeeCodeForMatch(right);
   if (leftNormalized === rightNormalized) {
@@ -67,7 +67,7 @@ export function areLikelyDuplicateEmployees(
   return isSyntheticSyncEmail(left.email) || isSyntheticSyncEmail(right.email);
 }
 
-function pickCanonicalEmployee(candidates: EmployeeRecord[]): EmployeeRecord {
+export function pickCanonicalEmployee(candidates: EmployeeRecord[]): EmployeeRecord {
   return [...candidates].sort((left, right) => {
     if (Boolean(left.userId) !== Boolean(right.userId)) {
       return left.userId ? -1 : 1;

@@ -6,12 +6,12 @@ import {
   getCompanyShiftConfig,
   getShiftDateForCompany,
   getShiftScheduleLabels,
-  isActiveShiftWindow,
   isEarlyLeaveForCompany,
   type CompanyShiftConfig,
 } from "./company-shift";
 import { findActiveOpenShift } from "./close-open-shift";
 import { reconcileEmployeeAttendanceFromLog } from "./attendance-log-sync";
+import { resolveEmployeeIdForAttendance } from "./employee-attendance-identity";
 import type { Coordinates } from "./coords";
 import {
   getEmployeeCompanySlug,
@@ -134,7 +134,7 @@ async function resolveShiftAttendance(
     .orderBy(desc(attendanceDays.shiftDate))
     .limit(1);
 
-  if (recentLogRow && isActiveShiftWindow(recentLogRow.shiftDate, now, shiftConfig)) {
+  if (recentLogRow) {
     const loaded = await loadShiftAttendance(employeeId, recentLogRow.shiftDate);
     if (loaded.day) {
       return { ...loaded, shiftConfig, shiftDate: recentLogRow.shiftDate };
