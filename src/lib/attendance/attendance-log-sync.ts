@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
 import { attendanceDays, companies, employees, machinePunches } from "@/db/schema";
 import {
@@ -10,6 +10,7 @@ import {
 } from "./company-shift";
 import {
   parseMachinePunchDirection,
+  relinkMachinePunchesToEmployees,
   runProcessMachinePunchesJob,
 } from "./machine-punch-processor";
 
@@ -95,6 +96,42 @@ async function loadEmployeeShiftConfig(employeeId: string): Promise<CompanyShift
   return getCompanyShiftConfig(row?.slug ?? "xorora");
 }
 
+async function loadPunchesForEmployee(employeeId: string): Promise<
+  { punchAt: Date; rawPunchAt: string | null }[]
+> {
+  const [employee] = await db
+    .select({ employeeCode: employees.employeeCode })
+    .from(employees)
+    .where(eq(employees.id, employeeId))
+    .limit(1);
+
+  if (!employee) {
+    return [];
+  }
+
+  const codeVariants = [
+    employee.employeeCode,
+    employee.employeeCode.replace(/^0+/, "") || "0",
+    employee.employeeCode.padStart(3, "0"),
+  ];
+
+  return await db
+    .select({
+      punchAt: machinePunches.punchAt,
+      rawPunchAt: machinePunches.rawPunchAt,
+    })
+    .from(machinePunches)
+    .where(
+      or(
+        eq(machinePunches.employeeId, employeeId),
+        and(
+          isNull(machinePunches.employeeId),
+          inArray(machinePunches.machineEmpCode, [...new Set(codeVariants)]),
+        ),
+      ),
+    );
+}
+
 async function backfillShiftRowFromPunches(
   employeeId: string,
   shiftDate: string,
@@ -106,13 +143,7 @@ async function backfillShiftRowFromPunches(
     .where(and(eq(attendanceDays.employeeId, employeeId), eq(attendanceDays.shiftDate, shiftDate)))
     .limit(1);
 
-  const punches = await db
-    .select({
-      punchAt: machinePunches.punchAt,
-      rawPunchAt: machinePunches.rawPunchAt,
-    })
-    .from(machinePunches)
-    .where(eq(machinePunches.employeeId, employeeId));
+  const punches = await loadPunchesForEmployee(employeeId);
 
   const shiftPunches = punches
     .map((punch) => ({
@@ -186,11 +217,22 @@ export async function reconcileEmployeeAttendanceFromLog(
   employeeId: string,
   now: Date = new Date(),
 ): Promise<void> {
+  await relinkMachinePunchesToEmployees();
+
   const shiftConfig = await loadEmployeeShiftConfig(employeeId);
   const shiftDate = getShiftDateForCompany(now, shiftConfig);
 
   await runProcessMachinePunchesJob({ employeeIds: [employeeId] });
-  await backfillShiftRowFromPunches(employeeId, shiftDate, shiftConfig);
+
+  const punches = await loadPunchesForEmployee(employeeId);
+  const shiftDates = new Set<string>([shiftDate]);
+  for (const punch of punches) {
+    shiftDates.add(getShiftDateForCompany(punch.punchAt, shiftConfig));
+  }
+
+  for (const date of [...shiftDates].sort()) {
+    await backfillShiftRowFromPunches(employeeId, date, shiftConfig);
+  }
 }
 
 /** Reconcile attendance log check-ins for many employees (e.g. after a device pull). */
@@ -205,6 +247,7 @@ export async function reconcileAttendanceFromLogForEmployees(
   }
 
   if (!options.skipPunchJob) {
+    await relinkMachinePunchesToEmployees();
     await runProcessMachinePunchesJob({ employeeIds: uniqueIds });
   }
 

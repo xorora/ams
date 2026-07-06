@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
 import { attendanceDays, breakSessions, employees } from "@/db/schema";
 import { isWeekendDate } from "@/lib/leave/working-days";
@@ -33,7 +33,6 @@ import {
 import {
   type AttendanceDaySnapshot,
   buildTodayStatus,
-  hasActiveShift,
   lateFlagForCheckIn,
   type TodayStatusPayload,
 } from "./status";
@@ -111,26 +110,34 @@ async function resolveShiftAttendance(
   const current = await loadShiftAttendance(employeeId, shiftDate);
 
   if (current.day) {
-    const logShowsPresent =
-      current.day.checkInAt != null ||
-      (current.day.status === "present" && current.day.checkOutAt == null);
-
-    if (logShowsPresent && isActiveShiftWindow(current.day.shiftDate, now, shiftConfig)) {
-      return { ...current, shiftConfig, shiftDate };
-    }
-
-    if (!hasActiveShift(current.day)) {
-      return { ...current, shiftConfig, shiftDate };
-    }
-
-    return { day: null, sessions: [], shiftConfig, shiftDate };
+    return { ...current, shiftConfig, shiftDate };
   }
 
   const openShift = await findActiveOpenShift(employeeId, now);
   if (openShift) {
     const prior = await loadShiftAttendance(employeeId, openShift.shiftDate);
     if (prior.day) {
-      return { ...prior, shiftConfig, shiftDate };
+      return { ...prior, shiftConfig, shiftDate: prior.day.shiftDate };
+    }
+  }
+
+  const [recentLogRow] = await db
+    .select()
+    .from(attendanceDays)
+    .where(
+      and(
+        eq(attendanceDays.employeeId, employeeId),
+        or(isNotNull(attendanceDays.checkInAt), eq(attendanceDays.status, "present")),
+        isNull(attendanceDays.checkOutAt),
+      ),
+    )
+    .orderBy(desc(attendanceDays.shiftDate))
+    .limit(1);
+
+  if (recentLogRow && isActiveShiftWindow(recentLogRow.shiftDate, now, shiftConfig)) {
+    const loaded = await loadShiftAttendance(employeeId, recentLogRow.shiftDate);
+    if (loaded.day) {
+      return { ...loaded, shiftConfig, shiftDate: recentLogRow.shiftDate };
     }
   }
 
