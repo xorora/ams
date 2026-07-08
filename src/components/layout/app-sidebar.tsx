@@ -1,6 +1,7 @@
 "use client";
 
 import type { Session } from "next-auth";
+import { BrandMark } from "@/components/layout/brand-mark";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { SignOutButton } from "@/components/layout/sign-out-button";
 import {
@@ -24,8 +25,8 @@ export function AppSidebar({ user, hasLinkedEmployee = false }: AppSidebarProps)
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="border-sidebar-border border-b h-12 flex items-start justify-center">
-        <p className="truncate font-semibold tracking-tight">AMS</p>
+      <SidebarHeader className="flex h-12 items-center border-sidebar-border border-b px-2">
+        <BrandMark />
       </SidebarHeader>
 
       <SidebarContent>

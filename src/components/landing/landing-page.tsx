@@ -1,7 +1,6 @@
 import {
   BarChart3,
   CalendarDays,
-  Clock,
   MapPin,
   Moon,
   ShieldCheck,
@@ -9,6 +8,7 @@ import {
   Timer,
 } from "lucide-react";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
+import { BrandMark } from "@/components/layout/brand-mark";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -99,15 +99,7 @@ export function LandingPage({ callbackUrl, errorMessage }: LandingPageProps) {
 
       <header>
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6">
-          <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-              <Clock className="size-5" />
-            </div>
-            <div>
-              <p className="font-semibold leading-none tracking-tight">AMS</p>
-              <p className="text-muted-foreground text-xs">Attendance Management</p>
-            </div>
-          </div>
+          <BrandMark showSubtitle />
           <Badge variant="secondary" className="font-mono text-xs">
             Asia/Karachi
           </Badge>
