@@ -200,22 +200,31 @@ export async function getTodayStatus(
 ): Promise<ServiceSuccess<TodayStatusPayload>> {
   const now = new Date();
   const resolvedEmployeeId = await resolveEmployeeIdForAttendance(employeeId, now);
-  await reconcileEmployeeAttendanceFromLog(resolvedEmployeeId, now);
-  const { day, sessions, shiftConfig, companySlug, shiftDate } = await resolveShiftAttendance(
-    resolvedEmployeeId,
-    now,
-  );
-  const monthlyLate = await getEmployeeMonthlyLateSummary(resolvedEmployeeId, shiftDate, {
+  const { config: shiftConfig } = await loadEmployeeShiftContext(resolvedEmployeeId);
+  const shiftDate = getShiftDateForCompany(now, shiftConfig);
+  const { day: currentDay } = await loadShiftAttendance(resolvedEmployeeId, shiftDate);
+  const openShift = await findActiveOpenShift(resolvedEmployeeId, now);
+  const openDay = openShift
+    ? (await loadShiftAttendance(resolvedEmployeeId, openShift.shiftDate)).day
+    : null;
+
+  if (!currentDay?.checkInAt && !openDay?.checkInAt) {
+    await reconcileEmployeeAttendanceFromLog(resolvedEmployeeId, now);
+  }
+
+  const { day, sessions, shiftConfig: resolvedShiftConfig, companySlug: resolvedCompanySlug, shiftDate: resolvedShiftDate } =
+    await resolveShiftAttendance(resolvedEmployeeId, now);
+  const monthlyLate = await getEmployeeMonthlyLateSummary(resolvedEmployeeId, resolvedShiftDate, {
     includeTodayLate: true,
   });
   const status = buildTodayStatus(
     day,
     sessions,
     monthlyLate,
-    shiftConfig,
+    resolvedShiftConfig,
     now,
-    shiftDate,
-    companySlug,
+    resolvedShiftDate,
+    resolvedCompanySlug,
   );
 
   const [employee] = await db

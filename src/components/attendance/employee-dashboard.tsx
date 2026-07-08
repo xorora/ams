@@ -36,7 +36,7 @@ function getCurrentPosition(): Promise<GeolocationPosition> {
     navigator.geolocation.getCurrentPosition(resolve, reject, {
       enableHighAccuracy: true,
       timeout: 15_000,
-      maximumAge: 0,
+      maximumAge: 60_000,
     });
   });
 }

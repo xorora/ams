@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import {
@@ -8,7 +9,6 @@ import {
 } from "@/components/attendance/attendance-filters";
 import {
   type AttendanceFormValues,
-  AttendanceSheet,
   type AttendanceStatus,
   attendanceToForm,
   emptyAttendanceForm,
@@ -24,6 +24,11 @@ import {
 import { attendanceListQuery, normalizeAttendanceDateRange } from "@/lib/admin/query-params";
 import type { SerializedAttendance, SerializedEmployee } from "@/lib/admin/serialize";
 import { toastAsync, toastError } from "@/lib/toast";
+
+const AttendanceSheet = dynamic(
+  () => import("@/components/attendance/attendance-sheet").then((module) => module.AttendanceSheet),
+  { loading: () => null },
+);
 
 type AttendanceManagerProps = {
   employees: SerializedEmployee[];
@@ -195,6 +200,8 @@ export function AttendanceManager({
           onOpenChange={(open) => {
             if (!open) {
               closeForm();
+            } else {
+              setFormOpen(true);
             }
           }}
           editingId={editingId}

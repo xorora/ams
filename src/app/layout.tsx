@@ -1,15 +1,21 @@
 import type { Metadata } from "next";
 import { JetBrains_Mono, Poppins } from "next/font/google";
+import { cookies } from "next/headers";
 import type { Session } from "next-auth";
 import { auth } from "@/auth";
 import { ApplicationShell } from "@/components/layout/application-shell";
-import { getCompanies, getSelectedCompanyId } from "@/lib/admin/selected-company";
+import {
+  getCompanies,
+  resolveSelectedCompanyId,
+} from "@/lib/admin/selected-company";
 import { hasLinkedEmployee } from "@/lib/auth/attendance-access";
 import "./globals.css";
 
+const COMPANY_COOKIE = "ams_company";
+
 const fontSans = Poppins({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-poppins",
   display: "swap",
 });
@@ -36,7 +42,9 @@ export default async function RootLayout({
     : false;
   const isAdmin = session?.user?.role === "admin";
   const companies = isAdmin ? await getCompanies() : [];
-  const selectedCompanyId = isAdmin ? await getSelectedCompanyId() : null;
+  const selectedCompanyId = isAdmin
+    ? resolveSelectedCompanyId(companies, (await cookies()).get(COMPANY_COOKIE)?.value)
+    : null;
 
   return (
     <html lang="en" className={`${fontSans.variable} ${fontMono.variable} h-full antialiased`}>

@@ -26,13 +26,17 @@ export default async function AdminAttendancePage({ searchParams }: PageProps) {
   await requireAdminSession();
   const companyId = await requireSelectedCompanyId();
   const params = await searchParams;
-
   const statusParam = params.status ?? "";
-  const [company] = await db
-    .select({ slug: companies.slug, name: companies.name })
-    .from(companies)
-    .where(eq(companies.id, companyId))
-    .limit(1);
+
+  const [[company], employeesResult] = await Promise.all([
+    db
+      .select({ slug: companies.slug, name: companies.name })
+      .from(companies)
+      .where(eq(companies.id, companyId))
+      .limit(1),
+    listEmployees({ companyId }),
+  ]);
+
   const shiftConfig = getCompanyShiftConfig(company?.slug ?? "xorora");
   const defaultShiftRange =
     !params.from && !params.to ? getDefaultAttendanceFilterRange(new Date(), shiftConfig) : null;
@@ -40,6 +44,7 @@ export default async function AdminAttendancePage({ searchParams }: PageProps) {
     params.from ?? defaultShiftRange?.from ?? "",
     params.to ?? defaultShiftRange?.to ?? "",
   );
+
   const filters = {
     from,
     to,
@@ -52,7 +57,6 @@ export default async function AdminAttendancePage({ searchParams }: PageProps) {
       : "") as "" | AttendanceStatus,
   };
 
-  const employeesResult = await listEmployees({ companyId });
   const activeEmployees = employeesResult.ok
     ? employeesResult.data.filter((e) => e.isActive).map((employee) => serializeEmployee(employee))
     : [];

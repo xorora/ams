@@ -3,6 +3,7 @@
 import { asc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
+import { cache } from "react";
 import { db } from "@/db";
 import { companies } from "@/db/schema";
 import { type ActionResult, actionFailure, actionSuccess } from "@/lib/actions/result";
@@ -17,7 +18,7 @@ export type CompanyOption = {
   slug: string;
 };
 
-export async function getCompanies(): Promise<CompanyOption[]> {
+export const getCompanies = cache(async (): Promise<CompanyOption[]> => {
   return db
     .select({
       id: companies.id,
@@ -27,16 +28,15 @@ export async function getCompanies(): Promise<CompanyOption[]> {
     .from(companies)
     .where(eq(companies.isActive, true))
     .orderBy(asc(companies.name));
-}
+});
 
-export async function getSelectedCompanyId(): Promise<string | null> {
-  const activeCompanies = await getCompanies();
+export function resolveSelectedCompanyId(
+  activeCompanies: CompanyOption[],
+  cookieValue: string | undefined,
+): string | null {
   if (activeCompanies.length === 0) {
     return null;
   }
-
-  const cookieStore = await cookies();
-  const cookieValue = cookieStore.get(COMPANY_COOKIE)?.value;
 
   if (cookieValue && activeCompanies.some((company) => company.id === cookieValue)) {
     return cookieValue;
@@ -46,6 +46,12 @@ export async function getSelectedCompanyId(): Promise<string | null> {
   const preferredCompany = activeCompanies.find((company) => company.slug === preferredSlug);
 
   return preferredCompany?.id ?? activeCompanies[0]?.id ?? null;
+}
+
+export async function getSelectedCompanyId(): Promise<string | null> {
+  const activeCompanies = await getCompanies();
+  const cookieStore = await cookies();
+  return resolveSelectedCompanyId(activeCompanies, cookieStore.get(COMPANY_COOKIE)?.value);
 }
 
 export async function requireSelectedCompanyId(): Promise<string> {
