@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DM_Sans, Space_Mono } from "next/font/google";
+import { JetBrains_Mono, Poppins } from "next/font/google";
 import type { Session } from "next-auth";
 import { auth } from "@/auth";
 import { ApplicationShell } from "@/components/layout/application-shell";
@@ -7,15 +7,17 @@ import { getCompanies, getSelectedCompanyId } from "@/lib/admin/selected-company
 import { hasLinkedEmployee } from "@/lib/auth/attendance-access";
 import "./globals.css";
 
-const fontSans = DM_Sans({
+const fontSans = Poppins({
   subsets: ["latin"],
-  variable: "--font-dm-sans",
+  weight: ["300", "400", "500", "600", "700", "800"],
+  variable: "--font-poppins",
+  display: "swap",
 });
 
-const fontMono = Space_Mono({
-  weight: ["400", "700"],
+const fontMono = JetBrains_Mono({
   subsets: ["latin"],
-  variable: "--font-space-mono",
+  variable: "--font-jetbrains-mono",
+  display: "swap",
 });
 
 export const metadata: Metadata = {

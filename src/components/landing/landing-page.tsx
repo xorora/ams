@@ -91,8 +91,8 @@ export function LandingPage({ callbackUrl, errorMessage }: LandingPageProps) {
   return (
     <div className="relative flex min-h-svh flex-col overflow-hidden">
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,oklch(0.92_0.04_250/0.5),transparent)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,oklch(0_0_0/0.25)_1px,transparent_1px),linear-gradient(to_bottom,oklch(0_0_0/0.25)_1px,transparent_1px)] bg-size-[3.5rem_3.5rem] mask-[radial-gradient(ellipse_at_center,black,transparent_70%)] opacity-55" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,oklch(0.92_0.05_275/0.55),transparent)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,oklch(0.5_0.03_275/0.16)_1px,transparent_1px),linear-gradient(to_bottom,oklch(0.5_0.03_275/0.16)_1px,transparent_1px)] bg-size-[3.5rem_3.5rem] mask-[radial-gradient(ellipse_at_center,black,transparent_70%)] opacity-55" />
         <div className="absolute -right-32 top-1/4 size-[28rem] rounded-full bg-primary/5 blur-3xl" />
         <div className="absolute -left-24 bottom-1/4 size-80 rounded-full bg-muted blur-3xl" />
       </div>
@@ -261,7 +261,7 @@ export function LandingPage({ callbackUrl, errorMessage }: LandingPageProps) {
         </section>
       </main>
 
-      <footer className="border-t border-black/6 py-8">
+      <footer className="border-t border-border py-8">
         <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-2 px-6 text-muted-foreground text-sm sm:flex-row">
           <p>AMS — Attendance Management System</p>
           <p className="font-mono text-xs">Timezone: Asia/Karachi (PKT)</p>
