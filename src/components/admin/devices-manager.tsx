@@ -86,11 +86,14 @@ export function DevicesManager({ unmappedPunches, syncState }: DevicesManagerPro
           return result.data;
         }),
         {
-          loading: "Pushing companies, departments, and employees to device…",
+          loading: "Checking ZKTime and pushing new or changed employees…",
           success: (data) => {
             const failed = data.employeesFailed;
             const skipped =
-              data.skippedUnchanged > 0 ? ` ${data.skippedUnchanged} unchanged (skipped).` : "";
+              data.skippedUnchanged > 0 ? ` ${data.skippedUnchanged} already matched (skipped).` : "";
+            if (data.employeesPushed === 0) {
+              return `Nothing to push.${skipped}`;
+            }
             const base = `${data.employeesPushed} employee(s) pushed across ${data.companies} company(ies) and ${data.departmentsMapped} department group(s). ${data.deviceSyncQueued} queued for device sync.${skipped}`;
             return failed > 0 ? `${base} ${failed} failed.` : base;
           },
@@ -161,7 +164,7 @@ export function DevicesManager({ unmappedPunches, syncState }: DevicesManagerPro
         ) : (
           <div className="flex w-full items-center justify-end gap-5">
             <Button disabled={isPending} onClick={handleEmployeePush} type="button">
-              Push all to device
+              Push changes to device
             </Button>
             <Button disabled={isPending} onClick={handleAttendanceSync} type="button">
               <RefreshCwIcon className="size-4" />

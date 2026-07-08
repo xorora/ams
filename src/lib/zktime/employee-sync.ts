@@ -16,6 +16,11 @@ import {
   pushMasterDataToZktime,
 } from "@/lib/zktime/organizational-push";
 import {
+  employeeNeedsPushToZktime,
+  filterEmployeesNeedingPush,
+  findZktimeEmployeeByCode,
+} from "@/lib/zktime/push-diff";
+import {
   getSyncStateValue,
   setSyncStateValue,
   ZKTIME_LAST_ATTENDANCE_NEXT_SINCE,
@@ -182,6 +187,7 @@ export async function pushEmployeesToZktime(
     departments?: Array<{ id: number; name: string }>;
     employees: ZktimeEmployeeUpsertRequest[];
     queue_to_device?: boolean;
+    forceFull?: boolean;
   },
 ): Promise<EmployeePushResult> {
   if (payload.employees.length === 0) {
@@ -195,19 +201,44 @@ export async function pushEmployeesToZktime(
     };
   }
 
-  const result = await pushMasterDataToZktime(client, payload);
+  let employeesToPush = payload.employees;
+  let locallySkipped = 0;
+
+  if (!payload.forceFull) {
+    const zktimeEmployees = await client.getEmployees();
+    const filtered = filterEmployeesNeedingPush(payload.employees, zktimeEmployees);
+    employeesToPush = filtered.employeesToPush;
+    locallySkipped = filtered.skippedUnchanged;
+  }
+
+  if (employeesToPush.length === 0) {
+    return {
+      pushed: 0,
+      queued: 0,
+      queuedForDevice: 0,
+      skippedUnchanged: locallySkipped,
+      failures: [],
+      employees: [],
+    };
+  }
+
+  const result = await pushMasterDataToZktime(client, {
+    departments: payload.departments,
+    employees: employeesToPush,
+    queue_to_device: payload.queue_to_device,
+  });
   const normalized = normalizeMasterDataSyncResponse(result);
 
   const pushed =
     normalized.employeesSynced > 0
       ? normalized.employeesSynced
-      : payload.employees.length - normalized.failures.length;
+      : employeesToPush.length - normalized.failures.length;
 
   return {
     pushed,
     queued: normalized.queuedForDevice,
     queuedForDevice: normalized.queuedForDevice,
-    skippedUnchanged: normalized.skippedUnchanged,
+    skippedUnchanged: locallySkipped + normalized.skippedUnchanged,
     failures: normalized.failures,
     employees: normalized.employees,
   };
@@ -257,18 +288,23 @@ export async function pushEmployeeById(employeeId: string): Promise<void> {
     buildDepartmentIdMap(zktimeDepartments, [label]).get(normalizeDepartmentKey(label)) ?? 1;
 
   const departmentName = label.slice(0, 30);
+  const bridgeEmployee = {
+    emp_code: employee.employeeCode,
+    full_name: employee.fullName,
+    department_id: departmentId,
+    department_name: departmentName,
+    ams_department_id: departmentId,
+  };
+
+  const zktimeEmployees = await client.getEmployees();
+  const existing = findZktimeEmployeeByCode(zktimeEmployees, employee.employeeCode);
+  if (!employeeNeedsPushToZktime(bridgeEmployee, existing)) {
+    return;
+  }
 
   await pushEmployeesToZktime(client, {
     departments: [{ id: departmentId, name: departmentName }],
-    employees: [
-      {
-        emp_code: employee.employeeCode,
-        full_name: employee.fullName,
-        department_id: departmentId,
-        department_name: departmentName,
-        ams_department_id: departmentId,
-      },
-    ],
+    employees: [bridgeEmployee],
   });
 }
 

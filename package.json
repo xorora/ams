@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "db:studio": "drizzle-kit studio",
     "db:migrate": "drizzle-kit migrate",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "add:employee": "bun scripts/add-employee.ts waqas"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",

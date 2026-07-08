@@ -50,7 +50,7 @@ export default async function LeavePage() {
   const probationLabel = employee ? getProbationStatusLabel(employee) : "On probation";
   const [company] = employee
     ? await db
-        .select({ name: companies.name })
+        .select({ name: companies.name, slug: companies.slug })
         .from(companies)
         .where(eq(companies.id, employee.companyId))
         .limit(1)
@@ -83,6 +83,7 @@ export default async function LeavePage() {
         balances={balances}
         requests={requests}
         companyName={company?.name ?? "Company"}
+        companySlug={company?.slug ?? "xorora"}
         employeeName={employee?.fullName ?? session.user.name ?? "Employee"}
         designation={employee?.designation}
         department={employee?.department}

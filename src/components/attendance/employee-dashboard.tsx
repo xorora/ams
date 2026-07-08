@@ -217,10 +217,11 @@ export function EmployeeDashboard({
 
       {status.isWeekendOff && !status.employeeInactive && (
         <Alert>
-          <AlertTitle>Weekend</AlertTitle>
+          <AlertTitle>Office closed</AlertTitle>
           <AlertDescription>
-            Saturday and Sunday are always off. Attendance actions are disabled until the next
-            working day.
+            {status.warnings.find((warning) => warning.includes("office is closed")) ??
+              "The office is closed today."}{" "}
+            Attendance actions are disabled until the next working day.
           </AlertDescription>
         </Alert>
       )}

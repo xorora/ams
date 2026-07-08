@@ -1,4 +1,6 @@
 import { addDays, differenceInDays, getDay, parse, startOfDay } from "date-fns";
+import type { CompanyShiftConfig } from "@/lib/attendance/company-shift";
+import { isClosedShiftDate } from "@/lib/attendance/company-shift";
 
 const DATE_FORMAT = "yyyy-MM-dd";
 
@@ -23,7 +25,31 @@ export function countCalendarDays(startDate: string, endDate: string): number {
   return Math.max(0, differenceInDays(end, start) + 1);
 }
 
-/** Count Mon–Fri days in an inclusive date range. */
+/** Count company working days in an inclusive date range (respects closed weekdays). */
+export function countWorkingDaysForCompany(
+  startDate: string,
+  endDate: string,
+  config: CompanyShiftConfig,
+  companySlug?: string,
+): number {
+  const start = parseDate(startDate);
+  const end = parseDate(endDate);
+  let count = 0;
+
+  for (let current = start; current <= end; current = addDays(current, 1)) {
+    const year = current.getFullYear();
+    const month = String(current.getMonth() + 1).padStart(2, "0");
+    const day = String(current.getDate()).padStart(2, "0");
+    const dateString = `${year}-${month}-${day}`;
+    if (!isClosedShiftDate(dateString, config, companySlug)) {
+      count += 1;
+    }
+  }
+
+  return count;
+}
+
+/** Count Mon–Fri days in an inclusive date range (Xorora default). */
 export function countWorkingDays(startDate: string, endDate: string): number {
   const start = parseDate(startDate);
   const end = parseDate(endDate);

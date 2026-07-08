@@ -1,4 +1,4 @@
-import { addDays, subDays } from "date-fns";
+import { addDays, getDay, parse, startOfDay, subDays } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import {
   BUSINESS_TIMEZONE,
@@ -10,8 +10,18 @@ import {
   SHIFT_DATE_NOON_BOUNDARY_HOUR,
 } from "./constants";
 
+import {
+  getCompanyFederalHolidayName,
+  isCompanyFederalHoliday,
+} from "./company-holidays";
+
 const DAY_SHIFT_CHECK_IN_HOUR = 9;
 const DAY_SHIFT_CHECK_OUT_HOUR = 17;
+const DATE_FORMAT = "yyyy-MM-dd";
+
+/** 0 = Sunday, 6 = Saturday */
+const CLOSED_WEEKDAYS_XORORA = [0, 6] as const;
+const CLOSED_WEEKDAYS_CREST_LED = [0] as const;
 
 export type CompanySlug = "xorora" | "crest-led";
 
@@ -29,6 +39,8 @@ export type CompanyShiftConfig = {
    * Night shift uses noon; day shift uses midnight (standard calendar date).
    */
   shiftDateBoundaryHour: number;
+  /** Weekdays when the office is closed (no check-in; cron marks weekend off). */
+  closedWeekdays: readonly number[];
 };
 
 export const COMPANY_SHIFT_BY_SLUG: Record<CompanySlug, CompanyShiftConfig> = {
@@ -41,6 +53,7 @@ export const COMPANY_SHIFT_BY_SLUG: Record<CompanySlug, CompanyShiftConfig> = {
     expectedCheckOutMinute: EXPECTED_CHECK_OUT_MINUTE,
     checkOutNextDay: true,
     shiftDateBoundaryHour: SHIFT_DATE_NOON_BOUNDARY_HOUR,
+    closedWeekdays: CLOSED_WEEKDAYS_XORORA,
   },
   "crest-led": {
     expectedCheckInHour: DAY_SHIFT_CHECK_IN_HOUR,
@@ -51,6 +64,7 @@ export const COMPANY_SHIFT_BY_SLUG: Record<CompanySlug, CompanyShiftConfig> = {
     expectedCheckOutMinute: 0,
     checkOutNextDay: false,
     shiftDateBoundaryHour: 0,
+    closedWeekdays: CLOSED_WEEKDAYS_CREST_LED,
   },
 };
 
@@ -99,6 +113,51 @@ export function getCompanyShiftConfig(slug: string): CompanyShiftConfig {
     return COMPANY_SHIFT_BY_SLUG.xorora;
   }
   return config;
+}
+
+function shiftDateDayOfWeek(shiftDate: string): number {
+  return getDay(startOfDay(parse(shiftDate, DATE_FORMAT, new Date())));
+}
+
+/** Whether attendance is closed (weekends and, for Xorora, US federal holidays). */
+export function isClosedShiftDate(
+  shiftDate: string,
+  config: CompanyShiftConfig,
+  companySlug?: string,
+): boolean {
+  if (config.closedWeekdays.includes(shiftDateDayOfWeek(shiftDate))) {
+    return true;
+  }
+
+  if (companySlug && isCompanyFederalHoliday(companySlug, shiftDate)) {
+    return true;
+  }
+
+  return false;
+}
+
+/** Label for why a shift date is closed (holiday name or recurring weekend days). */
+export function getClosedShiftDateReason(
+  shiftDate: string,
+  config: CompanyShiftConfig,
+  companySlug?: string,
+): string | null {
+  const holidayName = companySlug ? getCompanyFederalHolidayName(companySlug, shiftDate) : null;
+  if (holidayName) {
+    return holidayName;
+  }
+
+  if (config.closedWeekdays.includes(shiftDateDayOfWeek(shiftDate))) {
+    return getClosedDaysLabel(config);
+  }
+
+  return null;
+}
+
+export function getClosedDaysLabel(config: CompanyShiftConfig): string {
+  const onlySunday =
+    config.closedWeekdays.length === 1 && config.closedWeekdays.includes(0);
+  return onlySunday ? "Sunday" : "Saturday and Sunday";
 }
 
 function pad2(n: number): string {

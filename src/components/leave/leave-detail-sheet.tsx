@@ -13,6 +13,7 @@ type LeaveDetailSheetProps = {
   onOpenChange: (open: boolean) => void;
   request: SerializedLeaveRequest | null;
   companyName: string;
+  companySlug?: string;
   designation?: string | null;
   department?: string | null;
   balances: LeaveBalance[];
@@ -24,6 +25,7 @@ export function LeaveDetailSheet({
   onOpenChange,
   request,
   companyName,
+  companySlug,
   designation,
   department,
   balances,
@@ -68,6 +70,7 @@ export function LeaveDetailSheet({
             <LeaveFormDocument
               mode="view"
               companyName={companyName}
+              companySlug={companySlug}
               employeeName={request.employeeName}
               designation={designation ?? request.employeeDesignation}
               department={department ?? request.employeeDepartment}

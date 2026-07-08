@@ -42,9 +42,7 @@ curl -s -H "Authorization: Bearer $CRON_SECRET" \
   "https://ams.xorora.com/api/sync/employees"
 ```
 
-### Push new AMS hires to device
-
-Targeted push:
+### Push new or changed AMS hires to device (compares with ZKTime first; only sends deltas):
 
 ```bash
 curl -s -X POST \
@@ -54,13 +52,23 @@ curl -s -X POST \
   "https://ams.xorora.com/api/sync/employees"
 ```
 
-Push all active AMS employees (empty body or `{"pushAll": true}`):
+Force a full push of every active employee (ignore ZKTime comparison):
 
 ```bash
 curl -s -X POST \
   -H "Authorization: Bearer $CRON_SECRET" \
   -H "Content-Type: application/json" \
   -d '{"pushAll": true}' \
+  "https://ams.xorora.com/api/sync/employees"
+```
+
+Incremental push of all active employees with changes only (empty body):
+
+```bash
+curl -s -X POST \
+  -H "Authorization: Bearer $CRON_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{}' \
   "https://ams.xorora.com/api/sync/employees"
 ```
 

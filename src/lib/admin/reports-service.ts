@@ -1,9 +1,10 @@
 import { and, asc, desc, eq, gte, lte } from "drizzle-orm";
 import { db } from "@/db";
-import { attendanceDays, employees } from "@/db/schema";
+import { attendanceDays, companies, employees } from "@/db/schema";
 import { effectiveAttendanceStatus } from "@/lib/attendance/effective-status";
 import { assignLateFinesByShiftDate, computeLateFineTotals } from "@/lib/attendance/late-fines-utils";
-import { countWorkingDays } from "@/lib/leave/working-days";
+import { getCompanyShiftConfig } from "@/lib/attendance/company-shift";
+import { countWorkingDaysForCompany } from "@/lib/leave/working-days";
 import type { AttendanceListItem } from "./attendance-service";
 import { getEmployee } from "./employees-service";
 import type { ReportDateRange } from "./reports-date-range";
@@ -79,11 +80,11 @@ export type SummaryReport = {
   employees: SummaryEmployeeRow[];
 };
 
-function countShiftDaysInRange(from: string, to: string): number {
+function countShiftDaysInRange(from: string, to: string, companySlug: string): number {
   if (from > to) {
     return 0;
   }
-  return countWorkingDays(from, to);
+  return countWorkingDaysForCompany(from, to, getCompanyShiftConfig(companySlug), companySlug);
 }
 
 export function validateReportDateRange(
@@ -211,12 +212,22 @@ export async function getEmployeeReport(
     return adminFailure(404, "EMPLOYEE_NOT_FOUND", "Employee not found.");
   }
 
+  const [company] = await db
+    .select({ slug: companies.slug })
+    .from(companies)
+    .where(eq(companies.id, employee.companyId))
+    .limit(1);
+
   const rows = await fetchAttendanceInRange(rangeResult.data, { employeeId, companyId });
   const lateFinesByShiftDate = assignLateFinesByShiftDate(rows);
   const lateFineTotals = computeLateFineTotals(rows);
   const summary = {
     ...emptyTotals(),
-    shiftDaysInRange: countShiftDaysInRange(rangeResult.data.from, rangeResult.data.to),
+    shiftDaysInRange: countShiftDaysInRange(
+      rangeResult.data.from,
+      rangeResult.data.to,
+      company?.slug ?? "xorora",
+    ),
     fineableLates: lateFineTotals.fineableLates,
     lateFinePkr: lateFineTotals.totalFinePkr,
   };

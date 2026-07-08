@@ -17,6 +17,7 @@ type MyLeaveManagerProps = {
   balances: LeaveBalance[];
   requests: SerializedLeaveRequest[];
   companyName: string;
+  companySlug?: string;
   employeeName: string;
   designation?: string | null;
   department?: string | null;
@@ -30,6 +31,7 @@ export function MyLeaveManager({
   balances,
   requests,
   companyName,
+  companySlug,
   employeeName,
   designation,
   department,
@@ -160,6 +162,7 @@ export function MyLeaveManager({
         }}
         request={viewRequest}
         companyName={companyName}
+        companySlug={companySlug}
         designation={designation}
         department={department}
         balances={balances}

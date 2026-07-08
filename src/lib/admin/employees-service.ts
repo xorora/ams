@@ -283,7 +283,11 @@ export async function createEmployee(
 
   const existingByCode = await findEmployeeByCodeVariants(data.employeeCode);
   if (existingByCode) {
-    return adminFailure(409, "DUPLICATE_EMPLOYEE_CODE", "Employee code is already in use.");
+    return adminFailure(
+      409,
+      "DUPLICATE_EMPLOYEE_CODE",
+      `Employee code ${existingByCode.employeeCode} is already assigned to ${existingByCode.fullName} (${existingByCode.email}). Search for that code in Employees and edit the existing record instead of creating a new one.`,
+    );
   }
 
   const [existingEmail] = await db
@@ -345,7 +349,11 @@ export async function updateEmployee(
     if (code !== employee.employeeCode) {
       const duplicate = await findEmployeeByCodeVariants(code);
       if (duplicate && duplicate.id !== employee.id) {
-        return adminFailure(409, "DUPLICATE_EMPLOYEE_CODE", "Employee code is already in use.");
+        return adminFailure(
+          409,
+          "DUPLICATE_EMPLOYEE_CODE",
+          `Employee code ${duplicate.employeeCode} is already assigned to ${duplicate.fullName} (${duplicate.email}).`,
+        );
       }
       updates.employeeCode = code;
     }

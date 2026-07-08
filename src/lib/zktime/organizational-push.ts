@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { companies, employees } from "@/db/schema";
 import type { ZktimeClient } from "@/lib/zktime/client";
+import { filterEmployeesNeedingPush } from "@/lib/zktime/push-diff";
 import { setSyncStateValue, ZKTIME_LAST_EMPLOYEE_PUSH_AT } from "@/lib/zktime/sync-state";
 import type {
   OrganizationalPushResult,
@@ -115,16 +116,17 @@ async function loadActiveEmployees(): Promise<AmsEmployeeRow[]> {
     .orderBy(companies.name, employees.employeeCode);
 }
 
+export type PushOrganizationalOptions = {
+  /** When true, send every active employee even if ZKTime already matches. */
+  forceFull?: boolean;
+};
+
 export async function pushAllOrganizationalDataToZktime(
   client: ZktimeClient,
+  options: PushOrganizationalOptions = {},
 ): Promise<OrganizationalPushResult> {
   const activeEmployees = await loadActiveEmployees();
   const companySlugs = new Set(activeEmployees.map((employee) => employee.companySlug));
-  const departmentLabels = [
-    ...new Set(
-      activeEmployees.map((employee) => departmentLabel(employee.companyName, employee.department)),
-    ),
-  ];
   const rolesTracked = new Set(
     activeEmployees.flatMap((employee) =>
       employee.designation?.trim() ? [employee.designation.trim()] : [],
@@ -132,15 +134,12 @@ export async function pushAllOrganizationalDataToZktime(
   ).size;
 
   const zktimeDepartments = await client.getAllDepartments();
-  const departmentIdByLabel = buildDepartmentIdMap(zktimeDepartments, departmentLabels);
-
-  const departments = departmentLabels.map((label) => {
-    const amsId = departmentIdByLabel.get(normalizeKey(label)) ?? 1;
-    return {
-      ams_id: amsId,
-      name: label.slice(0, MAX_DEPARTMENT_NAME_LENGTH),
-    };
-  });
+  const allDepartmentLabels = [
+    ...new Set(
+      activeEmployees.map((employee) => departmentLabel(employee.companyName, employee.department)),
+    ),
+  ];
+  const departmentIdByLabel = buildDepartmentIdMap(zktimeDepartments, allDepartmentLabels);
 
   const bridgeEmployees = activeEmployees.map((employee) => {
     const label = departmentLabel(employee.companyName, employee.department);
@@ -154,9 +153,53 @@ export async function pushAllOrganizationalDataToZktime(
     };
   });
 
+  let employeesToPush: ZktimeEmployeeUpsertRequest[] = bridgeEmployees;
+  let locallySkipped = 0;
+
+  if (!options.forceFull) {
+    const zktimeEmployees = await client.getEmployees();
+    const filtered = filterEmployeesNeedingPush(bridgeEmployees, zktimeEmployees);
+    employeesToPush = filtered.employeesToPush;
+    locallySkipped = filtered.skippedUnchanged;
+  }
+
+  if (employeesToPush.length === 0) {
+    return {
+      companies: companySlugs.size,
+      departmentsMapped: allDepartmentLabels.length,
+      rolesTracked,
+      employeesPushed: 0,
+      employeesFailed: 0,
+      deviceSyncQueued: 0,
+      skippedUnchanged: locallySkipped,
+      failures: [],
+      employees: [],
+      notes: [
+        "Compared AMS with ZKTime before push; all active employees already match. Nothing sent.",
+        "ZKTime bridge has no company or role APIs; companies map to department groups and designations are tracked in AMS only.",
+      ],
+    };
+  }
+
+  const departmentLabels = [
+    ...new Set(
+      employeesToPush
+        .map((employee) => employee.department_name?.trim())
+        .filter((label): label is string => Boolean(label)),
+    ),
+  ];
+
+  const departments = departmentLabels.map((label) => {
+    const amsId = departmentIdByLabel.get(normalizeKey(label)) ?? 1;
+    return {
+      ams_id: amsId,
+      name: label.slice(0, MAX_DEPARTMENT_NAME_LENGTH),
+    };
+  });
+
   const result = await client.syncMasterData({
     departments,
-    employees: bridgeEmployees,
+    employees: employeesToPush,
     queue_to_device: true,
   });
 
@@ -166,7 +209,7 @@ export async function pushAllOrganizationalDataToZktime(
   const employeesPushed =
     normalized.employeesSynced > 0
       ? normalized.employeesSynced
-      : bridgeEmployees.length - normalized.failures.length;
+      : employeesToPush.length - normalized.failures.length;
 
   return {
     companies: companySlugs.size,
@@ -175,13 +218,18 @@ export async function pushAllOrganizationalDataToZktime(
     employeesPushed,
     employeesFailed: normalized.failures.length,
     deviceSyncQueued: normalized.queuedForDevice,
-    skippedUnchanged: normalized.skippedUnchanged,
+    skippedUnchanged: locallySkipped + normalized.skippedUnchanged,
     failures: normalized.failures,
     employees: normalized.employees,
-    notes: [
-      "ZKTime bridge has no company or role APIs; companies map to department groups and designations are tracked in AMS only.",
-      "Department names are assigned stable ZKTime department_id values; create department names in ZKTime admin if you need them visible on the device UI.",
-    ],
+    notes: options.forceFull
+      ? [
+          "Full push requested; all active employees were sent to ZKTime.",
+          "ZKTime bridge has no company or role APIs; companies map to department groups and designations are tracked in AMS only.",
+        ]
+      : [
+          `Compared AMS with ZKTime before push; ${employeesToPush.length} new or changed employee(s) sent, ${locallySkipped} already matched.`,
+          "Department names are assigned stable ZKTime department_id values; create department names in ZKTime admin if you need them visible on the device UI.",
+        ],
   };
 }
 

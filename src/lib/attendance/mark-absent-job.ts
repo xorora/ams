@@ -1,8 +1,7 @@
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { attendanceDays, companies, employees } from "@/db/schema";
-import { isWeekendDate } from "@/lib/leave/working-days";
-import { getAutoAbsentShiftDateForCompany, getCompanyShiftConfig } from "./company-shift";
+import { getAutoAbsentShiftDateForCompany, getCompanyShiftConfig, isClosedShiftDate } from "./company-shift";
 import { shouldAutoMarkAbsent, shouldAutoMarkWeekendOff } from "./mark-absent-eligibility";
 import {
   type MarkMissedCheckoutJobResult,
@@ -95,7 +94,7 @@ export async function runMarkAbsentJob(runAt: Date = new Date()): Promise<MarkAb
     const config = getCompanyShiftConfig(companySlug);
     const shiftDate = getAutoAbsentShiftDateForCompany(runAt, config);
     shiftDates.add(shiftDate);
-    const isWeekend = isWeekendDate(shiftDate);
+    const isWeekend = isClosedShiftDate(shiftDate, config, companySlug);
     const day = dayByEmployeeAndDate.get(`${employeeId}:${shiftDate}`) ?? null;
     const shouldMark = isWeekend ? shouldAutoMarkWeekendOff(day) : shouldAutoMarkAbsent(day);
 

@@ -103,8 +103,10 @@ export async function POST(request: Request) {
   try {
     const client = ZktimeClient.fromEnv();
 
-    if (!isSyncEmployeesPostBody(body) || body.pushAll === true || Object.keys(body).length === 0) {
-      const result = await pushAllOrganizationalDataToZktime(client);
+    if (!isSyncEmployeesPostBody(body) || Object.keys(body).length === 0 || body.pushAll === true) {
+      const result = await pushAllOrganizationalDataToZktime(client, {
+        forceFull: isSyncEmployeesPostBody(body) && body.pushAll === true,
+      });
       return NextResponse.json({
         source: "zktime",
         pushed: result.employeesPushed,

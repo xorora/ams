@@ -1,11 +1,12 @@
 import { formatInTimeZone } from "date-fns-tz";
 import { PKT_DATETIME_12H_FORMAT } from "@/lib/admin/display";
-import { isWeekendDate } from "@/lib/leave/working-days";
 import {
   type CompanyShiftConfig,
+  getClosedShiftDateReason,
   getExpectedCheckOutAt,
   getShiftDateForCompany,
   getShiftScheduleLabels,
+  isClosedShiftDate,
   isEarlyLeaveForCompany,
   isLateCheckInForCompany,
   isPastMissedCheckOutDeadlineForCompany,
@@ -104,10 +105,11 @@ export function buildTodayStatus(
   shiftConfig: CompanyShiftConfig,
   now: Date = new Date(),
   shiftDateOverride?: string,
+  companySlug?: string,
 ): TodayStatusPayload {
   const shiftScheduleLabels = getShiftScheduleLabels(shiftConfig);
   const shiftDate = shiftDateOverride ?? day?.shiftDate ?? getShiftDateForCompany(now, shiftConfig);
-  const isWeekendOff = isWeekendDate(shiftDate);
+  const isWeekendOff = isClosedShiftDate(shiftDate, shiftConfig, companySlug);
   const activeBreak = getActiveBreak(breakSessions);
   const state = deriveWorkState(day, activeBreak);
   const totalBreakSeconds = computeTotalBreakSeconds(breakSessions, now);
@@ -128,7 +130,8 @@ export function buildTodayStatus(
 
   const warnings: string[] = [];
   if (isWeekendOff) {
-    warnings.push("Saturday and Sunday are weekend days — the office is closed.");
+    const reason = getClosedShiftDateReason(shiftDate, shiftConfig, companySlug);
+    warnings.push(reason ? `${reason} — the office is closed.` : "The office is closed.");
   }
   if (day?.isLate) {
     warnings.push(`You checked in late (after ${shiftScheduleLabels.lateCheckInDeadline}).`);

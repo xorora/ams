@@ -5,6 +5,11 @@ import { attendanceDays, companies, employees, leaveRequests } from "@/db/schema
 import { formatProbationEndDate, isCurrentlyOnProbation } from "@/lib/admin/probation";
 import { adminFailure, type ServiceFailure, type ServiceSuccess } from "@/lib/admin/types";
 import { BUSINESS_TIMEZONE } from "@/lib/attendance/constants";
+import {
+  getCompanyShiftConfig,
+  isClosedShiftDate,
+  type CompanyShiftConfig,
+} from "@/lib/attendance/company-shift";
 import { ENTITLED_LEAVE_TYPES, LEAVE_ENTITLEMENTS } from "./constants";
 import type { LeaveApplicationPdfData } from "./leave-pdf";
 import type {
@@ -16,9 +21,8 @@ import type {
 } from "./types";
 import {
   countCalendarDays,
-  countWorkingDays,
+  countWorkingDaysForCompany,
   eachDateInRange,
-  isWeekendDate,
 } from "./working-days";
 
 export type LeaveListItem = {
@@ -78,10 +82,16 @@ function validateDateRange(
   return { ok: true, data: { startDate, endDate } };
 }
 
-function countLeaveDays(leaveType: LeaveType, startDate: string, endDate: string): number {
+function countLeaveDays(
+  leaveType: LeaveType,
+  startDate: string,
+  endDate: string,
+  shiftConfig: CompanyShiftConfig,
+  companySlug: string,
+): number {
   const config = LEAVE_ENTITLEMENTS[leaveType];
   return config.workingDaysOnly
-    ? countWorkingDays(startDate, endDate)
+    ? countWorkingDaysForCompany(startDate, endDate, shiftConfig, companySlug)
     : countCalendarDays(startDate, endDate);
 }
 
@@ -89,6 +99,8 @@ function getLeaveDatesForAttendance(
   leaveType: LeaveType,
   startDate: string,
   endDate: string,
+  shiftConfig: CompanyShiftConfig,
+  companySlug: string,
 ): string[] {
   const config = LEAVE_ENTITLEMENTS[leaveType];
   const allDates = eachDateInRange(startDate, endDate);
@@ -97,8 +109,26 @@ function getLeaveDatesForAttendance(
     return allDates;
   }
 
-  return allDates.filter((date) => !isWeekendDate(date));
+  return allDates.filter((date) => !isClosedShiftDate(date, shiftConfig, companySlug));
 }
+
+async function getEmployeeShiftContext(
+  employeeId: string,
+): Promise<{ config: CompanyShiftConfig; companySlug: string }> {
+  const [row] = await db
+    .select({ companySlug: companies.slug })
+    .from(employees)
+    .innerJoin(companies, eq(employees.companyId, companies.id))
+    .where(eq(employees.id, employeeId))
+    .limit(1);
+
+  const companySlug = row?.companySlug ?? "xorora";
+  return {
+    config: getCompanyShiftConfig(companySlug),
+    companySlug,
+  };
+}
+
 
 function mapLeaveRow(
   row: typeof leaveRequests.$inferSelect,
@@ -454,7 +484,14 @@ async function validateLeaveSubmission(
     }
   }
 
-  const daysCount = countLeaveDays(input.leaveType, input.startDate, input.endDate);
+  const { config: shiftConfig, companySlug } = await getEmployeeShiftContext(employeeId);
+  const daysCount = countLeaveDays(
+    input.leaveType,
+    input.startDate,
+    input.endDate,
+    shiftConfig,
+    companySlug,
+  );
   if (daysCount === 0) {
     return adminFailure(
       400,
@@ -504,10 +541,13 @@ async function syncApprovedLeaveToAttendance(
   request: LeaveListItem,
   editedByUserId: string | null,
 ): Promise<void> {
+  const { config: shiftConfig, companySlug } = await getEmployeeShiftContext(request.employeeId);
   const shiftDates = getLeaveDatesForAttendance(
     request.leaveType,
     request.startDate,
     request.endDate,
+    shiftConfig,
+    companySlug,
   );
   const now = new Date();
 

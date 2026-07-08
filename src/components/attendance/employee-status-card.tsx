@@ -52,8 +52,11 @@ export function EmployeeStatusCard({ status }: EmployeeStatusCardProps) {
         ? "default"
         : "secondary";
 
-  const stateLabel = status.isWeekendOff ? "Weekend — office closed" : STATE_LABELS[status.state];
-  const badgeLabel = status.isWeekendOff ? "weekend off" : status.state.replaceAll("_", " ");
+  const closedLabel = status.warnings
+    .find((warning) => warning.includes("office is closed"))
+    ?.replace(" — the office is closed.", "");
+  const stateLabel = status.isWeekendOff ? (closedLabel ?? "Office closed") : STATE_LABELS[status.state];
+  const badgeLabel = status.isWeekendOff ? "office closed" : status.state.replaceAll("_", " ");
 
   return (
     <Card>

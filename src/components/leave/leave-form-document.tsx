@@ -17,7 +17,8 @@ import {
   SYSTEM_LEAVE_TO_PAPER,
 } from "@/lib/leave/leave-form-layout";
 import type { LeaveBalance, LeaveType } from "@/lib/leave/types";
-import { countCalendarDays, countWorkingDays } from "@/lib/leave/working-days";
+import { countCalendarDays, countWorkingDaysForCompany } from "@/lib/leave/working-days";
+import { getCompanyShiftConfig } from "@/lib/attendance/company-shift";
 import { cn } from "@/lib/utils";
 
 export type LeaveFormValues = {
@@ -124,19 +125,26 @@ function PaperCheckbox({
   );
 }
 
-function computeDays(leaveType: LeaveType, startDate: string, endDate: string): number {
+function computeDays(
+  leaveType: LeaveType,
+  startDate: string,
+  endDate: string,
+  companySlug: string,
+): number {
   const config = LEAVE_ENTITLEMENTS[leaveType];
   if (!startDate || !endDate || endDate < startDate) {
     return 0;
   }
+  const shiftConfig = getCompanyShiftConfig(companySlug);
   return config.workingDaysOnly
-    ? countWorkingDays(startDate, endDate)
+    ? countWorkingDaysForCompany(startDate, endDate, shiftConfig, companySlug)
     : countCalendarDays(startDate, endDate);
 }
 
 export type LeaveFormDocumentProps = {
   mode: "apply" | "view";
   companyName: string;
+  companySlug?: string;
   employeeName: string;
   designation?: string | null;
   department?: string | null;
@@ -157,6 +165,7 @@ export type LeaveFormDocumentProps = {
 export function LeaveFormDocument({
   mode,
   companyName,
+  companySlug = "xorora",
   employeeName,
   designation,
   department,
@@ -181,7 +190,9 @@ export function LeaveFormDocument({
   const activeEnd = isApply ? form?.endDate : endDate;
   const activeReason = isApply ? form?.reason : reason;
   const activeDays =
-    isApply && form ? computeDays(form.leaveType, form.startDate, form.endDate) : (daysCount ?? 0);
+    isApply && form
+      ? computeDays(form.leaveType, form.startDate, form.endDate, companySlug)
+      : (daysCount ?? 0);
   const selectedPaperType = activeLeaveType ? SYSTEM_LEAVE_TO_PAPER[activeLeaveType] : null;
   const activeBalance =
     isApply && form && form.leaveType !== "unpaid" ? balanceFor(form.leaveType) : undefined;

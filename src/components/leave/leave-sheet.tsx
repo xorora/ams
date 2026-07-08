@@ -31,6 +31,7 @@ type LeaveSheetProps = {
   onSubmit: (event: React.FormEvent) => void;
   onCancel: () => void;
   companyName: string;
+  companySlug?: string;
   employeeName: string;
   designation?: string | null;
   department?: string | null;
@@ -47,6 +48,7 @@ export function LeaveSheet({
   onSubmit,
   onCancel,
   companyName,
+  companySlug,
   employeeName,
   designation,
   department,
@@ -70,6 +72,7 @@ export function LeaveSheet({
           <LeaveFormDocument
             mode="apply"
             companyName={companyName}
+            companySlug={companySlug}
             employeeName={employeeName}
             designation={designation}
             department={department}
