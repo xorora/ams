@@ -4,14 +4,13 @@ import { cookies } from "next/headers";
 import type { Session } from "next-auth";
 import { auth } from "@/auth";
 import { ApplicationShell } from "@/components/layout/application-shell";
+import { getCompanies } from "@/lib/admin/selected-company";
 import {
-  getCompanies,
+  COMPANY_COOKIE,
   resolveSelectedCompanyId,
-} from "@/lib/admin/selected-company";
+} from "@/lib/admin/selected-company-utils";
 import { hasLinkedEmployee } from "@/lib/auth/attendance-access";
 import "./globals.css";
-
-const COMPANY_COOKIE = "ams_company";
 
 const fontSans = Poppins({
   subsets: ["latin"],

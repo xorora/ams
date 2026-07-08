@@ -8,9 +8,10 @@ import { db } from "@/db";
 import { companies } from "@/db/schema";
 import { type ActionResult, actionFailure, actionSuccess } from "@/lib/actions/result";
 import { requireAdminSession } from "@/lib/auth/require-session";
-import { getDefaultCompanySlug } from "@/lib/zktime/config";
-
-const COMPANY_COOKIE = "ams_company";
+import {
+  COMPANY_COOKIE,
+  resolveSelectedCompanyId,
+} from "./selected-company-utils";
 
 export type CompanyOption = {
   id: string;
@@ -29,24 +30,6 @@ export const getCompanies = cache(async (): Promise<CompanyOption[]> => {
     .where(eq(companies.isActive, true))
     .orderBy(asc(companies.name));
 });
-
-export function resolveSelectedCompanyId(
-  activeCompanies: CompanyOption[],
-  cookieValue: string | undefined,
-): string | null {
-  if (activeCompanies.length === 0) {
-    return null;
-  }
-
-  if (cookieValue && activeCompanies.some((company) => company.id === cookieValue)) {
-    return cookieValue;
-  }
-
-  const preferredSlug = getDefaultCompanySlug();
-  const preferredCompany = activeCompanies.find((company) => company.slug === preferredSlug);
-
-  return preferredCompany?.id ?? activeCompanies[0]?.id ?? null;
-}
 
 export async function getSelectedCompanyId(): Promise<string | null> {
   const activeCompanies = await getCompanies();
