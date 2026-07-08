@@ -1,5 +1,4 @@
 import { fromZonedTime } from "date-fns-tz";
-import { inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { employees, machinePunches } from "@/db/schema";
 import {
@@ -30,8 +29,20 @@ function resolveTransactionEmployeeName(tx: {
   return composed || tx.emp_code;
 }
 
+/** Strip leading zeros so device badge numbers (e.g. "11") match padded AMS codes ("011"). */
+function normalizeEmployeeCode(code: string): string {
+  return code.trim().replace(/^0+/, "") || "0";
+}
+
+/**
+ * Maps device `emp_code` values to AMS employee ids, tolerating leading-zero differences
+ * between the device badge number and the stored employee code. Matching on the exact
+ * string alone leaves punches unlinked (employee_id = null), so they never get built into
+ * attendance rows during the pull and today's log looks empty until each person opens their
+ * dashboard.
+ */
 async function resolveEmployeeIdsByCode(codes: string[]): Promise<Map<string, string>> {
-  const uniqueCodes = [...new Set(codes.filter(Boolean))];
+  const uniqueCodes = [...new Set(codes.map((code) => code.trim()).filter(Boolean))];
   const resolved = new Map<string, string>();
   if (uniqueCodes.length === 0) {
     return resolved;
@@ -39,11 +50,24 @@ async function resolveEmployeeIdsByCode(codes: string[]): Promise<Map<string, st
 
   const rows = await db
     .select({ id: employees.id, employeeCode: employees.employeeCode })
-    .from(employees)
-    .where(inArray(employees.employeeCode, uniqueCodes));
+    .from(employees);
 
+  const byExact = new Map<string, string>();
+  const byNormalized = new Map<string, string>();
   for (const row of rows) {
-    resolved.set(row.employeeCode, row.id);
+    const code = row.employeeCode.trim();
+    byExact.set(code, row.id);
+    const normalized = normalizeEmployeeCode(code);
+    if (!byNormalized.has(normalized)) {
+      byNormalized.set(normalized, row.id);
+    }
+  }
+
+  for (const code of uniqueCodes) {
+    const id = byExact.get(code) ?? byNormalized.get(normalizeEmployeeCode(code));
+    if (id) {
+      resolved.set(code, id);
+    }
   }
 
   return resolved;
@@ -104,7 +128,7 @@ export async function syncAttendanceFromZktime(
     isManual: false,
     machineEmpCode: tx.emp_code,
     machineEmpName: resolveTransactionEmployeeName(tx),
-    employeeId: employeeIdsByCode.get(tx.emp_code) ?? null,
+    employeeId: employeeIdsByCode.get(tx.emp_code.trim()) ?? null,
     rawPunchAt: [tx.punch_time, tx.punch_state_display, tx.verify_type_display]
       .filter(Boolean)
       .join("|"),
@@ -123,7 +147,7 @@ export async function syncAttendanceFromZktime(
   const employeeIds = [
     ...new Set(
       uniqueTransactions.flatMap((tx) => {
-        const employeeId = employeeIdsByCode.get(tx.emp_code);
+        const employeeId = employeeIdsByCode.get(tx.emp_code.trim());
         return employeeId ? [employeeId] : [];
       }),
     ),
