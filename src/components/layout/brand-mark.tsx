@@ -22,7 +22,7 @@ export function BrandMark({
         alt="Xorora"
         width={1024}
         height={198}
-        className="h-6 w-auto shrink-0 object-contain group-data-[collapsible=icon]:hidden"
+        className="h-4 w-auto shrink-0 object-contain group-data-[collapsible=icon]:hidden"
         priority
       />
       {/* X mark only: shown when the sidebar is collapsed to icons. */}
