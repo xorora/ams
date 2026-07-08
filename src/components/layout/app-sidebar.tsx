@@ -25,7 +25,7 @@ export function AppSidebar({ user, hasLinkedEmployee = false }: AppSidebarProps)
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="flex h-12 items-center border-sidebar-border border-b px-2">
+      <SidebarHeader className="h-12 flex-row items-center justify-start border-sidebar-border border-b px-2 py-0">
         <BrandMark />
       </SidebarHeader>
 
