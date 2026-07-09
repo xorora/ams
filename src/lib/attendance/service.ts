@@ -121,6 +121,13 @@ async function resolveShiftAttendance(
   const shiftDate = getShiftDateForCompany(now, shiftConfig);
   const current = await loadShiftAttendance(employeeId, shiftDate);
 
+  if (
+    current.day?.checkInAt ||
+    (current.day?.status === "present" && !current.day?.checkOutAt)
+  ) {
+    return { ...current, shiftConfig, companySlug, shiftDate };
+  }
+
   if (current.day) {
     return { ...current, shiftConfig, companySlug, shiftDate };
   }

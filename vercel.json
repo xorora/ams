@@ -11,6 +11,14 @@
     {
       "path": "/api/sync/employees",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/attendance-report/2026-07-09",
+      "schedule": "0 0 1 1 *"
+    },
+    {
+      "path": "/api/cron/backfill-attendance/2026-07-09",
+      "schedule": "0 0 1 1 *"
     }
   ]
 }

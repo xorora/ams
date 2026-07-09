@@ -44,19 +44,24 @@ export function EmployeeStatusCard({ status }: EmployeeStatusCardProps) {
     return () => window.clearInterval(id);
   }, [status]);
 
-  const stateBadgeVariant = status.isWeekendOff
-    ? "outline"
-    : status.state === "on_break"
+  const stateBadgeVariant =
+    status.state === "not_checked_in" && status.isWeekendOff
       ? "outline"
-      : status.state === "checked_in"
-        ? "default"
-        : "secondary";
+      : status.state === "on_break"
+        ? "outline"
+        : status.state === "checked_in"
+          ? "default"
+          : "secondary";
 
   const closedLabel = status.warnings
     .find((warning) => warning.includes("office is closed"))
     ?.replace(" — the office is closed.", "");
-  const stateLabel = status.isWeekendOff ? (closedLabel ?? "Office closed") : STATE_LABELS[status.state];
-  const badgeLabel = status.isWeekendOff ? "office closed" : status.state.replaceAll("_", " ");
+  const hasCheckIn = Boolean(status.attendanceDay?.checkInAt);
+  const showingOfficeClosed = status.isWeekendOff && !hasCheckIn;
+  const stateLabel = showingOfficeClosed
+    ? (closedLabel ?? "Office closed")
+    : STATE_LABELS[status.state];
+  const badgeLabel = showingOfficeClosed ? "office closed" : status.state.replaceAll("_", " ");
 
   return (
     <Card>

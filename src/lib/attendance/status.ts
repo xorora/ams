@@ -86,6 +86,9 @@ function deriveWorkState(
   if (!day) {
     return "not_checked_in";
   }
+  if (day.checkInAt != null && day.checkOutAt == null) {
+    return activeBreak ? "on_break" : "checked_in";
+  }
   if (day.checkOutAt != null && day.checkInAt == null) {
     return "checked_out";
   }
@@ -108,8 +111,11 @@ export function buildTodayStatus(
   companySlug?: string,
 ): TodayStatusPayload {
   const shiftScheduleLabels = getShiftScheduleLabels(shiftConfig);
-  const shiftDate = shiftDateOverride ?? day?.shiftDate ?? getShiftDateForCompany(now, shiftConfig);
-  const isWeekendOff = isClosedShiftDate(shiftDate, shiftConfig, companySlug);
+  const calendarShiftDate = getShiftDateForCompany(now, shiftConfig);
+  const hasOpenShift = hasActiveShift(day);
+  const isWeekendOff = hasOpenShift
+    ? false
+    : isClosedShiftDate(calendarShiftDate, shiftConfig, companySlug);
   const activeBreak = getActiveBreak(breakSessions);
   const state = deriveWorkState(day, activeBreak);
   const totalBreakSeconds = computeTotalBreakSeconds(breakSessions, now);
@@ -126,11 +132,9 @@ export function buildTodayStatus(
     day.checkOutAt == null &&
     isEarlyLeaveForCompany(now, day.shiftDate, shiftConfig);
 
-  const hasOpenShift = hasActiveShift(day);
-
   const warnings: string[] = [];
-  if (isWeekendOff) {
-    const reason = getClosedShiftDateReason(shiftDate, shiftConfig, companySlug);
+  if (isWeekendOff && !hasOpenShift) {
+    const reason = getClosedShiftDateReason(calendarShiftDate, shiftConfig, companySlug);
     warnings.push(reason ? `${reason} — the office is closed.` : "The office is closed.");
   }
   if (day?.isLate) {
@@ -183,7 +187,7 @@ export function buildTodayStatus(
 
   return {
     pktNow: formatInTimeZone(now, BUSINESS_TIMEZONE, PKT_DATETIME_12H_FORMAT),
-    shiftDate,
+    shiftDate: calendarShiftDate,
     shiftSchedule: {
       ...shiftScheduleLabels,
       checkInGraceMinutes: shiftConfig.checkInGraceMinutes,
