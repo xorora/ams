@@ -11,6 +11,7 @@ import { requireAdminSession } from "@/lib/auth/require-session";
 import { syncAttendanceFromZktime } from "@/lib/zktime/attendance-sync";
 import { ZktimeClient } from "@/lib/zktime/client";
 import { formatZktimeError } from "@/lib/zktime/errors";
+import { isZktimeConfigured } from "@/lib/zktime/config";
 import {
   pullEmployeesFromZktime,
   pushEmployeesToZktime,
