@@ -8,6 +8,7 @@ import {
 } from "@/lib/cron/auth";
 import { syncAttendanceFromZktime } from "@/lib/zktime/attendance-sync";
 import { ZktimeClient } from "@/lib/zktime/client";
+import { formatZktimeError } from "@/lib/zktime/errors";
 import { isZktimeConfigured, resolveAttendanceSyncSince } from "@/lib/zktime/config";
 import { syncTerminalsFromZktime } from "@/lib/zktime/employee-sync";
 
@@ -56,7 +57,7 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error("[sync/attendance] zktime", error);
     return NextResponse.json(
-      { error: "Failed to sync attendance from ZKTime", code: "SYNC_FAILED" },
+      { error: formatZktimeError(error), code: "SYNC_FAILED" },
       { status: 500 },
     );
   }

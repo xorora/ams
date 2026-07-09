@@ -10,7 +10,7 @@ import {
 import { requireAdminSession } from "@/lib/auth/require-session";
 import { syncAttendanceFromZktime } from "@/lib/zktime/attendance-sync";
 import { ZktimeClient } from "@/lib/zktime/client";
-import { isZktimeConfigured } from "@/lib/zktime/config";
+import { formatZktimeError } from "@/lib/zktime/errors";
 import {
   pullEmployeesFromZktime,
   pushEmployeesToZktime,
@@ -61,7 +61,7 @@ export async function triggerZktimeAttendanceSyncAction(): Promise<
     return actionFailure({
       ok: false,
       code: "ZKTIME_SYNC_FAILED",
-      message: "Failed to sync attendance from ZKTime.",
+      message: formatZktimeError(error),
     });
   }
 }
