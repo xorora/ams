@@ -11,6 +11,8 @@ import {
   getTodayPkt,
 } from "@/lib/admin/probation";
 import { closeOpenShiftForEmployee, findOpenShift } from "@/lib/attendance/close-open-shift";
+import { hashPassword, validatePassword } from "@/lib/auth/password";
+import { linkUserToEmployeeRecord } from "@/lib/auth/employee-link";
 import { pushEmployeeToDevice } from "@/lib/device-sync/push-employee";
 import { adminFailure, type ServiceFailure, type ServiceSuccess } from "./types";
 
@@ -27,9 +29,11 @@ export type CreateEmployeeInput = {
   probationCompleted?: boolean;
   probationStartDate?: string | null;
   probationPeriodMonths?: number;
+  /** Optional password for email sign-in; stored on the linked user account. */
+  password?: string | null;
 };
 
-type ValidatedCreateEmployeeInput = Omit<CreateEmployeeInput, "companyId"> & {
+type ValidatedCreateEmployeeInput = Omit<CreateEmployeeInput, "companyId" | "password"> & {
   companyId: string;
   department: string | null;
   designation: string | null;
@@ -46,6 +50,8 @@ export type UpdateEmployeeInput = {
   probationCompleted?: boolean;
   probationStartDate?: string | null;
   probationPeriodMonths?: number;
+  /** When set (non-empty), creates or updates the linked user's password. */
+  password?: string | null;
 };
 
 export type ListEmployeesFilters = {
@@ -181,6 +187,75 @@ async function linkEmployeeToUserByEmail(employeeId: string, email: string): Pro
   if (!user.employeeId) {
     await db.update(users).set({ employeeId, updatedAt: new Date() }).where(eq(users.id, user.id));
   }
+}
+
+/**
+ * Ensure a user account exists for the employee and set/reset their passwordHash.
+ */
+export async function setEmployeePassword(
+  employeeId: string,
+  password: string,
+): Promise<ServiceFailure | ServiceSuccess<EmployeeRecord>> {
+  const passwordError = validatePassword(password);
+  if (passwordError) {
+    return adminFailure(400, "INVALID_PASSWORD", passwordError);
+  }
+
+  const current = await getEmployee(employeeId);
+  if (!current.ok) {
+    return current;
+  }
+
+  const employee = current.data;
+  const email = normalizeEmail(employee.email);
+  const passwordHash = await hashPassword(password);
+  const now = new Date();
+
+  if (employee.userId) {
+    await db
+      .update(users)
+      .set({ passwordHash, updatedAt: now })
+      .where(eq(users.id, employee.userId));
+
+    return { ok: true, data: employee };
+  }
+
+  const [userByEmail] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+
+  if (userByEmail) {
+    if (userByEmail.employeeId && userByEmail.employeeId !== employee.id) {
+      return adminFailure(
+        409,
+        "USER_ALREADY_LINKED",
+        "A user with this email is already linked to a different employee.",
+      );
+    }
+
+    await db
+      .update(users)
+      .set({ passwordHash, updatedAt: now })
+      .where(eq(users.id, userByEmail.id));
+
+    await linkUserToEmployeeRecord(userByEmail.id, employee.id);
+
+    const [reloaded] = await db.select().from(employees).where(eq(employees.id, employee.id)).limit(1);
+    return { ok: true, data: reloaded ?? employee };
+  }
+
+  const [createdUser] = await db
+    .insert(users)
+    .values({
+      email,
+      name: employee.fullName,
+      passwordHash,
+      role: "employee",
+    })
+    .returning();
+
+  await linkUserToEmployeeRecord(createdUser.id, employee.id);
+
+  const [reloaded] = await db.select().from(employees).where(eq(employees.id, employee.id)).limit(1);
+  return { ok: true, data: reloaded ?? employee };
 }
 
 async function unlinkEmployeeUser(employeeId: string, userId: string | null): Promise<void> {
@@ -321,6 +396,14 @@ export async function createEmployee(
     .returning();
 
   await linkEmployeeToUserByEmail(created.id, data.email);
+
+  const password = input.password?.trim();
+  if (password) {
+    const passwordResult = await setEmployeePassword(created.id, password);
+    if (!passwordResult.ok) {
+      return passwordResult;
+    }
+  }
 
   const [linked] = await db.select().from(employees).where(eq(employees.id, created.id)).limit(1);
   const employee = linked ?? created;
@@ -471,20 +554,23 @@ export async function updateEmployee(
     await unlinkEmployeeUser(id, employee.userId);
     await db.update(employees).set({ userId: null, updatedAt: now }).where(eq(employees.id, id));
     await linkEmployeeToUserByEmail(id, updated.email);
-    const [reloaded] = await db.select().from(employees).where(eq(employees.id, id)).limit(1);
-    const result = reloaded ?? updated;
-    await syncEmployeeToDevice(result, {
-      deactivated,
-      previousEmployeeCode: employeeCodeChanged ? employee.employeeCode : undefined,
-    });
-    return { ok: true, data: result };
   }
 
-  await syncEmployeeToDevice(updated, {
+  const password = input.password?.trim();
+  if (password) {
+    const passwordResult = await setEmployeePassword(id, password);
+    if (!passwordResult.ok) {
+      return passwordResult;
+    }
+  }
+
+  const [reloaded] = await db.select().from(employees).where(eq(employees.id, id)).limit(1);
+  const result = reloaded ?? updated;
+  await syncEmployeeToDevice(result, {
     deactivated,
     previousEmployeeCode: employeeCodeChanged ? employee.employeeCode : undefined,
   });
-  return { ok: true, data: updated };
+  return { ok: true, data: result };
 }
 
 export type DeactivateEmployeeOptions = {

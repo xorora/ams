@@ -17,6 +17,7 @@ import {
   deactivateEmployee,
   endEmployeeProbation,
   getEmployeeDeactivationPreview,
+  setEmployeePassword,
   startEmployeeProbation,
   type UpdateEmployeeInput,
   updateEmployee,
@@ -113,6 +114,19 @@ export async function startEmployeeProbationAction(
 export async function endEmployeeProbationAction(id: string): Promise<ActionResult> {
   await requireAdminSession();
   const result = await endEmployeeProbation(id);
+  if (!result.ok) {
+    return actionFailure(result);
+  }
+  revalidateAdminEmployees();
+  return actionSuccess();
+}
+
+export async function setEmployeePasswordAction(
+  id: string,
+  password: string,
+): Promise<ActionResult> {
+  await requireAdminSession();
+  const result = await setEmployeePassword(id, password);
   if (!result.ok) {
     return actionFailure(result);
   }

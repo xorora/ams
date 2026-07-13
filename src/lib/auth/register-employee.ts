@@ -1,13 +1,10 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { companies, employees, users } from "@/db/schema";
-import { defaultProbationValues } from "@/lib/admin/probation";
+import { findEmployeeByCodeVariants } from "@/lib/admin/employee-identity";
 import { adminFailure, type ServiceFailure, type ServiceSuccess } from "@/lib/admin/types";
-import {
-  findEmployeeByCode,
-  generateUniqueEmployeeCode,
-  normalizeEmployeeCode,
-} from "@/lib/auth/employee-code";
+import { linkUserToEmployeeRecord } from "@/lib/auth/employee-link";
+import { normalizeEmployeeCode } from "@/lib/auth/employee-code";
 
 export type RegisterEmployeeResult = {
   employee: typeof employees.$inferSelect;
@@ -18,26 +15,20 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-function displayNameFromUser(user: typeof users.$inferSelect, email: string): string | null {
-  const fromProfile = user.name?.trim();
-  if (fromProfile) {
-    return fromProfile;
-  }
-  const local = email.split("@")[0]?.trim();
-  return local || null;
-}
-
-async function linkUserToEmployee(userId: string, employeeId: string): Promise<void> {
-  const now = new Date();
-  await db.update(employees).set({ userId, updatedAt: now }).where(eq(employees.id, employeeId));
-  await db.update(users).set({ employeeId, updatedAt: now }).where(eq(users.id, userId));
-}
-
 async function validateAndLinkExisting(
   user: typeof users.$inferSelect,
   userEmail: string,
   employee: typeof employees.$inferSelect,
+  companyId: string,
 ): Promise<ServiceFailure | ServiceSuccess<RegisterEmployeeResult>> {
+  if (employee.companyId !== companyId) {
+    return adminFailure(
+      400,
+      "COMPANY_MISMATCH",
+      "That employee code does not belong to the selected company.",
+    );
+  }
+
   if (!employee.isActive) {
     return adminFailure(
       403,
@@ -61,6 +52,20 @@ async function validateAndLinkExisting(
   const email = normalizeEmail(userEmail);
   const now = new Date();
 
+  const [emailOnOtherEmployee] = await db
+    .select({ id: employees.id })
+    .from(employees)
+    .where(eq(employees.email, email))
+    .limit(1);
+
+  if (emailOnOtherEmployee && emailOnOtherEmployee.id !== employee.id) {
+    return adminFailure(
+      409,
+      "EMAIL_IN_USE",
+      "Your email is already on another employee record. Contact your administrator.",
+    );
+  }
+
   await db
     .update(employees)
     .set({
@@ -80,61 +85,11 @@ async function validateAndLinkExisting(
     .where(eq(users.id, user.id));
 
   if (!employee.userId || !user.employeeId) {
-    await linkUserToEmployee(user.id, employee.id);
+    await linkUserToEmployeeRecord(user.id, employee.id);
   }
 
   const [linked] = await db.select().from(employees).where(eq(employees.id, employee.id)).limit(1);
   return { ok: true, data: { employee: linked ?? employee, created: false } };
-}
-
-async function createAndLinkEmployee(
-  user: typeof users.$inferSelect,
-  userEmail: string,
-  companyId: string,
-): Promise<ServiceFailure | ServiceSuccess<RegisterEmployeeResult>> {
-  const email = normalizeEmail(userEmail);
-  const fullName = displayNameFromUser(user, email);
-  if (!fullName) {
-    return adminFailure(
-      400,
-      "INVALID_NAME",
-      "Your Google profile has no name. Update your profile and try again.",
-    );
-  }
-
-  const [emailTaken] = await db
-    .select({ id: employees.id })
-    .from(employees)
-    .where(eq(employees.email, email))
-    .limit(1);
-  if (emailTaken) {
-    return adminFailure(
-      409,
-      "EMAIL_IN_USE",
-      "Your email is already on an employee record. Contact your administrator.",
-    );
-  }
-
-  const employeeCode = await generateUniqueEmployeeCode();
-  const probation = defaultProbationValues();
-  const [created] = await db
-    .insert(employees)
-    .values({
-      employeeCode,
-      fullName,
-      email,
-      companyId,
-      probationEnabled: probation.probationEnabled,
-      probationCompleted: probation.probationCompleted,
-      probationStartDate: probation.probationStartDate,
-      probationPeriodMonths: probation.probationPeriodMonths,
-    })
-    .returning();
-
-  await linkUserToEmployee(user.id, created.id);
-
-  const [linked] = await db.select().from(employees).where(eq(employees.id, created.id)).limit(1);
-  return { ok: true, data: { employee: linked ?? created, created: true } };
 }
 
 async function resolveActiveCompanyId(companyId: string): Promise<string | null> {
@@ -172,10 +127,14 @@ export async function registerEmployee(
     return adminFailure(404, "USER_NOT_FOUND", "User account not found.");
   }
 
-  const employee = await findEmployeeByCode(code);
-  if (employee) {
-    return validateAndLinkExisting(user, userEmail, employee);
+  const employee = await findEmployeeByCodeVariants(code);
+  if (!employee) {
+    return adminFailure(
+      404,
+      "EMPLOYEE_NOT_FOUND",
+      "No employee found for that code. Employees must be created by an administrator.",
+    );
   }
 
-  return createAndLinkEmployee(user, userEmail, activeCompanyId);
+  return validateAndLinkExisting(user, userEmail, employee, activeCompanyId);
 }

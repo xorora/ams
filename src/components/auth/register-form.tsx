@@ -86,9 +86,8 @@ export function RegisterForm({ email, name, companies }: RegisterFormProps) {
           disabled={isPending}
         />
         <p className="text-muted-foreground text-xs">
-          Enter your badge or employee number (case doesn&apos;t matter). If HR added you, we link
-          your Google account. If not, we create a new record for your company and assign you a new
-          employee number.
+          Enter your badge or employee number (case doesn&apos;t matter). Your employee record must
+          already exist — we only link this Google account to that record.
         </p>
       </div>
       {error ? (

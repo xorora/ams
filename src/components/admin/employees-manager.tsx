@@ -170,6 +170,7 @@ export function EmployeesManager({ employees, search, includeInactive }: Employe
             probationEnabled: false,
             probationStartDate: null,
             probationPeriodMonths: DEFAULT_PROBATION_PERIOD_MONTHS,
+            password: form.password.trim() || undefined,
           }
         : {
             employeeCode: form.employeeCode,
@@ -183,6 +184,7 @@ export function EmployeesManager({ employees, search, includeInactive }: Employe
             probationPeriodMonths: form.probationEnabled
               ? periodMonths
               : DEFAULT_PROBATION_PERIOD_MONTHS,
+            password: form.password.trim() || undefined,
           };
 
       await toastAsync(

@@ -35,6 +35,8 @@ export type EmployeeFormValues = {
   probationCompleted: boolean;
   probationStartDate: string;
   probationPeriodMonths: string;
+  /** Optional; leave blank when editing to keep the existing password. */
+  password: string;
 };
 
 export const emptyEmployeeForm: EmployeeFormValues = {
@@ -47,6 +49,7 @@ export const emptyEmployeeForm: EmployeeFormValues = {
   probationCompleted: false,
   probationStartDate: getTodayPkt(),
   probationPeriodMonths: String(DEFAULT_PROBATION_PERIOD_MONTHS),
+  password: "",
 };
 
 export function employeeToForm(employee: SerializedEmployee): EmployeeFormValues {
@@ -60,6 +63,7 @@ export function employeeToForm(employee: SerializedEmployee): EmployeeFormValues
     probationCompleted: isProbationCompleted(employee),
     probationStartDate: employee.probationStartDate ?? getTodayPkt(),
     probationPeriodMonths: String(employee.probationPeriodMonths),
+    password: "",
   };
 }
 
@@ -135,8 +139,8 @@ export function EmployeeSheet({
           <SheetTitle>{editingId ? "Edit employee" : "New employee"}</SheetTitle>
           <SheetDescription>
             {editingId
-              ? "Update employee details. Email must stay unique."
-              : "Add a new employee. They can sign in with their employee code, email, and password."}
+              ? "Update employee details. Email must stay unique. Set a password to enable email sign-in."
+              : "Add a new employee. Optionally set a password so they can sign in with email."}
           </SheetDescription>
         </SheetHeader>
         <form onSubmit={onSubmit} className="flex flex-1 flex-col gap-4 overflow-y-auto px-4">
@@ -169,6 +173,24 @@ export function EmployeeSheet({
             />
           </div>
           <div className="flex flex-col gap-1.5">
+            <Label htmlFor="employee-password">
+              {editingId ? "Password (optional)" : "Password (optional)"}
+            </Label>
+            <Input
+              id="employee-password"
+              type="password"
+              autoComplete="new-password"
+              minLength={8}
+              placeholder={editingId ? "Leave blank to keep current password" : "Min. 8 characters"}
+              value={form.password}
+              onChange={(e) => onFormChange((f) => ({ ...f, password: e.target.value }))}
+            />
+            <p className="text-muted-foreground text-xs">
+              Used for email sign-in. Employees can also set a password when they first link their
+              account.
+            </p>
+          </div>
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="designation">Designation</Label>
             <Input
               id="designation"
@@ -193,7 +215,7 @@ export function EmployeeSheet({
               <p className="text-muted-foreground text-sm">
                 {editingId
                   ? "Adjust probation settings for this employee. Mark legacy employees as completed if they finished probation before joining the system."
-                  : `Off by default when you add an employee. Mark existing staff as completed, or enable probation for new hires. Self-registered employees start with a ${DEFAULT_PROBATION_PERIOD_MONTHS}-month probation.`}
+                  : `Off by default when you add an employee. Mark existing staff as completed, or enable probation for new hires.`}
               </p>
             </div>
 

@@ -7,10 +7,12 @@ import {
   Sparkles,
   Timer,
 } from "lucide-react";
+import { CredentialsAuthForm } from "@/components/auth/credentials-auth-form";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { BrandMark } from "@/components/layout/brand-mark";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import type { CompanyOption } from "@/lib/admin/selected-company";
 import {
   CHECK_IN_GRACE_MINUTES,
   EXPECTED_CHECK_IN_TIME_PKT,
@@ -49,9 +51,9 @@ const features = [
   },
   {
     icon: ShieldCheck,
-    title: "Secure Google sign-in",
+    title: "Flexible sign-in",
     description:
-      "Sign in with any Google account — personal or work. Your employee number links you to the right company.",
+      "Sign in with email and password or Google. Link your account with your employee code once.",
   },
 ] as const;
 
@@ -67,13 +69,14 @@ const shiftFacts = [
 const steps = [
   {
     step: "01",
-    title: "Sign in with Google",
-    description: "Use your personal Gmail or any Google account — no company email required.",
+    title: "Sign in",
+    description: "Use your work email and password, or continue with Google.",
   },
   {
     step: "02",
-    title: "Enter your employee number",
-    description: "Badge or employee code links you to your company record automatically.",
+    title: "Link your employee number",
+    description:
+      "If this is your first time, confirm your company and employee code to connect your account.",
   },
   {
     step: "03",
@@ -85,9 +88,10 @@ const steps = [
 type LandingPageProps = {
   callbackUrl: string;
   errorMessage: string | null;
+  companies: CompanyOption[];
 };
 
-export function LandingPage({ callbackUrl, errorMessage }: LandingPageProps) {
+export function LandingPage({ callbackUrl, errorMessage, companies }: LandingPageProps) {
   return (
     <div className="relative flex min-h-svh flex-col overflow-hidden">
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
@@ -149,7 +153,7 @@ export function LandingPage({ callbackUrl, errorMessage }: LandingPageProps) {
                   <div className="space-y-1">
                     <h2 className="text-xl font-semibold tracking-tight">Welcome back</h2>
                     <p className="text-muted-foreground text-sm">
-                      Sign in with Google, then enter your employee number to get started.
+                      Sign in with your email, or continue with Google.
                     </p>
                   </div>
 
@@ -159,14 +163,22 @@ export function LandingPage({ callbackUrl, errorMessage }: LandingPageProps) {
                     </p>
                   ) : null}
 
+                  <CredentialsAuthForm callbackUrl={callbackUrl} companies={companies} />
+
+                  <div className="relative flex items-center gap-3">
+                    <div className="h-px flex-1 bg-border" />
+                    <span className="text-muted-foreground text-xs uppercase tracking-wide">or</span>
+                    <div className="h-px flex-1 bg-border" />
+                  </div>
+
                   <GoogleSignInButton
                     callbackUrl={callbackUrl}
                     className="h-12 w-full bg-background text-base font-medium shadow-sm"
                   />
 
                   <p className="text-center text-muted-foreground text-xs leading-relaxed">
-                    Any Google account works — personal Gmail or work email. Your employee number
-                    determines your company assignment.
+                    Work email and Google both work. First-time email sign-in links your employee
+                    code; after that, use your password.
                   </p>
                 </CardContent>
               </Card>
@@ -227,7 +239,7 @@ export function LandingPage({ callbackUrl, errorMessage }: LandingPageProps) {
                 Three steps to your first check-in
               </h2>
               <p className="mt-3 text-muted-foreground">
-                No company email required — just Google and your employee number.
+                Use email or Google, then link your employee number if needed.
               </p>
             </div>
 
@@ -241,13 +253,6 @@ export function LandingPage({ callbackUrl, errorMessage }: LandingPageProps) {
                   </p>
                 </div>
               ))}
-            </div>
-
-            <div className="mt-14 flex justify-center">
-              <GoogleSignInButton
-                callbackUrl={callbackUrl}
-                className="h-12 min-w-64 bg-background text-base font-medium shadow-sm"
-              />
             </div>
           </div>
         </section>

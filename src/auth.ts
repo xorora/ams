@@ -36,31 +36,34 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
     Credentials({
       credentials: {
-        employeeCode: { label: "Employee code", type: "text" },
+        mode: { label: "Mode", type: "text" },
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
-        name: { label: "Name", type: "text" },
+        employeeCode: { label: "Employee code", type: "text" },
+        companyId: { label: "Company", type: "text" },
       },
       async authorize(credentials) {
-        const employeeCode = credentials?.employeeCode;
+        const mode = credentials?.mode;
         const email = credentials?.email;
         const password = credentials?.password;
-        const name = credentials?.name;
+        const employeeCode = credentials?.employeeCode;
+        const companyId = credentials?.companyId;
 
-        if (
-          typeof employeeCode !== "string" ||
-          typeof email !== "string" ||
-          typeof password !== "string"
-        ) {
+        if (typeof email !== "string" || typeof password !== "string") {
+          return null;
+        }
+
+        if (mode !== "login" && mode !== "link") {
           return null;
         }
 
         try {
           const user = await authenticateWithCredentials({
-            employeeCode,
+            mode,
             email,
             password,
-            name: typeof name === "string" ? name : null,
+            employeeCode: typeof employeeCode === "string" ? employeeCode : undefined,
+            companyId: typeof companyId === "string" ? companyId : undefined,
           });
 
           const assignedCompanyId =

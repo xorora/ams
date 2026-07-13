@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { LandingPage } from "@/components/landing/landing-page";
+import { getCompanies } from "@/lib/admin/selected-company";
 import { getPostAuthRedirect } from "@/lib/auth/navigation";
 
 const errorMessages: Record<string, string> = {
@@ -8,7 +9,7 @@ const errorMessages: Record<string, string> = {
   Configuration: "Authentication is misconfigured. Contact your administrator.",
   OAuthSignin: "Could not start Google sign-in. Try again.",
   OAuthCallback: "Google sign-in failed. Try again.",
-  CredentialsSignin: "Invalid employee code, email, or password.",
+  CredentialsSignin: "Invalid email or password.",
   Default: "Sign-in failed. Try again.",
 };
 
@@ -26,6 +27,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const errorKey = params.error ?? "";
   const errorMessage = errorMessages[errorKey] ?? (errorKey ? errorMessages.Default : null);
   const callbackUrl = params.callbackUrl ?? "/register";
+  const companies = await getCompanies();
 
-  return <LandingPage callbackUrl={callbackUrl} errorMessage={errorMessage} />;
+  return (
+    <LandingPage callbackUrl={callbackUrl} errorMessage={errorMessage} companies={companies} />
+  );
 }

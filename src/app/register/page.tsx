@@ -48,8 +48,8 @@ export default async function RegisterPage() {
       <div className="max-w-md text-center">
         <h1 className="text-2xl font-semibold tracking-tight">Complete your registration</h1>
         <p className="mt-2 text-muted-foreground text-sm">
-          Select your company and enter your employee number. Matching is case-insensitive. If no
-          record exists, we create one and assign you a new employee number.
+          Select your company and enter your employee number to link this Google account. Your
+          employee record must already exist — ask an administrator if you do not have a code.
         </p>
       </div>
       <RegisterForm email={email} name={session.user.name} companies={companies} />
