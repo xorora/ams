@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { SignOutButton } from "@/components/layout/sign-out-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,11 @@ export function RegisterForm({ email, name, companies }: RegisterFormProps) {
   const [companyId, setCompanyId] = useState(companies[0]?.id ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const companyItems = useMemo(
+    () => Object.fromEntries(companies.map((company) => [company.id, company.name])),
+    [companies],
+  );
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -53,6 +58,7 @@ export function RegisterForm({ email, name, companies }: RegisterFormProps) {
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="register-company">Company</Label>
         <Select
+          items={companyItems}
           value={companyId}
           onValueChange={(value) => {
             if (value) {

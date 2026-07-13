@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,6 +37,11 @@ export function CredentialsAuthForm({
   const [companyId, setCompanyId] = useState(companies[0]?.id ?? "");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const companyItems = useMemo(
+    () => Object.fromEntries(companies.map((company) => [company.id, company.name])),
+    [companies],
+  );
 
   function resetToEmail() {
     setStep("email");
@@ -182,6 +187,7 @@ export function CredentialsAuthForm({
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="auth-company">Company</Label>
             <Select
+              items={companyItems}
               value={companyId}
               onValueChange={(value) => {
                 if (value) {
