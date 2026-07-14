@@ -18,12 +18,15 @@ export const CHECK_IN_GRACE_MINUTES = 15;
 /** Grace period after expected check-out before a shift is finalized as present without check-out. */
 export const CHECK_OUT_GRACE_MINUTES = 15;
 
-/** Last on-time check-in: expected check-in + grace (18:15 PKT). */
+/** Last on-time check-in minute: expected check-in + grace (18:15 PKT inclusive). */
 export const LATE_CHECK_IN_HOUR = EXPECTED_CHECK_IN_HOUR;
 export const LATE_CHECK_IN_MINUTE = CHECK_IN_GRACE_MINUTES;
 
+/** First minute marked late (18:16 PKT). */
+export const FIRST_LATE_CHECK_IN_MINUTE = CHECK_IN_GRACE_MINUTES + 1;
+
 export function formatLateCheckInDeadline(): string {
-  return formatHourMinutePkt(LATE_CHECK_IN_HOUR, LATE_CHECK_IN_MINUTE);
+  return formatHourMinutePkt(LATE_CHECK_IN_HOUR, FIRST_LATE_CHECK_IN_MINUTE);
 }
 
 /** Expected check-out on the morning after shift date (03:00 PKT). */

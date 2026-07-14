@@ -77,9 +77,13 @@ export function getLateCheckOutDeadline(shiftDate: string): Date {
   return new Date(expected.getTime() + CHECK_OUT_GRACE_MINUTES * 60_000);
 }
 
-/** Late when check-in is strictly after the grace deadline on the shift date. */
+/**
+ * Late when check-in reaches the minute after the grace deadline.
+ * E.g. deadline 18:15 → on time through 18:15:59, late from 18:16:00.
+ */
 export function isLateCheckIn(checkInAt: Date, shiftDate: string): boolean {
-  return checkInAt.getTime() > getLateCheckInDeadline(shiftDate).getTime();
+  const lastOnTimeInstant = getLateCheckInDeadline(shiftDate);
+  return checkInAt.getTime() >= lastOnTimeInstant.getTime() + 60_000;
 }
 
 /** Early leave when check-out is strictly before 03:00 PKT the morning after shift date. */

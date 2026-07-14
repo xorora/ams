@@ -144,7 +144,7 @@ export function buildLateCheckInMessage(priorMonthlyLates: number, isLate: boole
 
   const occurrence = priorMonthlyLates + 1;
   const fine = lateFineForOccurrence(occurrence);
-  const base = `Checked in. You are marked late (after ${formatLateCheckInDeadline()}).`;
+  const base = `Checked in. You are marked late (from ${formatLateCheckInDeadline()}).`;
 
   if (fine > 0) {
     return `${base} This is late #${occurrence} this month — a ${formatLateFinePkr(fine)} fine applies.`;

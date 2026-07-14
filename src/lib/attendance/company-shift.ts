@@ -96,6 +96,7 @@ export function getShiftScheduleLabels(config: CompanyShiftConfig): ShiftSchedul
       config.expectedCheckOutHour,
       config.expectedCheckOutMinute,
     ),
+    // Last on-time minute (inclusive). Late starts the following minute.
     lateCheckInDeadline: formatHourMinutePkt(
       Math.floor(lateCheckInTotalMinutes / 60) % 24,
       lateCheckInTotalMinutes % 60,
@@ -218,7 +219,10 @@ export function isLateCheckInForCompany(
   shiftDate: string,
   config: CompanyShiftConfig,
 ): boolean {
-  return checkInAt.getTime() > getLateCheckInDeadline(shiftDate, config).getTime();
+  const lastOnTimeInstant = getLateCheckInDeadline(shiftDate, config);
+  // Grace is inclusive for the whole deadline minute (e.g. 09:15:00–09:15:59 on time).
+  // Late starts at the next minute (09:16:00 / 18:16:00).
+  return checkInAt.getTime() >= lastOnTimeInstant.getTime() + 60_000;
 }
 
 export function isEarlyLeaveForCompany(
