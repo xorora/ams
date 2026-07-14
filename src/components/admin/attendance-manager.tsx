@@ -18,12 +18,14 @@ import { AttendanceTable } from "@/components/attendance/attendance-table";
 import {
   createAttendanceAction,
   deleteAttendanceAction,
+  fixLateGraceMinuteCheckInsAction,
   markAttendanceStatusAction,
   updateAttendanceAction,
 } from "@/lib/admin/actions";
 import { attendanceListQuery, normalizeAttendanceDateRange } from "@/lib/admin/query-params";
 import type { SerializedAttendance, SerializedEmployee } from "@/lib/admin/serialize";
 import { toastAsync, toastError } from "@/lib/toast";
+import { Button } from "@/components/ui/button";
 
 const AttendanceSheet = dynamic(
   () => import("@/components/attendance/attendance-sheet").then((module) => module.AttendanceSheet),
@@ -185,6 +187,37 @@ export function AttendanceManager({
     }
   }
 
+  async function handleFixGraceMinuteLates() {
+    if (
+      !window.confirm(
+        "Clear late flags for check-ins during the grace minute (e.g. 09:15 / 18:15)? Those arrivals are on-time under the updated rule.",
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await toastAsync(
+        fixLateGraceMinuteCheckInsAction().then((result) => {
+          if (!result.ok) {
+            throw new Error(result.error);
+          }
+          return result.data.updated;
+        }),
+        {
+          loading: "Updating late flags…",
+          success: (updated) =>
+            updated === 0
+              ? "No grace-minute late records found."
+              : `Updated ${updated} record${updated === 1 ? "" : "s"} to on-time.`,
+        },
+      );
+      startTransition(() => router.refresh());
+    } catch {
+      // toastAsync already surfaced the error toast
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4 md:min-h-0 md:flex-1 md:overflow-hidden">
       <div className="shrink-0 space-y-4">
@@ -194,6 +227,15 @@ export function AttendanceManager({
           employees={employees}
           onAddRecord={openCreate}
         />
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={handleFixGraceMinuteLates}>
+            Clear late for :15 arrivals
+          </Button>
+          <p className="text-muted-foreground text-xs">
+            One-time cleanup after the inclusive grace-minute rule (09:15 / 18:15 = on time).
+          </p>
+        </div>
 
         <AttendanceSheet
           open={formOpen}

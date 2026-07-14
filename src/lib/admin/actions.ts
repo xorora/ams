@@ -211,3 +211,15 @@ export async function deleteAttendanceAction(id: string): Promise<ActionResult> 
   revalidateAdminAttendance();
   return actionSuccess();
 }
+
+export async function fixLateGraceMinuteCheckInsAction(): Promise<
+  ActionResult<{ updated: number }>
+> {
+  await requireAdminSession();
+  const { fixLateGraceMinuteCheckIns } = await import("@/lib/admin/fix-late-grace-minute");
+  const result = await fixLateGraceMinuteCheckIns();
+  revalidateAdminAttendance();
+  revalidatePath("/admin/reports");
+  revalidatePath("/dashboard");
+  return actionSuccess({ updated: result.updated });
+}
