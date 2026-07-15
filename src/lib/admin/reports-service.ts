@@ -1,14 +1,23 @@
-import { and, asc, desc, eq, gte, lte } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lte } from "drizzle-orm";
 import { db } from "@/db";
 import { attendanceDays, companies, employees } from "@/db/schema";
+import { preferAttendanceDay } from "@/lib/admin/attendance-day-preference";
+import {
+  buildCanonicalEmployeeIdMap,
+  groupEmployeeDuplicateClusters,
+  type EmployeeRecord,
+} from "@/lib/admin/employee-identity";
 import { effectiveAttendanceStatus } from "@/lib/attendance/effective-status";
 import { assignLateFinesByShiftDate, computeLateFineTotals } from "@/lib/attendance/late-fines-utils";
 import { getCompanyShiftConfig } from "@/lib/attendance/company-shift";
+import { getRelatedEmployeeIdsForAttendance } from "@/lib/attendance/employee-attendance-identity";
 import { countWorkingDaysForCompany } from "@/lib/leave/working-days";
 import type { AttendanceListItem } from "./attendance-service";
 import { getEmployee } from "./employees-service";
 import type { ReportDateRange } from "./reports-date-range";
 import { adminFailure, type ServiceFailure, type ServiceSuccess } from "./types";
+
+export { preferAttendanceDay } from "@/lib/admin/attendance-day-preference";
 
 export type { ReportDateRange } from "./reports-date-range";
 export {
@@ -165,14 +174,14 @@ function mapAttendanceRow(
 
 async function fetchAttendanceInRange(
   range: ReportDateRange,
-  options: { employeeId?: string; companyId?: string } = {},
+  options: { employeeIds?: string[]; companyId?: string } = {},
 ): Promise<AttendanceListItem[]> {
   const conditions = [
     gte(attendanceDays.shiftDate, range.from),
     lte(attendanceDays.shiftDate, range.to),
   ];
-  if (options.employeeId) {
-    conditions.push(eq(attendanceDays.employeeId, options.employeeId));
+  if (options.employeeIds?.length) {
+    conditions.push(inArray(attendanceDays.employeeId, options.employeeIds));
   }
   if (options.companyId) {
     conditions.push(eq(employees.companyId, options.companyId));
@@ -189,6 +198,32 @@ async function fetchAttendanceInRange(
     .orderBy(desc(attendanceDays.shiftDate));
 
   return rows.map(({ attendance, employee }) => mapAttendanceRow(attendance, employee));
+}
+
+/** Remap sibling employee attendance onto canonical ids and collapse duplicate shift dates. */
+export function collapseAttendanceToCanonical(
+  rows: AttendanceListItem[],
+  canonicalByEmployeeId: Map<string, string>,
+  employeesById: Map<string, EmployeeRecord>,
+): AttendanceListItem[] {
+  const byKey = new Map<string, AttendanceListItem>();
+
+  for (const row of rows) {
+    const canonicalId = canonicalByEmployeeId.get(row.employeeId) ?? row.employeeId;
+    const canonical = employeesById.get(canonicalId);
+    const remapped: AttendanceListItem = {
+      ...row,
+      employeeId: canonicalId,
+      employeeCode: canonical?.employeeCode ?? row.employeeCode,
+      employeeName: canonical?.fullName ?? row.employeeName,
+      employeeEmail: canonical?.email ?? row.employeeEmail,
+    };
+    const key = `${canonicalId}:${row.shiftDate}`;
+    const existing = byKey.get(key);
+    byKey.set(key, existing ? preferAttendanceDay(existing, remapped) : remapped);
+  }
+
+  return [...byKey.values()].sort((left, right) => right.shiftDate.localeCompare(left.shiftDate));
 }
 
 export async function getEmployeeReport(
@@ -218,7 +253,23 @@ export async function getEmployeeReport(
     .where(eq(companies.id, employee.companyId))
     .limit(1);
 
-  const rows = await fetchAttendanceInRange(rangeResult.data, { employeeId, companyId });
+  const relatedIds = await getRelatedEmployeeIdsForAttendance(employeeId);
+  const companyEmployees = await db
+    .select()
+    .from(employees)
+    .where(eq(employees.companyId, employee.companyId));
+  const clusters = groupEmployeeDuplicateClusters(companyEmployees);
+  const cluster = clusters.find((item) => item.members.some((member) => member.id === employeeId));
+  const canonical = cluster?.canonical ?? employee;
+  const memberIds = cluster?.members.map((member) => member.id) ?? relatedIds;
+  const employeesById = new Map(companyEmployees.map((record) => [record.id, record]));
+  const canonicalByEmployeeId = buildCanonicalEmployeeIdMap(companyEmployees);
+
+  const rawRows = await fetchAttendanceInRange(rangeResult.data, {
+    employeeIds: memberIds,
+    companyId,
+  });
+  const rows = collapseAttendanceToCanonical(rawRows, canonicalByEmployeeId, employeesById);
   const lateFinesByShiftDate = assignLateFinesByShiftDate(rows);
   const lateFineTotals = computeLateFineTotals(rows);
   const summary = {
@@ -255,13 +306,13 @@ export async function getEmployeeReport(
     data: {
       range: rangeResult.data,
       employee: {
-        id: employee.id,
-        employeeCode: employee.employeeCode,
-        fullName: employee.fullName,
-        email: employee.email,
-        department: employee.department,
-        designation: employee.designation,
-        isActive: employee.isActive,
+        id: canonical.id,
+        employeeCode: canonical.employeeCode,
+        fullName: canonical.fullName,
+        email: canonical.email,
+        department: canonical.department,
+        designation: canonical.designation,
+        isActive: canonical.isActive,
       },
       summary,
       days,
@@ -279,22 +330,27 @@ export async function getSummaryReport(
     return rangeResult;
   }
 
-  const employeeConditions = [eq(employees.isActive, true)];
-  if (companyId) {
-    employeeConditions.push(eq(employees.companyId, companyId));
-  }
+  const employeeQuery = companyId
+    ? db
+        .select()
+        .from(employees)
+        .where(eq(employees.companyId, companyId))
+        .orderBy(asc(employees.fullName))
+    : db.select().from(employees).orderBy(asc(employees.fullName));
 
-  const [activeEmployees, rows] = await Promise.all([
-    db
-      .select()
-      .from(employees)
-      .where(and(...employeeConditions))
-      .orderBy(asc(employees.fullName)),
+  const [allCompanyEmployees, rawRows] = await Promise.all([
+    employeeQuery,
     fetchAttendanceInRange(rangeResult.data, { companyId }),
   ]);
 
+  const clusters = groupEmployeeDuplicateClusters(allCompanyEmployees);
+  const canonicalByEmployeeId = buildCanonicalEmployeeIdMap(allCompanyEmployees);
+  const employeesById = new Map(allCompanyEmployees.map((record) => [record.id, record]));
+  const rows = collapseAttendanceToCanonical(rawRows, canonicalByEmployeeId, employeesById);
+
   const totals = emptyTotals();
   const byEmployee = new Map<string, ReportTotals>();
+  const employeeLateRows = new Map<string, AttendanceListItem[]>();
 
   for (const row of rows) {
     accumulateTotals(totals, row);
@@ -304,13 +360,10 @@ export async function getSummaryReport(
       byEmployee.set(row.employeeId, employeeTotals);
     }
     accumulateTotals(employeeTotals, row);
-  }
 
-  const employeeLateRows = new Map<string, AttendanceListItem[]>();
-  for (const row of rows) {
-    const employeeRows = employeeLateRows.get(row.employeeId) ?? [];
-    employeeRows.push(row);
-    employeeLateRows.set(row.employeeId, employeeRows);
+    const lateRows = employeeLateRows.get(row.employeeId) ?? [];
+    lateRows.push(row);
+    employeeLateRows.set(row.employeeId, lateRows);
   }
 
   const rangeLateFineTotals = computeLateFineTotals(rows);
@@ -327,39 +380,35 @@ export async function getSummaryReport(
     employeeTotals.lateFinePkr = employeeFineTotals.totalFinePkr;
   }
 
-  const employeeRows: SummaryEmployeeRow[] = activeEmployees.map((employee) => ({
-    employeeId: employee.id,
-    employeeCode: employee.employeeCode,
-    fullName: employee.fullName,
-    department: employee.department,
-    designation: employee.designation,
-    isActive: employee.isActive,
-    totals: byEmployee.get(employee.id) ?? emptyTotals(),
+  const activeClusters = clusters.filter((cluster) => cluster.canonical.isActive);
+  const employeeRows: SummaryEmployeeRow[] = activeClusters.map((cluster) => ({
+    employeeId: cluster.canonical.id,
+    employeeCode: cluster.canonical.employeeCode,
+    fullName: cluster.canonical.fullName,
+    department: cluster.canonical.department,
+    designation: cluster.canonical.designation,
+    isActive: cluster.canonical.isActive,
+    totals: byEmployee.get(cluster.canonical.id) ?? emptyTotals(),
   }));
 
+  // Include inactive canonical people who still have attendance in range.
   for (const [employeeId, employeeTotals] of byEmployee) {
-    if (!activeEmployees.some((e) => e.id === employeeId)) {
-      const inactiveConditions = [eq(employees.id, employeeId)];
-      if (companyId) {
-        inactiveConditions.push(eq(employees.companyId, companyId));
-      }
-      const [inactive] = await db
-        .select()
-        .from(employees)
-        .where(and(...inactiveConditions))
-        .limit(1);
-      if (inactive) {
-        employeeRows.push({
-          employeeId: inactive.id,
-          employeeCode: inactive.employeeCode,
-          fullName: inactive.fullName,
-          department: inactive.department,
-          designation: inactive.designation,
-          isActive: inactive.isActive,
-          totals: employeeTotals,
-        });
-      }
+    if (employeeRows.some((row) => row.employeeId === employeeId)) {
+      continue;
     }
+    const employee = employeesById.get(employeeId);
+    if (!employee) {
+      continue;
+    }
+    employeeRows.push({
+      employeeId: employee.id,
+      employeeCode: employee.employeeCode,
+      fullName: employee.fullName,
+      department: employee.department,
+      designation: employee.designation,
+      isActive: employee.isActive,
+      totals: employeeTotals,
+    });
   }
 
   employeeRows.sort((a, b) => a.fullName.localeCompare(b.fullName));
@@ -369,7 +418,7 @@ export async function getSummaryReport(
     data: {
       range: rangeResult.data,
       totals,
-      activeEmployeeCount: activeEmployees.length,
+      activeEmployeeCount: activeClusters.length,
       employees: employeeRows,
     },
   };

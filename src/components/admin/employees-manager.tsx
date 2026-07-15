@@ -16,6 +16,7 @@ import {
 } from "@/components/employee/employee-sheet";
 import { EmployeeTable } from "@/components/employee/employee-table";
 import {
+  consolidateDuplicateEmployeesAction,
   createEmployeeAction,
   deactivateEmployeeAction,
   endEmployeeProbationAction,
@@ -28,6 +29,7 @@ import { DEFAULT_PROBATION_PERIOD_MONTHS, getTodayPkt } from "@/lib/admin/probat
 import { employeesListQuery } from "@/lib/admin/query-params";
 import type { SerializedEmployee } from "@/lib/admin/serialize";
 import { downloadResponseBlob, previewResponseBlob, toastAsync, toastError } from "@/lib/toast";
+import { Button } from "@/components/ui/button";
 
 type EmployeesManagerProps = {
   employees: SerializedEmployee[];
@@ -346,6 +348,37 @@ export function EmployeesManager({ employees, search, includeInactive }: Employe
     }));
   }
 
+  async function handleConsolidateDuplicates() {
+    if (
+      !window.confirm(
+        "Merge duplicate employee rows for the selected company? Sibling attendance and ZKTime punches move onto the canonical record, codes are aligned to ZKTime badges when possible, and duplicate rows are deactivated.",
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await toastAsync(
+        consolidateDuplicateEmployeesAction().then((result) => {
+          if (!result.ok) {
+            throw new Error(result.error);
+          }
+          return result.data;
+        }),
+        {
+          loading: "Pulling ZKTime employees and merging duplicates…",
+          success: (data) =>
+            data.clustersMerged === 0
+              ? "No duplicate employee clusters found."
+              : `Merged ${data.clustersMerged} cluster(s): deactivated ${data.siblingsDeactivated}, moved ${data.attendanceMoved} attendance row(s), relinked ${data.punchesRelinked} punch(es), aligned ${data.codesAlignedToZktime} code(s) to ZKTime.`,
+        },
+      );
+      startTransition(() => router.refresh());
+    } catch {
+      // toastAsync already surfaced the error toast
+    }
+  }
+
   async function handleReactivate(id: string) {
     try {
       await toastAsync(
@@ -378,6 +411,15 @@ export function EmployeesManager({ employees, search, includeInactive }: Employe
           }}
           onAddEmployee={openCreate}
         />
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={handleConsolidateDuplicates}>
+            Merge duplicates + align ZKTime
+          </Button>
+          <p className="text-muted-foreground text-xs">
+            Removes duplicate people from reports/employees and prefers ZKTime badge codes.
+          </p>
+        </div>
 
         <EmployeeSheet
           open={formOpen}

@@ -33,6 +33,14 @@ export function ReportsSummaryTable({ report, className }: ReportsSummaryTablePr
         cell: ({ row }) => row.original.fullName,
       },
       {
+        id: "employeeCode",
+        accessorFn: (row) => row.employeeCode,
+        header: "Code",
+        cell: ({ row }) => (
+          <span className="font-mono text-muted-foreground text-xs">{row.original.employeeCode}</span>
+        ),
+      },
+      {
         id: "designation",
         accessorFn: (row) => row.designation ?? "—",
         header: "Designation",

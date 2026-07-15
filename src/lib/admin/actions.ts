@@ -223,3 +223,55 @@ export async function fixLateGraceMinuteCheckInsAction(): Promise<
   revalidatePath("/dashboard");
   return actionSuccess({ updated: result.updated });
 }
+
+export async function consolidateDuplicateEmployeesAction(): Promise<
+  ActionResult<{
+    clustersMerged: number;
+    siblingsDeactivated: number;
+    attendanceMoved: number;
+    punchesRelinked: number;
+    codesAlignedToZktime: number;
+  }>
+> {
+  await requireAdminSession();
+  const companyId = await getSelectedCompanyId();
+  if (!companyId) {
+    return actionFailure({
+      ok: false,
+      message: "No company selected.",
+      code: "NO_COMPANY",
+    });
+  }
+
+  // Refresh ZKTime master data first so badge codes are available for alignment.
+  try {
+    const { isZktimeConfigured } = await import("@/lib/zktime/config");
+    if (isZktimeConfigured()) {
+      const { ZktimeClient } = await import("@/lib/zktime/client");
+      const { pullEmployeesFromZktime } = await import("@/lib/zktime/employee-sync");
+      await pullEmployeesFromZktime(ZktimeClient.fromEnv());
+    }
+  } catch (error) {
+    console.warn("[consolidate-duplicates] ZKTime pull failed; continuing with AMS data", error);
+  }
+
+  const { consolidateDuplicateEmployees } = await import(
+    "@/lib/admin/consolidate-duplicate-employees"
+  );
+  const result = await consolidateDuplicateEmployees({ companyId });
+  if (!result.ok) {
+    return actionFailure(result);
+  }
+
+  revalidateAdminEmployees();
+  revalidateAdminAttendance();
+  revalidatePath("/admin/reports");
+  revalidatePath("/admin/devices");
+  return actionSuccess({
+    clustersMerged: result.data.clustersMerged,
+    siblingsDeactivated: result.data.siblingsDeactivated,
+    attendanceMoved: result.data.attendanceMoved,
+    punchesRelinked: result.data.punchesRelinked,
+    codesAlignedToZktime: result.data.codesAlignedToZktime,
+  });
+}

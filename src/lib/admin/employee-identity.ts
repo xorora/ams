@@ -85,44 +85,67 @@ export function pickCanonicalEmployee(candidates: EmployeeRecord[]): EmployeeRec
   })[0];
 }
 
-export function dedupeEmployeeRecords(records: EmployeeRecord[]): EmployeeRecord[] {
-  const groups = new Map<string, EmployeeRecord[]>();
+export type EmployeeDuplicateCluster = {
+  canonical: EmployeeRecord;
+  members: EmployeeRecord[];
+};
 
-  for (const record of records) {
-    const key = `${record.companyId}:${normalizeEmployeeName(record.fullName)}`;
-    const group = groups.get(key) ?? [];
-    group.push(record);
-    groups.set(key, group);
-  }
+/** Group likely-duplicate rows; also link numeric code variants even when names differ slightly. */
+export function groupEmployeeDuplicateClusters(
+  records: EmployeeRecord[],
+): EmployeeDuplicateCluster[] {
+  const remaining = [...records];
+  const clusters: EmployeeRecord[][] = [];
 
-  const deduped: EmployeeRecord[] = [];
+  while (remaining.length > 0) {
+    const seed = remaining.shift()!;
+    const cluster = [seed];
 
-  for (const group of groups.values()) {
-    if (group.length === 1) {
-      deduped.push(group[0]);
-      continue;
-    }
-
-    const duplicateClusters: EmployeeRecord[][] = [];
-
-    for (const record of group) {
-      const cluster = duplicateClusters.find((items) =>
-        items.some((candidate) => areLikelyDuplicateEmployees(candidate, record)),
-      );
-
-      if (cluster) {
-        cluster.push(record);
-      } else {
-        duplicateClusters.push([record]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (let index = remaining.length - 1; index >= 0; index -= 1) {
+        const candidate = remaining[index];
+        const linked = cluster.some(
+          (member) =>
+            areLikelyDuplicateEmployees(member, candidate) ||
+            codesMatch(member.employeeCode, candidate.employeeCode),
+        );
+        if (!linked) {
+          continue;
+        }
+        cluster.push(candidate);
+        remaining.splice(index, 1);
+        changed = true;
       }
     }
 
-    for (const cluster of duplicateClusters) {
-      deduped.push(pickCanonicalEmployee(cluster));
-    }
+    clusters.push(cluster);
   }
 
-  return deduped.sort((left, right) => left.fullName.localeCompare(right.fullName));
+  return clusters
+    .map((members) => ({
+      canonical: pickCanonicalEmployee(members),
+      members,
+    }))
+    .sort((left, right) =>
+      left.canonical.fullName.localeCompare(right.canonical.fullName),
+    );
+}
+
+export function dedupeEmployeeRecords(records: EmployeeRecord[]): EmployeeRecord[] {
+  return groupEmployeeDuplicateClusters(records).map((cluster) => cluster.canonical);
+}
+
+/** Map every employee id in `records` onto its cluster canonical id. */
+export function buildCanonicalEmployeeIdMap(records: EmployeeRecord[]): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const cluster of groupEmployeeDuplicateClusters(records)) {
+    for (const member of cluster.members) {
+      map.set(member.id, cluster.canonical.id);
+    }
+  }
+  return map;
 }
 
 export async function findEmployeeByCodeVariants(
