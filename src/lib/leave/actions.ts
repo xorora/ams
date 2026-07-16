@@ -6,6 +6,7 @@ import { requireAdminSession, requireEmployeeSession } from "@/lib/auth/require-
 import {
   approveLeaveRequest,
   cancelLeaveRequest,
+  deleteLeaveRequest,
   getLeaveBalances,
   rejectLeaveRequest,
   type SubmitLeaveInput,
@@ -19,6 +20,8 @@ function revalidateLeavePaths() {
   revalidatePath("/admin/attendance");
   revalidatePath("/admin/reports");
   revalidatePath("/dashboard");
+  // Refresh sidebar pending indicator in the root layout.
+  revalidatePath("/", "layout");
 }
 
 export async function submitLeaveRequestAction(input: SubmitLeaveInput): Promise<ActionResult> {
@@ -70,6 +73,16 @@ export async function rejectLeaveRequestAction(
 ): Promise<ActionResult> {
   const session = await requireAdminSession();
   const result = await rejectLeaveRequest(session.user.id, id, reviewNotes);
+  if (!result.ok) {
+    return actionFailure(result);
+  }
+  revalidateLeavePaths();
+  return actionSuccess();
+}
+
+export async function deleteLeaveRequestAction(id: string): Promise<ActionResult> {
+  await requireAdminSession();
+  const result = await deleteLeaveRequest(id);
   if (!result.ok) {
     return actionFailure(result);
   }

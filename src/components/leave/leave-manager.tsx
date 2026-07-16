@@ -6,8 +6,11 @@ import { LeaveDetailSheet } from "@/components/leave/leave-detail-sheet";
 import { LeaveFilters, type LeaveFiltersState } from "@/components/leave/leave-filters";
 import { LeaveTable } from "@/components/leave/leave-table";
 import type { SerializedEmployee } from "@/lib/admin/serialize";
+import { Button } from "@/components/ui/button";
+import { deleteShahbazSickLeave20260707Action } from "@/lib/admin/actions";
 import {
   approveLeaveRequestAction,
+  deleteLeaveRequestAction,
   getLeaveBalancesAction,
   rejectLeaveRequestAction,
 } from "@/lib/leave/actions";
@@ -139,10 +142,100 @@ export function LeaveManager({
     }
   }
 
+  async function handleDelete(id: string) {
+    const confirmed = window.confirm(
+      "Delete this leave request and restore the days to the employee’s leave balance?",
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setActionPending(true);
+
+    try {
+      await toastAsync(
+        deleteLeaveRequestAction(id).then((result) => {
+          if (!result.ok) {
+            throw new Error(result.error);
+          }
+        }),
+        {
+          loading: "Deleting leave request…",
+          success: "Leave request deleted. Balance restored.",
+        },
+      );
+      router.refresh();
+    } catch {
+      // toastAsync already surfaced the error toast
+    } finally {
+      setActionPending(false);
+    }
+  }
+
+  async function handleDeleteShahbazSickLeave() {
+    if (
+      !window.confirm(
+        "Delete Shahbaz Afzal (001) approved sick leave for 2026-07-07 and restore 1 day to his sick leave pool?",
+      )
+    ) {
+      return;
+    }
+
+    setActionPending(true);
+    try {
+      await toastAsync(
+        deleteShahbazSickLeave20260707Action().then((result) => {
+          if (!result.ok) {
+            throw new Error(result.error);
+          }
+          return result.data;
+        }),
+        {
+          loading: "Deleting Shahbaz sick leave…",
+          success: (data) =>
+            data.deleted === 0
+              ? "No matching approved sick leave found."
+              : `Deleted ${data.deleted} leave request. Sick remaining: ${data.sickRemainingAfter ?? "—"}.`,
+        },
+      );
+      router.refresh();
+    } catch {
+      // toastAsync already surfaced the error toast
+    } finally {
+      setActionPending(false);
+    }
+  }
+
+  const showShahbazCleanup = requests.some(
+    (request) =>
+      (request.employeeCode === "001" ||
+        request.employeeName.toLowerCase().includes("shahbaz")) &&
+      request.leaveType === "sick" &&
+      request.startDate === "2026-07-07" &&
+      request.endDate === "2026-07-07" &&
+      request.status === "approved",
+  );
+
   return (
     <div className="flex flex-col gap-6 md:min-h-0 md:flex-1 md:overflow-hidden">
-      <div className="shrink-0">
+      <div className="shrink-0 space-y-3">
         <LeaveFilters filters={filters} employees={employees} onChange={applyFilterPatch} />
+        {showShahbazCleanup ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={actionPending}
+              onClick={handleDeleteShahbazSickLeave}
+            >
+              Restore Shahbaz sick leave (2026-07-07)
+            </Button>
+            <p className="text-muted-foreground text-xs">
+              Removes the approved 1-day sick leave and returns it to his leave pool.
+            </p>
+          </div>
+        ) : null}
       </div>
 
       <LeaveTable
@@ -153,6 +246,7 @@ export function LeaveManager({
         onView={setViewRequest}
         onApprove={handleApprove}
         onReject={handleReject}
+        onDelete={handleDelete}
         onDownloadPdf={handleDownloadPdf}
         downloadPending={downloadPending}
         actionPending={actionPending}

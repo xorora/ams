@@ -224,6 +224,25 @@ export async function fixLateGraceMinuteCheckInsAction(): Promise<
   return actionSuccess({ updated: result.updated });
 }
 
+export async function deleteShahbazSickLeave20260707Action(): Promise<
+  ActionResult<{ deleted: number; sickRemainingAfter: number | null }>
+> {
+  await requireAdminSession();
+  const { deleteShahbazSickLeave20260707 } = await import(
+    "@/lib/admin/delete-shahbaz-sick-leave"
+  );
+  const result = await deleteShahbazSickLeave20260707();
+  revalidatePath("/admin/leave");
+  revalidatePath("/leave");
+  revalidatePath("/admin/attendance");
+  revalidatePath("/admin/reports");
+  revalidatePath("/", "layout");
+  return actionSuccess({
+    deleted: result.deleted,
+    sickRemainingAfter: result.matches[0]?.sickRemainingAfter ?? null,
+  });
+}
+
 export async function consolidateDuplicateEmployeesAction(): Promise<
   ActionResult<{
     clustersMerged: number;

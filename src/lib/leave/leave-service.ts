@@ -1,5 +1,5 @@
 import { formatInTimeZone } from "date-fns-tz";
-import { and, desc, eq, gte, lte, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, gte, lte, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { attendanceDays, companies, employees, leaveRequests } from "@/db/schema";
 import { formatProbationEndDate, isCurrentlyOnProbation } from "@/lib/admin/probation";
@@ -287,6 +287,22 @@ export async function listLeaveRequests(
     ok: true,
     data: rows.map(({ request, employee }) => mapLeaveRow(request, employee)),
   };
+}
+
+/** Pending leave requests needing admin review (company-scoped when provided). */
+export async function countPendingLeaveRequests(companyId?: string | null): Promise<number> {
+  const conditions = [eq(leaveRequests.status, "pending")];
+  if (companyId) {
+    conditions.push(eq(employees.companyId, companyId));
+  }
+
+  const [row] = await db
+    .select({ value: count() })
+    .from(leaveRequests)
+    .innerJoin(employees, eq(leaveRequests.employeeId, employees.id))
+    .where(and(...conditions));
+
+  return row?.value ?? 0;
 }
 
 type LeaveRequestForBalance = Pick<LeaveListItem, "leaveType" | "status" | "daysCount">;
@@ -768,4 +784,82 @@ export async function rejectLeaveRequest(
   }
 
   return { ok: true, data: mapLeaveRow(updated, employee) };
+}
+
+async function clearLeaveFromAttendance(request: LeaveListItem): Promise<number> {
+  const { config: shiftConfig, companySlug } = await getEmployeeShiftContext(request.employeeId);
+  const shiftDates = getLeaveDatesForAttendance(
+    request.leaveType,
+    request.startDate,
+    request.endDate,
+    shiftConfig,
+    companySlug,
+  );
+  const noteMarker = `(${request.id})`;
+  let cleared = 0;
+
+  for (const shiftDate of shiftDates) {
+    const [existing] = await db
+      .select()
+      .from(attendanceDays)
+      .where(
+        and(
+          eq(attendanceDays.employeeId, request.employeeId),
+          eq(attendanceDays.shiftDate, shiftDate),
+        ),
+      )
+      .limit(1);
+
+    if (!existing) {
+      continue;
+    }
+
+    const notes = existing.notes ?? "";
+    const isLeaveMark =
+      existing.status === "leave" && (notes.includes(noteMarker) || notes.startsWith("Leave:"));
+    if (!isLeaveMark) {
+      continue;
+    }
+
+    // Synthetic leave-only rows: remove. Otherwise clear leave status.
+    if (existing.source === "manual" && !existing.checkInAt && !existing.checkOutAt) {
+      await db.delete(attendanceDays).where(eq(attendanceDays.id, existing.id));
+    } else {
+      await db
+        .update(attendanceDays)
+        .set({
+          status: "absent",
+          notes: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(attendanceDays.id, existing.id));
+    }
+    cleared += 1;
+  }
+
+  return cleared;
+}
+
+/**
+ * Permanently delete a leave request and restore its days to the leave pool.
+ * Balance is computed from approved/pending rows, so deletion restores remaining days.
+ * Also clears attendance days synced from an approved leave.
+ */
+export async function deleteLeaveRequest(
+  id: string,
+): Promise<ServiceFailure | ServiceSuccess<{ deleted: LeaveListItem; attendanceCleared: number }>> {
+  const current = await loadLeaveItem(id);
+  if (!current.ok) {
+    return current;
+  }
+
+  const attendanceCleared =
+    current.data.status === "approved" ? await clearLeaveFromAttendance(current.data) : 0;
+
+  await db.delete(leaveRequests).where(eq(leaveRequests.id, id));
+
+  return {
+    ok: true,
+    data: { deleted: current.data, attendanceCleared },
+  };
 }

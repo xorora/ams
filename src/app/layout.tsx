@@ -10,6 +10,7 @@ import {
   resolveSelectedCompanyId,
 } from "@/lib/admin/selected-company-utils";
 import { hasLinkedEmployee } from "@/lib/auth/attendance-access";
+import { countPendingLeaveRequests } from "@/lib/leave/leave-service";
 import "./globals.css";
 
 const fontSans = Poppins({
@@ -44,6 +45,9 @@ export default async function RootLayout({
   const selectedCompanyId = isAdmin
     ? resolveSelectedCompanyId(companies, (await cookies()).get(COMPANY_COOKIE)?.value)
     : null;
+  const pendingLeaveRequestCount = isAdmin
+    ? await countPendingLeaveRequests(selectedCompanyId)
+    : 0;
 
   return (
     <html lang="en" className={`${fontSans.variable} ${fontMono.variable} h-full antialiased`}>
@@ -53,6 +57,7 @@ export default async function RootLayout({
           hasLinkedEmployee={linkedEmployee}
           companies={companies}
           selectedCompanyId={selectedCompanyId}
+          pendingLeaveRequestCount={pendingLeaveRequestCount}
         >
           {children}
         </ApplicationShell>

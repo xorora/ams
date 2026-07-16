@@ -23,6 +23,7 @@ type LeaveTableProps = {
   onCancel?: (id: string) => void;
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
+  onDelete?: (id: string) => void;
   onDownloadPdf?: (id: string) => void;
   downloadPending?: boolean;
   actionPending?: boolean;
@@ -38,6 +39,7 @@ export function LeaveTable({
   onCancel,
   onApprove,
   onReject,
+  onDelete,
   onDownloadPdf,
   downloadPending = false,
   actionPending = false,
@@ -108,7 +110,9 @@ export function LeaveTable({
           const request = row.original;
           const hasReviewActions =
             request.status === "pending" && (onCancel || onApprove || onReject);
-          const hasSecondaryActions = Boolean(onDownloadPdf) || hasReviewActions;
+          const canDelete = Boolean(onDelete);
+          const hasSecondaryActions =
+            Boolean(onDownloadPdf) || hasReviewActions || canDelete;
 
           if (!onView && !hasSecondaryActions) {
             return "—";
@@ -141,7 +145,9 @@ export function LeaveTable({
                     Download PDF
                   </DropdownMenuItem>
                 ) : null}
-                {onDownloadPdf && hasReviewActions ? <DropdownMenuSeparator /> : null}
+                {onDownloadPdf && (hasReviewActions || canDelete) ? (
+                  <DropdownMenuSeparator />
+                ) : null}
                 {onCancel ? (
                   <DropdownMenuItem disabled={actionPending} onClick={() => onCancel(request.id)}>
                     Cancel
@@ -164,6 +170,18 @@ export function LeaveTable({
                     </DropdownMenuItem>
                   </>
                 ) : null}
+                {onDelete ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      variant="destructive"
+                      disabled={actionPending}
+                      onClick={() => onDelete(request.id)}
+                    >
+                      Delete & restore balance
+                    </DropdownMenuItem>
+                  </>
+                ) : null}
               </DropdownMenuContent>
             </DropdownMenu>
           );
@@ -177,6 +195,7 @@ export function LeaveTable({
     downloadPending,
     onApprove,
     onCancel,
+    onDelete,
     onDownloadPdf,
     onReject,
     onView,

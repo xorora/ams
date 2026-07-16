@@ -16,9 +16,14 @@ import { getNavItemsForUser } from "@/lib/auth/navigation";
 type AppSidebarProps = {
   user: Session["user"];
   hasLinkedEmployee?: boolean;
+  pendingLeaveRequestCount?: number;
 };
 
-export function AppSidebar({ user, hasLinkedEmployee = false }: AppSidebarProps) {
+export function AppSidebar({
+  user,
+  hasLinkedEmployee = false,
+  pendingLeaveRequestCount = 0,
+}: AppSidebarProps) {
   const navItems = getNavItemsForUser(user, { hasLinkedEmployee });
   const roleLabel =
     user.role === "admin" ? "Admin" : user.role === "accounting_admin" ? "Accounting" : "Employee";
@@ -30,7 +35,7 @@ export function AppSidebar({ user, hasLinkedEmployee = false }: AppSidebarProps)
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarNav items={navItems} />
+        <SidebarNav items={navItems} pendingLeaveRequestCount={pendingLeaveRequestCount} />
       </SidebarContent>
 
       <SidebarFooter className="border-t">

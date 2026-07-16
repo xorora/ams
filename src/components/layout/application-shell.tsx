@@ -15,6 +15,7 @@ type ApplicationShellProps = {
   hasLinkedEmployee?: boolean;
   companies?: CompanyOption[];
   selectedCompanyId?: string | null;
+  pendingLeaveRequestCount?: number;
   children: React.ReactNode;
 };
 
@@ -23,6 +24,7 @@ export function ApplicationShell({
   hasLinkedEmployee = false,
   companies = [],
   selectedCompanyId = null,
+  pendingLeaveRequestCount = 0,
   children,
 }: ApplicationShellProps) {
   const pathname = usePathname();
@@ -40,7 +42,11 @@ export function ApplicationShell({
   return (
     <TooltipProvider>
       <SidebarProvider className="h-svh overflow-hidden">
-        <AppSidebar user={user} hasLinkedEmployee={hasLinkedEmployee} />
+        <AppSidebar
+          user={user}
+          hasLinkedEmployee={hasLinkedEmployee}
+          pendingLeaveRequestCount={pendingLeaveRequestCount}
+        />
         <SidebarInset className="flex h-svh min-h-0 flex-col overflow-hidden">
           <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
             <SidebarTrigger className="-ml-1" />
