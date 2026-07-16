@@ -20,8 +20,8 @@ function revalidateLeavePaths() {
   revalidatePath("/admin/attendance");
   revalidatePath("/admin/reports");
   revalidatePath("/dashboard");
-  // Refresh sidebar pending indicator in the root layout.
-  revalidatePath("/", "layout");
+  // Refresh streamed leave badge in the authenticated app layout.
+  revalidatePath("/dashboard", "layout");
 }
 
 export async function submitLeaveRequestAction(input: SubmitLeaveInput): Promise<ActionResult> {

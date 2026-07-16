@@ -96,7 +96,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return true;
     },
-    async jwt({ token, user, account, profile }) {
+    async jwt({ token, user, account, profile, trigger }) {
       if (account?.provider === "google" && profile?.email && profile.sub) {
         const dbUser = await resolveUserOnSignIn({
           email: profile.email,
@@ -114,7 +114,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.role = user.role;
         token.employeeId = user.employeeId ?? null;
         token.assignedCompanyId = user.assignedCompanyId ?? null;
-      } else if (typeof token.id === "string") {
+      } else if (trigger === "update" && typeof token.id === "string") {
+        // Explicit session refresh only (role / employee link changes).
         const [dbUser] = await db
           .select({ role: users.role, employeeId: users.employeeId })
           .from(users)

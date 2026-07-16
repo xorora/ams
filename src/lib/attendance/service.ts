@@ -12,7 +12,6 @@ import {
   type CompanyShiftConfig,
 } from "./company-shift";
 import { findActiveOpenShift } from "./close-open-shift";
-import { reconcileEmployeeAttendanceFromLog } from "./attendance-log-sync";
 import { resolveEmployeeIdForAttendance } from "./employee-attendance-identity";
 import type { Coordinates } from "./coords";
 import {
@@ -206,22 +205,11 @@ export async function getTodayStatus(
   employeeId: string,
 ): Promise<ServiceSuccess<TodayStatusPayload>> {
   const now = new Date();
-  const resolvedEmployeeId = await resolveEmployeeIdForAttendance(employeeId, now);
-  const { config: shiftConfig } = await loadEmployeeShiftContext(resolvedEmployeeId);
-  const shiftDate = getShiftDateForCompany(now, shiftConfig);
-  const { day: currentDay } = await loadShiftAttendance(resolvedEmployeeId, shiftDate);
-  const openShift = await findActiveOpenShift(resolvedEmployeeId, now);
-  const openDay = openShift
-    ? (await loadShiftAttendance(resolvedEmployeeId, openShift.shiftDate)).day
-    : null;
-
-  if (!currentDay?.checkInAt && !openDay?.checkInAt) {
-    await reconcileEmployeeAttendanceFromLog(resolvedEmployeeId, now);
-  }
-
+  // Read-only: do not reconcile punches on dashboard/status loads.
+  // Reconciliation runs on check-in/out and ZKTime sync/cron paths.
   const { day, sessions, shiftConfig: resolvedShiftConfig, companySlug: resolvedCompanySlug, shiftDate: resolvedShiftDate } =
-    await resolveShiftAttendance(resolvedEmployeeId, now);
-  const monthlyLate = await getEmployeeMonthlyLateSummary(resolvedEmployeeId, resolvedShiftDate, {
+    await resolveShiftAttendance(employeeId, now);
+  const monthlyLate = await getEmployeeMonthlyLateSummary(employeeId, resolvedShiftDate, {
     includeTodayLate: true,
   });
   const status = buildTodayStatus(
@@ -237,7 +225,7 @@ export async function getTodayStatus(
   const [employee] = await db
     .select({ isActive: employees.isActive })
     .from(employees)
-    .where(eq(employees.id, resolvedEmployeeId))
+    .where(eq(employees.id, employeeId))
     .limit(1);
 
   if (employee && !employee.isActive) {

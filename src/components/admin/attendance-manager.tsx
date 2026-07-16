@@ -36,12 +36,18 @@ type AttendanceManagerProps = {
   employees: SerializedEmployee[];
   items: SerializedAttendance[];
   filters: AttendanceFiltersState;
+  page: number;
+  limit: number;
+  total: number;
 };
 
 export function AttendanceManager({
   employees,
   items,
   filters: initialFilters,
+  page,
+  limit,
+  total,
 }: AttendanceManagerProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -55,14 +61,27 @@ export function AttendanceManager({
     setFilters(initialFilters);
   }, [initialFilters]);
 
+  function navigateWithFilters(next: AttendanceFiltersState) {
+    startTransition(() => {
+      router.replace(
+        `/admin/attendance${attendanceListQuery({
+          from: next.from,
+          to: next.to,
+          employeeId: next.employeeId || undefined,
+          status: next.status || undefined,
+          page: next.page,
+          limit: next.limit,
+        })}`,
+      );
+    });
+  }
+
   function applyFilters(updater: React.SetStateAction<AttendanceFiltersState>) {
     setFilters((current) => {
       const nextRaw = typeof updater === "function" ? updater(current) : updater;
       const { from, to } = normalizeAttendanceDateRange(nextRaw.from, nextRaw.to);
-      const next = { ...nextRaw, from, to };
-      startTransition(() => {
-        router.replace(`/admin/attendance${attendanceListQuery(next)}`);
-      });
+      const next = { ...nextRaw, from, to, page: 1 };
+      navigateWithFilters(next);
       return next;
     });
   }
@@ -256,7 +275,9 @@ export function AttendanceManager({
         />
 
         <p className="text-muted-foreground text-sm">
-          {isPending ? "Loading…" : `${items.length} record${items.length === 1 ? "" : "s"}`}
+          {isPending
+            ? "Loading…"
+            : `${total} record${total === 1 ? "" : "s"}`}
         </p>
       </div>
 
@@ -268,6 +289,19 @@ export function AttendanceManager({
         onMarkStatus={handleMarkStatus}
         onDelete={handleDelete}
         resetDeps={[filters.from, filters.to, filters.employeeId, filters.status]}
+        page={page}
+        pageSize={limit}
+        totalItems={total}
+        onPageChange={(nextPage) => {
+          const next = { ...filters, page: nextPage, limit };
+          setFilters(next);
+          navigateWithFilters(next);
+        }}
+        onPageSizeChange={(nextLimit) => {
+          const next = { ...filters, page: 1, limit: nextLimit };
+          setFilters(next);
+          navigateWithFilters(next);
+        }}
       />
     </div>
   );

@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, isNotNull, isNull, lte, ne, or, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, gte, isNotNull, isNull, lte, ne, or, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { attendanceDays, companies, employees } from "@/db/schema";
 import {
@@ -238,7 +238,6 @@ export async function listAttendance(
 
   const conditions = buildListConditions(filters);
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-  const paginate = filters.page != null || filters.limit != null;
   const page = Math.max(1, filters.page ?? 1);
   const limit = Math.min(100, Math.max(1, filters.limit ?? 50));
   const offset = (page - 1) * limit;
@@ -253,25 +252,22 @@ export async function listAttendance(
     .where(whereClause)
     .orderBy(desc(attendanceDays.shiftDate), desc(attendanceDays.createdAt));
 
-  const rows = paginate ? await baseQuery.limit(limit).offset(offset) : await baseQuery;
-
-  const total = paginate
-    ? (
-        await db
-          .select({ id: attendanceDays.id })
-          .from(attendanceDays)
-          .innerJoin(employees, eq(attendanceDays.employeeId, employees.id))
-          .where(whereClause)
-      ).length
-    : rows.length;
+  const [rows, countRows] = await Promise.all([
+    baseQuery.limit(limit).offset(offset),
+    db
+      .select({ value: count() })
+      .from(attendanceDays)
+      .innerJoin(employees, eq(attendanceDays.employeeId, employees.id))
+      .where(whereClause),
+  ]);
 
   return {
     ok: true,
     data: {
       items: rows.map(({ attendance, employee }) => mapAttendanceRow(attendance, employee)),
-      total,
-      page: paginate ? page : 1,
-      limit: paginate ? limit : rows.length,
+      total: countRows[0]?.value ?? 0,
+      page,
+      limit,
     },
   };
 }

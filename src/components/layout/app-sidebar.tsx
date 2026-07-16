@@ -1,6 +1,7 @@
 "use client";
 
 import type { Session } from "next-auth";
+import type { ReactNode } from "react";
 import { BrandMark } from "@/components/layout/brand-mark";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { SignOutButton } from "@/components/layout/sign-out-button";
@@ -16,13 +17,13 @@ import { getNavItemsForUser } from "@/lib/auth/navigation";
 type AppSidebarProps = {
   user: Session["user"];
   hasLinkedEmployee?: boolean;
-  pendingLeaveRequestCount?: number;
+  leaveRequestsIndicator?: ReactNode;
 };
 
 export function AppSidebar({
   user,
   hasLinkedEmployee = false,
-  pendingLeaveRequestCount = 0,
+  leaveRequestsIndicator = null,
 }: AppSidebarProps) {
   const navItems = getNavItemsForUser(user, { hasLinkedEmployee });
   const roleLabel =
@@ -35,7 +36,7 @@ export function AppSidebar({
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarNav items={navItems} pendingLeaveRequestCount={pendingLeaveRequestCount} />
+        <SidebarNav items={navItems} leaveRequestsIndicator={leaveRequestsIndicator} />
       </SidebarContent>
 
       <SidebarFooter className="border-t">

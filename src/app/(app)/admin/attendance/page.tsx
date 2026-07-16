@@ -19,6 +19,8 @@ type PageProps = {
     to?: string;
     employeeId?: string;
     status?: string;
+    page?: string;
+    limit?: string;
   }>;
 };
 
@@ -27,6 +29,8 @@ export default async function AdminAttendancePage({ searchParams }: PageProps) {
   const companyId = await requireSelectedCompanyId();
   const params = await searchParams;
   const statusParam = params.status ?? "";
+  const page = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
+  const limit = Math.min(100, Math.max(1, Number.parseInt(params.limit ?? "50", 10) || 50));
 
   const [[company], employeesResult] = await Promise.all([
     db
@@ -55,6 +59,8 @@ export default async function AdminAttendancePage({ searchParams }: PageProps) {
     statusParam === "weekend_off"
       ? statusParam
       : "") as "" | AttendanceStatus,
+    page,
+    limit,
   };
 
   const activeEmployees = employeesResult.ok
@@ -75,6 +81,8 @@ export default async function AdminAttendancePage({ searchParams }: PageProps) {
     employeeId: filters.employeeId || undefined,
     status: filters.status || undefined,
     companyId,
+    page,
+    limit,
   });
 
   const items = attendanceResult.data.items.map(serializeAttendance);
@@ -84,14 +92,22 @@ export default async function AdminAttendancePage({ searchParams }: PageProps) {
       <div className="shrink-0">
         <h1 className="text-2xl font-semibold">Attendance</h1>
         <p className="mt-1 text-muted-foreground text-sm">
-          Showing attendance for <span className="font-medium text-foreground">{company?.name ?? "selected company"}</span>.
+          Showing attendance for{" "}
+          <span className="font-medium text-foreground">{company?.name ?? "selected company"}</span>.
           Shift dates and expected times follow this company&apos;s schedule (Xorora night shift vs Crest
           LED day shift). Geofence, break limits, late fines, and other HR rules are shared. Times
           below are shown in Asia/Karachi.
         </p>
       </div>
 
-      <AttendanceManager employees={activeEmployees} items={items} filters={filters} />
+      <AttendanceManager
+        employees={activeEmployees}
+        items={items}
+        filters={filters}
+        page={attendanceResult.data.page}
+        limit={attendanceResult.data.limit}
+        total={attendanceResult.data.total}
+      />
     </div>
   );
 }

@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
 import { LandingPage } from "@/components/landing/landing-page";
 import { getCompanies } from "@/lib/admin/selected-company";
 import { getPostAuthRedirect } from "@/lib/auth/navigation";
+import { getSession } from "@/lib/auth/session";
 
 const errorMessages: Record<string, string> = {
   AccessDenied: "Sign-in was denied. Make sure your Google account email is verified.",
@@ -18,7 +18,7 @@ type HomePageProps = {
 };
 
 export default async function HomePage({ searchParams }: HomePageProps) {
-  const session = await auth();
+  const session = await getSession();
   if (session?.user) {
     redirect(getPostAuthRedirect(session.user));
   }

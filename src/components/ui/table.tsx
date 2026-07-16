@@ -112,6 +112,14 @@ type DataTableProps<TData> = {
   emptyMessage?: string;
   className?: string;
   resetDeps?: readonly unknown[];
+  /** Server-driven pagination: when set, skips client-side row slicing. */
+  manualPagination?: {
+    page: number;
+    pageSize: number;
+    totalItems: number;
+    onPageChange: (page: number) => void;
+    onPageSizeChange: (pageSize: number) => void;
+  };
 };
 
 function DataTable<TData>({
@@ -121,15 +129,23 @@ function DataTable<TData>({
   emptyMessage = "No results found.",
   className,
   resetDeps = [],
+  manualPagination,
 }: DataTableProps<TData>) {
   const [pagination, setPagination] = useState<PaginationState>({
-    pageIndex: 0,
-    pageSize: DEFAULT_PAGE_SIZE,
+    pageIndex: manualPagination ? Math.max(0, manualPagination.page - 1) : 0,
+    pageSize: manualPagination?.pageSize ?? DEFAULT_PAGE_SIZE,
   });
 
   useEffect(() => {
+    if (manualPagination) {
+      setPagination({
+        pageIndex: Math.max(0, manualPagination.page - 1),
+        pageSize: manualPagination.pageSize,
+      });
+      return;
+    }
     setPagination((current) => ({ ...current, pageIndex: 0 }));
-  }, [...resetDeps]);
+  }, [manualPagination?.page, manualPagination?.pageSize, ...resetDeps]);
 
   const table = useReactTable({
     data,
@@ -137,13 +153,17 @@ function DataTable<TData>({
     state: { pagination },
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
+    getPaginationRowModel: manualPagination ? undefined : getPaginationRowModel(),
+    manualPagination: Boolean(manualPagination),
+    pageCount: manualPagination
+      ? Math.max(1, Math.ceil(manualPagination.totalItems / manualPagination.pageSize))
+      : undefined,
   });
 
   const rows = table.getRowModel().rows;
-  const page = pagination.pageIndex + 1;
-  const pageSize = pagination.pageSize;
-  const totalItems = data.length;
+  const page = manualPagination?.page ?? pagination.pageIndex + 1;
+  const pageSize = manualPagination?.pageSize ?? pagination.pageSize;
+  const totalItems = manualPagination?.totalItems ?? data.length;
 
   return (
     <Card className={cn("flex flex-col gap-0 py-0 md:min-h-0", className)}>
@@ -222,9 +242,17 @@ function DataTable<TData>({
         pageSize={pageSize}
         totalItems={totalItems}
         onPageChange={(nextPage) => {
+          if (manualPagination) {
+            manualPagination.onPageChange(nextPage);
+            return;
+          }
           table.setPageIndex(nextPage - 1);
         }}
         onPageSizeChange={(nextPageSize) => {
+          if (manualPagination) {
+            manualPagination.onPageSizeChange(nextPageSize);
+            return;
+          }
           table.setPageSize(nextPageSize);
           table.setPageIndex(0);
         }}

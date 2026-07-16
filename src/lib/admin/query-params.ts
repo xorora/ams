@@ -16,6 +16,8 @@ export type AttendanceListQuery = {
   to?: string;
   employeeId?: string;
   status?: string;
+  page?: number;
+  limit?: number;
 };
 
 export function attendanceListQuery(filters: AttendanceListQuery): string {
@@ -31,6 +33,12 @@ export function attendanceListQuery(filters: AttendanceListQuery): string {
   }
   if (filters.status) {
     params.set("status", filters.status);
+  }
+  if (filters.page && filters.page > 1) {
+    params.set("page", String(filters.page));
+  }
+  if (filters.limit && filters.limit !== 50) {
+    params.set("limit", String(filters.limit));
   }
   const query = params.toString();
   return query ? `?${query}` : "";

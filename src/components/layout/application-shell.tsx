@@ -2,10 +2,10 @@
 
 import { usePathname } from "next/navigation";
 import type { Session } from "next-auth";
+import type { ReactNode } from "react";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { CompanySwitcher } from "@/components/layout/company-switcher";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { CompanyOption } from "@/lib/admin/selected-company";
 import { isPublicPath } from "@/lib/auth/navigation";
@@ -15,7 +15,7 @@ type ApplicationShellProps = {
   hasLinkedEmployee?: boolean;
   companies?: CompanyOption[];
   selectedCompanyId?: string | null;
-  pendingLeaveRequestCount?: number;
+  leaveRequestsIndicator?: ReactNode;
   children: React.ReactNode;
 };
 
@@ -24,19 +24,14 @@ export function ApplicationShell({
   hasLinkedEmployee = false,
   companies = [],
   selectedCompanyId = null,
-  pendingLeaveRequestCount = 0,
+  leaveRequestsIndicator = null,
   children,
 }: ApplicationShellProps) {
   const pathname = usePathname();
   const showAppChrome = user != null && !isPublicPath(pathname);
 
   if (!showAppChrome || !user) {
-    return (
-      <div className="flex min-h-svh flex-1 flex-col">
-        {children}
-        <Toaster richColors closeButton />
-      </div>
-    );
+    return <div className="flex min-h-svh flex-1 flex-col">{children}</div>;
   }
 
   return (
@@ -45,7 +40,7 @@ export function ApplicationShell({
         <AppSidebar
           user={user}
           hasLinkedEmployee={hasLinkedEmployee}
-          pendingLeaveRequestCount={pendingLeaveRequestCount}
+          leaveRequestsIndicator={leaveRequestsIndicator}
         />
         <SidebarInset className="flex h-svh min-h-0 flex-col overflow-hidden">
           <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
@@ -59,7 +54,6 @@ export function ApplicationShell({
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">{children}</div>
         </SidebarInset>
       </SidebarProvider>
-      <Toaster richColors closeButton />
     </TooltipProvider>
   );
 }

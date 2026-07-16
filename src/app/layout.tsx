@@ -1,21 +1,11 @@
 import type { Metadata } from "next";
 import { JetBrains_Mono, Poppins } from "next/font/google";
-import { cookies } from "next/headers";
-import type { Session } from "next-auth";
-import { auth } from "@/auth";
-import { ApplicationShell } from "@/components/layout/application-shell";
-import { getCompanies } from "@/lib/admin/selected-company";
-import {
-  COMPANY_COOKIE,
-  resolveSelectedCompanyId,
-} from "@/lib/admin/selected-company-utils";
-import { hasLinkedEmployee } from "@/lib/auth/attendance-access";
-import { countPendingLeaveRequests } from "@/lib/leave/leave-service";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 const fontSans = Poppins({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "500", "600"],
   variable: "--font-poppins",
   display: "swap",
 });
@@ -31,36 +21,16 @@ export const metadata: Metadata = {
   description: "Employee attendance management for night-shift teams (PKT)",
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const session = await auth();
-  const linkedEmployee = session?.user
-    ? hasLinkedEmployee({ user: session.user } as Session)
-    : false;
-  const isAdmin = session?.user?.role === "admin";
-  const companies = isAdmin ? await getCompanies() : [];
-  const selectedCompanyId = isAdmin
-    ? resolveSelectedCompanyId(companies, (await cookies()).get(COMPANY_COOKIE)?.value)
-    : null;
-  const pendingLeaveRequestCount = isAdmin
-    ? await countPendingLeaveRequests(selectedCompanyId)
-    : 0;
-
   return (
     <html lang="en" className={`${fontSans.variable} ${fontMono.variable} h-full antialiased`}>
       <body className="min-h-svh font-sans">
-        <ApplicationShell
-          user={session?.user}
-          hasLinkedEmployee={linkedEmployee}
-          companies={companies}
-          selectedCompanyId={selectedCompanyId}
-          pendingLeaveRequestCount={pendingLeaveRequestCount}
-        >
-          {children}
-        </ApplicationShell>
+        {children}
+        <Toaster richColors closeButton />
       </body>
     </html>
   );

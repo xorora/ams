@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { ReactNode } from "react";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -15,10 +16,10 @@ import { isNavItemActive } from "@/lib/auth/navigation";
 
 type SidebarNavProps = {
   items: NavItem[];
-  pendingLeaveRequestCount?: number;
+  leaveRequestsIndicator?: ReactNode;
 };
 
-export function SidebarNav({ items, pendingLeaveRequestCount = 0 }: SidebarNavProps) {
+export function SidebarNav({ items, leaveRequestsIndicator = null }: SidebarNavProps) {
   const pathname = usePathname();
   const employeeItems = items.filter((item) => !item.adminOnly);
   const adminItems = items.filter((item) => item.adminOnly);
@@ -44,7 +45,7 @@ export function SidebarNav({ items, pendingLeaveRequestCount = 0 }: SidebarNavPr
                   key={item.href}
                   item={item}
                   pathname={pathname}
-                  showDot={item.href === "/admin/leave" && pendingLeaveRequestCount > 0}
+                  indicator={item.href === "/admin/leave" ? leaveRequestsIndicator : null}
                 />
               ))}
             </SidebarMenu>
@@ -58,11 +59,11 @@ export function SidebarNav({ items, pendingLeaveRequestCount = 0 }: SidebarNavPr
 function NavMenuItem({
   item,
   pathname,
-  showDot = false,
+  indicator = null,
 }: {
   item: NavItem;
   pathname: string;
-  showDot?: boolean;
+  indicator?: ReactNode;
 }) {
   const Icon = item.icon;
   const active = isNavItemActive(pathname, item);
@@ -71,17 +72,12 @@ function NavMenuItem({
     <SidebarMenuItem>
       <SidebarMenuButton
         isActive={active}
-        tooltip={showDot ? `${item.label} (new requests)` : item.label}
+        tooltip={item.label}
         render={<Link href={item.href} />}
       >
         <span className="relative inline-flex">
           <Icon />
-          {showDot ? (
-            <span
-              aria-hidden
-              className="absolute -right-0.5 -top-0.5 size-2 rounded-full bg-destructive ring-2 ring-sidebar"
-            />
-          ) : null}
+          {indicator}
         </span>
         <span>{item.label}</span>
       </SidebarMenuButton>

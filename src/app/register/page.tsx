@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/auth";
 import { RegisterForm } from "@/components/auth/register-form";
 import { getCompanies } from "@/lib/admin/selected-company";
 import {
@@ -7,9 +6,10 @@ import {
   getPostAuthRedirect,
   needsEmployeeRegistration,
 } from "@/lib/auth/navigation";
+import { getSession } from "@/lib/auth/session";
 
 export default async function RegisterPage() {
-  const session = await auth();
+  const session = await getSession();
   if (!session?.user) {
     redirect("/?callbackUrl=/register");
   }

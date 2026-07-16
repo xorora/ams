@@ -28,6 +28,11 @@ type AttendanceTableProps = {
   onDelete: (id: string) => void;
   resetDeps?: readonly unknown[];
   className?: string;
+  page?: number;
+  pageSize?: number;
+  totalItems?: number;
+  onPageChange?: (page: number) => void;
+  onPageSizeChange?: (pageSize: number) => void;
 };
 
 export function AttendanceTable({
@@ -38,6 +43,11 @@ export function AttendanceTable({
   onDelete,
   resetDeps,
   className,
+  page,
+  pageSize,
+  totalItems,
+  onPageChange,
+  onPageSizeChange,
 }: AttendanceTableProps) {
   const columns = useMemo<ColumnDef<SerializedAttendance>[]>(
     () => [
@@ -127,6 +137,21 @@ export function AttendanceTable({
       loading={loading}
       emptyMessage="No attendance records match your filters."
       resetDeps={resetDeps}
+      manualPagination={
+        page != null &&
+        pageSize != null &&
+        totalItems != null &&
+        onPageChange &&
+        onPageSizeChange
+          ? {
+              page,
+              pageSize,
+              totalItems,
+              onPageChange,
+              onPageSizeChange,
+            }
+          : undefined
+      }
     />
   );
 }

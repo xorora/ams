@@ -65,7 +65,7 @@ export async function setSelectedCompany(companyId: string): Promise<ActionResul
     secure: process.env.NODE_ENV === "production",
   });
 
-  revalidatePath("/", "layout");
+  revalidatePath("/dashboard", "layout");
   revalidatePath("/admin/employees");
   revalidatePath("/admin/attendance");
   revalidatePath("/admin/leave");

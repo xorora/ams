@@ -1,7 +1,9 @@
+import { formatInTimeZone } from "date-fns-tz";
 import { LeaveManager } from "@/components/leave/leave-manager";
 import { listEmployees } from "@/lib/admin/employees-service";
 import { getCompanies, requireSelectedCompanyId } from "@/lib/admin/selected-company";
 import { serializeEmployee } from "@/lib/admin/serialize";
+import { BUSINESS_TIMEZONE } from "@/lib/attendance/constants";
 import { requireAdminSession } from "@/lib/auth/require-session";
 import { listLeaveRequests } from "@/lib/leave/leave-service";
 import { serializeLeaveRequest } from "@/lib/leave/serialize";
@@ -12,6 +14,7 @@ type PageProps = {
     status?: string;
     leaveType?: string;
     employeeId?: string;
+    year?: string;
   }>;
 };
 
@@ -22,6 +25,12 @@ export default async function AdminLeavePage({ searchParams }: PageProps) {
 
   const statusParam = params.status;
   const leaveTypeParam = params.leaveType;
+  const currentYear = Number.parseInt(
+    formatInTimeZone(new Date(), BUSINESS_TIMEZONE, "yyyy"),
+    10,
+  );
+  const yearParam = Number.parseInt(params.year ?? "", 10);
+  const year = Number.isFinite(yearParam) && yearParam >= 2000 ? yearParam : currentYear;
 
   const filters = {
     status:
@@ -43,7 +52,7 @@ export default async function AdminLeavePage({ searchParams }: PageProps) {
 
   const [employeesResult, requestsResult, activeCompanies] = await Promise.all([
     listEmployees({ includeInactive: false, companyId }),
-    listLeaveRequests({ ...filters, companyId }),
+    listLeaveRequests({ ...filters, companyId, year }),
     getCompanies(),
   ]);
 
@@ -57,7 +66,8 @@ export default async function AdminLeavePage({ searchParams }: PageProps) {
       <div className="shrink-0">
         <h1 className="text-2xl font-semibold">Leave requests</h1>
         <p className="mt-1 text-muted-foreground text-sm">
-          Review leave requests. Open a request to see that employee&apos;s balance for the year.
+          Review leave requests for {year}. Open a request to see that employee&apos;s balance for the
+          year.
         </p>
       </div>
 

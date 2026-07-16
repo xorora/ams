@@ -19,6 +19,8 @@ export type AttendanceFiltersState = {
   to: string;
   employeeId: string;
   status: "" | AttendanceStatus;
+  page?: number;
+  limit?: number;
 };
 
 type AttendanceFiltersProps = {

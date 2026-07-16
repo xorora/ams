@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import { NextResponse } from "next/server";
 import type { Session } from "next-auth";
-import { auth } from "@/auth";
 import { getSelectedCompanyId } from "@/lib/admin/selected-company";
 import { hasLinkedEmployee } from "@/lib/auth/attendance-access";
+import { getSession } from "@/lib/auth/session";
 
 export function isAccountingOrAdmin(session: Session): boolean {
   return session.user.role === "admin" || session.user.role === "accounting_admin";
@@ -34,7 +34,7 @@ export async function requireAccountingCompanyId(session: Session): Promise<stri
 }
 
 export async function requireSession(): Promise<Session> {
-  const session = await auth();
+  const session = await getSession();
   if (!session?.user) {
     redirect("/");
   }
@@ -77,7 +77,7 @@ type ApiAuthSuccess = {
 };
 
 export async function requireApiEmployeeSession(): Promise<ApiAuthFailure | ApiAuthSuccess> {
-  const session = await auth();
+  const session = await getSession();
   if (!session?.user) {
     return {
       session: null,
@@ -97,7 +97,7 @@ export async function requireApiEmployeeSession(): Promise<ApiAuthFailure | ApiA
 }
 
 export async function requireApiAdminSession(): Promise<ApiAuthFailure | ApiAuthSuccess> {
-  const session = await auth();
+  const session = await getSession();
   if (!session?.user) {
     return {
       session: null,
@@ -116,7 +116,7 @@ export async function requireApiAdminSession(): Promise<ApiAuthFailure | ApiAuth
 export async function requireApiAccountingOrAdminSession(): Promise<
   ApiAuthFailure | ApiAuthSuccess
 > {
-  const session = await auth();
+  const session = await getSession();
   if (!session?.user) {
     return {
       session: null,
