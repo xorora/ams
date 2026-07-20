@@ -267,7 +267,7 @@ export function LandingPage({ callbackUrl, errorMessage, companies }: LandingPag
 
       <footer className="border-t border-border py-8">
         <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-2 px-6 text-muted-foreground text-sm sm:flex-row">
-          <p>AMS — Attendance Management System</p>
+          <p>Xorora Punch — Attendance</p>
           <p className="font-mono text-xs">Timezone: Asia/Karachi (PKT)</p>
         </div>
       </footer>

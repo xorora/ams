@@ -72,7 +72,7 @@ export function resolveAttendanceSyncSince(explicitSince?: string | null): strin
  * Rewinds a bridge-provided `next_since` by a small overlap window before persisting it as
  * the sync cursor. Devices can upload punches to the bridge out of order (e.g. a delayed
  * early check-in syncs to the bridge after a later checkout already advanced the cursor
- * past it). Re-requesting a trailing window each cycle is safe: AMS dedupes inserts on
+ * past it). Re-requesting a trailing window each cycle is safe: Xorora Punch dedupes inserts on
  * (card_no, punch_at), so re-fetched punches already saved are no-ops.
  */
 export function applySyncOverlapBuffer(nextSince: string): string {

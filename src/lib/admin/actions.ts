@@ -271,7 +271,7 @@ export async function consolidateDuplicateEmployeesAction(): Promise<
       await pullEmployeesFromZktime(ZktimeClient.fromEnv());
     }
   } catch (error) {
-    console.warn("[consolidate-duplicates] ZKTime pull failed; continuing with AMS data", error);
+    console.warn("[consolidate-duplicates] ZKTime pull failed; continuing with Xorora Punch data", error);
   }
 
   const { consolidateDuplicateEmployees } = await import(

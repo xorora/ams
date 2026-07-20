@@ -17,8 +17,9 @@ const fontMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AMS — Attendance Management",
-  description: "Employee attendance management for night-shift teams (PKT)",
+  title: "Xorora Punch",
+  description:
+    "Biometric and geofenced attendance for afternoon and night-shift teams (PKT)",
 };
 
 export const viewport: Viewport = {

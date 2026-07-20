@@ -16,7 +16,7 @@ function formatBreakSeconds(seconds: number): string {
 
 export async function buildSummaryExcel(report: SummaryReport): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = "AMS";
+  workbook.creator = "Xorora Punch";
   workbook.created = new Date();
 
   const summarySheet = workbook.addWorksheet("Summary");
@@ -95,7 +95,7 @@ export async function buildSummaryExcel(report: SummaryReport): Promise<Buffer> 
 
 export async function buildEmployeeExcel(report: EmployeeReport): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = "AMS";
+  workbook.creator = "Xorora Punch";
   workbook.created = new Date();
 
   const infoSheet = workbook.addWorksheet("Employee");

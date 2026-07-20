@@ -12,7 +12,7 @@ export function BrandMark({
   className,
   textClassName,
   showSubtitle = false,
-  subtitle = "Attendance Management",
+  subtitle = "Attendance",
 }: BrandMarkProps) {
   return (
     <div className={cn("flex min-w-0 items-center gap-2", className)}>
@@ -35,7 +35,9 @@ export function BrandMark({
         priority
       />
       <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-        <p className={cn("truncate font-semibold leading-none tracking-tight", textClassName)}>AMS</p>
+        <p className={cn("truncate font-semibold leading-none tracking-tight", textClassName)}>
+          Punch
+        </p>
         {showSubtitle ? <p className="text-muted-foreground text-xs">{subtitle}</p> : null}
       </div>
     </div>

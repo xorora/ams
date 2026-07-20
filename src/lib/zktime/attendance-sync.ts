@@ -29,13 +29,13 @@ function resolveTransactionEmployeeName(tx: {
   return composed || tx.emp_code;
 }
 
-/** Strip leading zeros so device badge numbers (e.g. "11") match padded AMS codes ("011"). */
+/** Strip leading zeros so device badge numbers (e.g. "11") match padded Xorora Punch codes ("011"). */
 function normalizeEmployeeCode(code: string): string {
   return code.trim().replace(/^0+/, "") || "0";
 }
 
 /**
- * Maps device `emp_code` values to AMS employee ids, tolerating leading-zero differences
+ * Maps device `emp_code` values to Xorora Punch employee ids, tolerating leading-zero differences
  * between the device badge number and the stored employee code. Matching on the exact
  * string alone leaves punches unlinked (employee_id = null), so they never get built into
  * attendance rows during the pull and today's log looks empty until each person opens their

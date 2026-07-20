@@ -1,6 +1,6 @@
-# AMS — Attendance Management System
+# Xorora Punch
 
-Employee attendance and leave for night-shift teams. Expected check-in **18:00**, check-out **03:00** the next morning, all in **Asia/Karachi (PKT)**. Built with Next.js 16, Neon PostgreSQL, and Auth.js (Google Workspace SSO).
+Employee attendance and leave for afternoon and night-shift teams. Biometric machine sync via ZKTime, geofenced check-in, breaks, leave, and HR reporting — all in **Asia/Karachi (PKT)**. Built with Next.js 16, Neon PostgreSQL, and Auth.js.
 
 ## Features
 
@@ -134,7 +134,7 @@ OFFICE_LNG=67.0011
 OFFICE_RADIUS_METERS=100
 ```
 
-On first geofenced action, AMS seeds a row in `office_settings` from these env vars. Later check-ins read from the database.
+On first geofenced action, Xorora Punch seeds a row in `office_settings` from these env vars. Later check-ins read from the database.
 
 ### 6. Bootstrap the first admin
 
@@ -194,7 +194,7 @@ On Vercel, `AUTH_URL` can often be omitted in production because Auth.js uses `t
 
 ### ZKTime (biometric)
 
-K40 devices connect to **ZKTime** on the office LAN. AMS pulls attendance and employees from the ZKTime bridge API and pushes new hires back for device enrollment. See **[docs/AMS-INTEGRATION.md](./docs/AMS-INTEGRATION.md)** for architecture, env vars, and setup.
+K40 devices connect to **ZKTime** on the office LAN. Xorora Punch pulls attendance and employees from the ZKTime bridge API and pushes new hires back for device enrollment. See **[docs/AMS-INTEGRATION.md](./docs/AMS-INTEGRATION.md)** for architecture, env vars, and setup.
 
 ---
 

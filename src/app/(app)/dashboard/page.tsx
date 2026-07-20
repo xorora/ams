@@ -84,7 +84,7 @@ export default async function DashboardPage() {
             <p>
               Use the admin section in the sidebar for team attendance. To check in for yourself,
               create an employee entry in Admin → Employees, then sign in with that employee code
-              and the same email you use for AMS.
+              and the same email you use for Xorora Punch.
             </p>
           ) : (
             <p>

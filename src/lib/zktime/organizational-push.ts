@@ -175,8 +175,8 @@ export async function pushAllOrganizationalDataToZktime(
       failures: [],
       employees: [],
       notes: [
-        "Compared AMS with ZKTime before push; all active employees already match. Nothing sent.",
-        "ZKTime bridge has no company or role APIs; companies map to department groups and designations are tracked in AMS only.",
+        "Compared Xorora Punch with ZKTime before push; all active employees already match. Nothing sent.",
+        "ZKTime bridge has no company or role APIs; companies map to department groups and designations are tracked in Xorora Punch only.",
       ],
     };
   }
@@ -224,10 +224,10 @@ export async function pushAllOrganizationalDataToZktime(
     notes: options.forceFull
       ? [
           "Full push requested; all active employees were sent to ZKTime.",
-          "ZKTime bridge has no company or role APIs; companies map to department groups and designations are tracked in AMS only.",
+          "ZKTime bridge has no company or role APIs; companies map to department groups and designations are tracked in Xorora Punch only.",
         ]
       : [
-          `Compared AMS with ZKTime before push; ${employeesToPush.length} new or changed employee(s) sent, ${locallySkipped} already matched.`,
+          `Compared Xorora Punch with ZKTime before push; ${employeesToPush.length} new or changed employee(s) sent, ${locallySkipped} already matched.`,
           "Department names are assigned stable ZKTime department_id values; create department names in ZKTime admin if you need them visible on the device UI.",
         ],
   };
