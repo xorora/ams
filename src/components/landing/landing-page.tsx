@@ -1,6 +1,7 @@
 import {
   BarChart3,
   CalendarDays,
+  Fingerprint,
   MapPin,
   Moon,
   ShieldCheck,
@@ -25,13 +26,19 @@ const shiftWindowLabel = `${EXPECTED_CHECK_IN_TIME_PKT.replace(" PKT", "")} - ${
 
 const features = [
   {
+    icon: Fingerprint,
+    title: "Biometric machine sync",
+    description:
+      "Pull punches from ZKTime biometric terminals and push new hires for device enrollment.",
+  },
+  {
     icon: MapPin,
     title: "Geofenced check-in",
     description: "Location verified on every check-in and check-out at the office.",
   },
   {
     icon: Moon,
-    title: "Night-shift ready",
+    title: "Afternoon & night shifts",
     description: `${shiftWindowLabel} with ${CHECK_IN_GRACE_MINUTES}-minute grace windows.`,
   },
   {
@@ -117,18 +124,18 @@ export function LandingPage({ callbackUrl, errorMessage, companies }: LandingPag
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="gap-1.5">
                   <Sparkles className="size-3" />
-                  Night-shift attendance
+                  Biometric & geofenced attendance
                 </Badge>
               </div>
 
               <h1 className="text-4xl font-semibold tracking-tight text-balance md:text-5xl lg:text-[3.25rem] lg:leading-[1.1]">
-                Clock in with confidence,&nbsp;
-                <span className="text-muted-foreground">even after midnight</span>
+                Attendance that works on the floor&nbsp;
+                <span className="text-muted-foreground">and after midnight</span>
               </h1>
 
               <p className="max-w-lg text-lg text-muted-foreground text-pretty">
-                Geofenced check-in, break tracking, leave balances, and HR reporting — built
-                for&nbsp;
+                Biometric machine integration, geofenced check-in, break tracking, leave balances,
+                and HR reporting — built for&nbsp;
                 {shiftWindowLabel.replace(/ PKT/g, "")} shifts in Pakistan Standard Time.
               </p>
 
