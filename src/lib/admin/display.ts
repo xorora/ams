@@ -1,3 +1,4 @@
+import { formatDistanceToNow } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { BUSINESS_TIMEZONE } from "@/lib/attendance/constants";
 
@@ -21,6 +22,13 @@ export function formatPktIso(iso: string | null): string {
     return "—";
   }
   return formatInTimeZone(new Date(iso), BUSINESS_TIMEZONE, PKT_DATETIME_12H_FORMAT);
+}
+
+export function formatRelativeTime(iso: string | null, emptyValue = "Never"): string {
+  if (!iso) {
+    return emptyValue;
+  }
+  return formatDistanceToNow(new Date(iso), { addSuffix: true });
 }
 
 export function formatPktDateTime(value: Date | string | null, emptyValue = "—"): string {
