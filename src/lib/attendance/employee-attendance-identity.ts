@@ -9,7 +9,7 @@ import {
   pickCanonicalEmployee,
 } from "@/lib/admin/employee-identity";
 import { linkUserToEmployeeRecord } from "@/lib/auth/employee-link";
-import { getCompanyShiftConfig, getShiftDateForCompany } from "./company-shift";
+import { getShiftDateForCompany, getShiftConfigForEmployee } from "./company-shift";
 import { reconcileEmployeeAttendanceFromLog } from "./attendance-log-sync";
 
 async function loadCompanyEmployees(companyId: string): Promise<EmployeeRecord[]> {
@@ -127,7 +127,7 @@ export async function adoptSiblingAttendanceToEmployee(
     .where(eq(companies.id, employee.companyId))
     .limit(1);
 
-  const shiftConfig = getCompanyShiftConfig(company?.slug ?? "xorora");
+  const shiftConfig = getShiftConfigForEmployee(company?.slug ?? "xorora", employee.fullName);
   const shiftDate = getShiftDateForCompany(now, shiftConfig);
 
   const [primaryRow] = await db
@@ -223,7 +223,7 @@ export async function resolveEmployeeIdForAttendance(
     .where(eq(companies.id, employee.companyId))
     .limit(1);
 
-  const shiftConfig = getCompanyShiftConfig(company?.slug ?? "xorora");
+  const shiftConfig = getShiftConfigForEmployee(company?.slug ?? "xorora", employee.fullName);
   const shiftDate = getShiftDateForCompany(now, shiftConfig);
 
   if (await hasAttendanceForShift(employeeId, shiftDate)) {

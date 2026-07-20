@@ -1,13 +1,13 @@
 import { and, desc, eq, inArray, isNotNull, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
-import { attendanceDays, companies, employees, machinePunches } from "@/db/schema";
+import { attendanceDays, employees, machinePunches } from "@/db/schema";
 import {
-  getCompanyShiftConfig,
   getShiftDateForCompany,
   isEarlyLeaveForCompany,
   isLateCheckInForCompany,
   type CompanyShiftConfig,
 } from "./company-shift";
+import { loadEmployeeShiftConfig } from "./employee-shift";
 import {
   parseMachinePunchDirection,
   relinkMachinePunchesToEmployees,
@@ -83,17 +83,6 @@ function deriveTimesFromPunches(
   }
 
   return resolveUnknownPunches(checkIns, checkOuts, unknowns, existing);
-}
-
-async function loadEmployeeShiftConfig(employeeId: string): Promise<CompanyShiftConfig> {
-  const [row] = await db
-    .select({ slug: companies.slug })
-    .from(employees)
-    .innerJoin(companies, eq(employees.companyId, companies.id))
-    .where(eq(employees.id, employeeId))
-    .limit(1);
-
-  return getCompanyShiftConfig(row?.slug ?? "xorora");
 }
 
 async function loadPunchesForEmployee(employeeId: string): Promise<

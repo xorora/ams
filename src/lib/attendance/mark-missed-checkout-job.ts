@@ -1,7 +1,10 @@
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { attendanceDays, breakSessions, companies, employees } from "@/db/schema";
-import { getCompanyShiftConfig, isPastMissedCheckOutDeadlineForCompany } from "./company-shift";
+import {
+  getShiftConfigForEmployee,
+  isPastMissedCheckOutDeadlineForCompany,
+} from "./company-shift";
 import { shouldAutoMarkMissedCheckout } from "./mark-absent-eligibility";
 import { type BreakSessionInput, computeTotalBreakSeconds, getActiveBreak } from "./rules";
 
@@ -78,6 +81,7 @@ export async function runMarkMissedCheckoutJob(
       isMissedCheckout: attendanceDays.isMissedCheckout,
       notes: attendanceDays.notes,
       companySlug: companies.slug,
+      fullName: employees.fullName,
     })
     .from(attendanceDays)
     .innerJoin(employees, eq(attendanceDays.employeeId, employees.id))
@@ -90,7 +94,7 @@ export async function runMarkMissedCheckoutJob(
 
   for (const day of openDays) {
     shiftDates.add(day.shiftDate);
-    const config = getCompanyShiftConfig(day.companySlug);
+    const config = getShiftConfigForEmployee(day.companySlug, day.fullName);
     if (!isPastMissedCheckOutDeadlineForCompany(runAt, day.shiftDate, config)) {
       skipped += 1;
       continue;

@@ -2,10 +2,10 @@ import { and, count, desc, eq, gte, isNotNull, isNull, lte, ne, or, type SQL } f
 import { db } from "@/db";
 import { attendanceDays, companies, employees } from "@/db/schema";
 import {
-  getCompanyShiftConfig,
   isEarlyLeaveForCompany,
   isLateCheckInForCompany,
 } from "@/lib/attendance/company-shift";
+import { loadEmployeeShiftConfig } from "@/lib/attendance/employee-shift";
 import { effectiveAttendanceStatus } from "@/lib/attendance/effective-status";
 import { getEmployeeInCompany } from "@/lib/accounting/company-access";
 import { adminFailure, type ServiceFailure, type ServiceSuccess } from "./types";
@@ -109,14 +109,7 @@ async function getActiveEmployee(
 }
 
 async function getEmployeeShiftConfig(employeeId: string) {
-  const [row] = await db
-    .select({ slug: companies.slug })
-    .from(employees)
-    .innerJoin(companies, eq(employees.companyId, companies.id))
-    .where(eq(employees.id, employeeId))
-    .limit(1);
-
-  return getCompanyShiftConfig(row?.slug ?? "xorora");
+  return loadEmployeeShiftConfig(employeeId);
 }
 
 function mapAttendanceRow(

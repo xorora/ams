@@ -9,8 +9,8 @@ function formatHourMinutePkt(hour: number, minute = 0): string {
   return `${formatInTimeZone(date, BUSINESS_TIMEZONE, "h:mm a")} PKT`;
 }
 
-/** Expected night-shift check-in anchor (18:00 PKT). */
-export const EXPECTED_CHECK_IN_HOUR = 18;
+/** Expected Xorora afternoon check-in anchor (15:00 PKT). */
+export const EXPECTED_CHECK_IN_HOUR = 15;
 
 /** Grace period after expected check-in before a check-in is marked late. */
 export const CHECK_IN_GRACE_MINUTES = 15;
@@ -18,22 +18,22 @@ export const CHECK_IN_GRACE_MINUTES = 15;
 /** Grace period after expected check-out before a shift is finalized as present without check-out. */
 export const CHECK_OUT_GRACE_MINUTES = 15;
 
-/** Last on-time check-in minute: expected check-in + grace (18:15 PKT inclusive). */
+/** Last on-time check-in minute: expected check-in + grace (15:15 PKT inclusive). */
 export const LATE_CHECK_IN_HOUR = EXPECTED_CHECK_IN_HOUR;
 export const LATE_CHECK_IN_MINUTE = CHECK_IN_GRACE_MINUTES;
 
-/** First minute marked late (18:16 PKT). */
+/** First minute marked late (15:16 PKT). */
 export const FIRST_LATE_CHECK_IN_MINUTE = CHECK_IN_GRACE_MINUTES + 1;
 
 export function formatLateCheckInDeadline(): string {
   return formatHourMinutePkt(LATE_CHECK_IN_HOUR, FIRST_LATE_CHECK_IN_MINUTE);
 }
 
-/** Expected check-out on the morning after shift date (03:00 PKT). */
-export const EXPECTED_CHECK_OUT_HOUR = 3;
+/** Expected check-out on the morning after shift date (00:00 PKT). */
+export const EXPECTED_CHECK_OUT_HOUR = 0;
 export const EXPECTED_CHECK_OUT_MINUTE = 0;
 
-/** Last on-time check-out: expected check-out + grace (03:15 PKT). */
+/** Last on-time check-out: expected check-out + grace (00:15 PKT). */
 export const LATE_CHECK_OUT_HOUR = EXPECTED_CHECK_OUT_HOUR;
 export const LATE_CHECK_OUT_MINUTE = CHECK_OUT_GRACE_MINUTES;
 

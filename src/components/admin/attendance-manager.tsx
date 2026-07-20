@@ -209,7 +209,7 @@ export function AttendanceManager({
   async function handleFixGraceMinuteLates() {
     if (
       !window.confirm(
-        "Clear late flags for check-ins during the grace minute (e.g. 09:15 / 18:15)? Those arrivals are on-time under the updated rule.",
+        "Clear late flags for check-ins during the grace minute (e.g. 09:15 / 15:15 / 18:15)? Those arrivals are on-time under the updated rule.",
       )
     ) {
       return;
@@ -252,7 +252,7 @@ export function AttendanceManager({
             Clear late for :15 arrivals
           </Button>
           <p className="text-muted-foreground text-xs">
-            One-time cleanup after the inclusive grace-minute rule (09:15 / 18:15 = on time).
+            One-time cleanup after the inclusive grace-minute rule (09:15 / 15:15 / 18:15 = on time).
           </p>
         </div>
 

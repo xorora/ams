@@ -4,7 +4,6 @@ import { attendanceDays, breakSessions, employees } from "@/db/schema";
 import {
   getClosedDaysLabel,
   getClosedShiftDateReason,
-  getCompanyShiftConfig,
   getShiftDateForCompany,
   getShiftScheduleLabels,
   isClosedShiftDate,
@@ -13,9 +12,9 @@ import {
 } from "./company-shift";
 import { findActiveOpenShift } from "./close-open-shift";
 import { resolveEmployeeIdForAttendance } from "./employee-attendance-identity";
+import { loadEmployeeShiftContext } from "./employee-shift";
 import type { Coordinates } from "./coords";
 import {
-  getEmployeeCompanySlug,
   requireActiveEmployee,
   requireWithinGeofence,
 } from "./employee-access";
@@ -179,22 +178,6 @@ async function guardEmployeeAndGeofence(
   }
 
   return { ok: true, data: { employee: employeeResult.employee } };
-}
-
-async function loadEmployeeShiftContext(employeeId: string): Promise<{
-  config: CompanyShiftConfig;
-  companySlug: string;
-}> {
-  const companySlug = (await getEmployeeCompanySlug(employeeId)) ?? "xorora";
-  return {
-    config: getCompanyShiftConfig(companySlug),
-    companySlug,
-  };
-}
-
-async function loadEmployeeShiftConfig(employeeId: string): Promise<CompanyShiftConfig> {
-  const { config } = await loadEmployeeShiftContext(employeeId);
-  return config;
 }
 
 async function resolveEmployeeId(employeeId: string, now: Date = new Date()): Promise<string> {

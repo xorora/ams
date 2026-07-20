@@ -43,18 +43,43 @@ export type CompanyShiftConfig = {
   closedWeekdays: readonly number[];
 };
 
+/** Xorora default from 2026-07-21: 3:00 PM – 12:00 AM PKT (+15 min grace). */
+export const XORORA_AFTERNOON_SHIFT: CompanyShiftConfig = {
+  expectedCheckInHour: EXPECTED_CHECK_IN_HOUR,
+  expectedCheckInMinute: 0,
+  checkInGraceMinutes: CHECK_IN_GRACE_MINUTES,
+  checkOutGraceMinutes: CHECK_OUT_GRACE_MINUTES,
+  expectedCheckOutHour: EXPECTED_CHECK_OUT_HOUR,
+  expectedCheckOutMinute: EXPECTED_CHECK_OUT_MINUTE,
+  checkOutNextDay: true,
+  shiftDateBoundaryHour: SHIFT_DATE_NOON_BOUNDARY_HOUR,
+  closedWeekdays: CLOSED_WEEKDAYS_XORORA,
+};
+
+/** Xorora evening override: 6:00 PM – 3:00 AM PKT (+15 min grace). */
+export const XORORA_EVENING_SHIFT: CompanyShiftConfig = {
+  expectedCheckInHour: 18,
+  expectedCheckInMinute: 0,
+  checkInGraceMinutes: CHECK_IN_GRACE_MINUTES,
+  checkOutGraceMinutes: CHECK_OUT_GRACE_MINUTES,
+  expectedCheckOutHour: 3,
+  expectedCheckOutMinute: 0,
+  checkOutNextDay: true,
+  shiftDateBoundaryHour: SHIFT_DATE_NOON_BOUNDARY_HOUR,
+  closedWeekdays: CLOSED_WEEKDAYS_XORORA,
+};
+
+/**
+ * Xorora employees who keep the 6pm–3am evening shift.
+ * Matched case-insensitively on full name.
+ */
+export const XORORA_EVENING_SHIFT_EMPLOYEE_NAMES = new Set([
+  "daniyal zafar",
+  "sadia saif",
+]);
+
 export const COMPANY_SHIFT_BY_SLUG: Record<CompanySlug, CompanyShiftConfig> = {
-  xorora: {
-    expectedCheckInHour: EXPECTED_CHECK_IN_HOUR,
-    expectedCheckInMinute: 0,
-    checkInGraceMinutes: CHECK_IN_GRACE_MINUTES,
-    checkOutGraceMinutes: CHECK_OUT_GRACE_MINUTES,
-    expectedCheckOutHour: EXPECTED_CHECK_OUT_HOUR,
-    expectedCheckOutMinute: EXPECTED_CHECK_OUT_MINUTE,
-    checkOutNextDay: true,
-    shiftDateBoundaryHour: SHIFT_DATE_NOON_BOUNDARY_HOUR,
-    closedWeekdays: CLOSED_WEEKDAYS_XORORA,
-  },
+  xorora: XORORA_AFTERNOON_SHIFT,
   "crest-led": {
     expectedCheckInHour: DAY_SHIFT_CHECK_IN_HOUR,
     expectedCheckInMinute: 0,
@@ -114,6 +139,21 @@ export function getCompanyShiftConfig(slug: string): CompanyShiftConfig {
     return COMPANY_SHIFT_BY_SLUG.xorora;
   }
   return config;
+}
+
+/** Resolve shift for a company employee (Xorora evening overrides by name). */
+export function getShiftConfigForEmployee(
+  companySlug: string,
+  fullName: string | null | undefined,
+): CompanyShiftConfig {
+  const slug = companySlug || "xorora";
+  const normalizedName = fullName?.trim().toLowerCase() ?? "";
+
+  if (slug === "xorora" && XORORA_EVENING_SHIFT_EMPLOYEE_NAMES.has(normalizedName)) {
+    return XORORA_EVENING_SHIFT;
+  }
+
+  return getCompanyShiftConfig(slug);
 }
 
 function shiftDateDayOfWeek(shiftDate: string): number {

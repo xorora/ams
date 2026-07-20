@@ -2,8 +2,8 @@ import { and, eq, gte, inArray, isNotNull, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { attendanceDays, companies, employees, machinePunches } from "@/db/schema";
 import {
-  getCompanyShiftConfig,
   getShiftDateForCompany,
+  getShiftConfigForEmployee,
   isEarlyLeaveForCompany,
   isLateCheckInForCompany,
 } from "./company-shift";
@@ -32,6 +32,7 @@ type PunchRow = {
   employeeId: string;
   punchAt: Date;
   companySlug: string;
+  fullName: string;
   direction: PunchDirection;
 };
 
@@ -39,6 +40,7 @@ type ShiftPunchGroup = {
   employeeId: string;
   shiftDate: string;
   companySlug: string;
+  fullName: string;
   checkIns: Date[];
   checkOuts: Date[];
   unknowns: Date[];
@@ -83,8 +85,8 @@ export function parseMachinePunchDirection(rawPunchAt: string | null): PunchDire
 function groupPunches(rows: PunchRow[]): ShiftPunchGroup[] {
   const byKey = new Map<string, ShiftPunchGroup>();
 
-  for (const { employeeId, punchAt, companySlug, direction } of rows) {
-    const config = getCompanyShiftConfig(companySlug);
+  for (const { employeeId, punchAt, companySlug, fullName, direction } of rows) {
+    const config = getShiftConfigForEmployee(companySlug, fullName);
     const shiftDate = getShiftDateForCompany(punchAt, config);
     const key = `${employeeId}:${shiftDate}`;
     const existing =
@@ -93,6 +95,7 @@ function groupPunches(rows: PunchRow[]): ShiftPunchGroup[] {
         employeeId,
         shiftDate,
         companySlug,
+        fullName,
         checkIns: [],
         checkOuts: [],
         unknowns: [],
@@ -192,7 +195,7 @@ function buildMergedAttendanceRow(
     return null;
   }
 
-  const config = getCompanyShiftConfig(group.companySlug);
+  const config = getShiftConfigForEmployee(group.companySlug, group.fullName);
   const isLate = checkInAt ? isLateCheckInForCompany(checkInAt, group.shiftDate, config) : false;
   const isEarlyLeave = checkOutAt
     ? isEarlyLeaveForCompany(checkOutAt, group.shiftDate, config)
@@ -308,6 +311,7 @@ export async function runProcessMachinePunchesJob(
       punchAt: machinePunches.punchAt,
       rawPunchAt: machinePunches.rawPunchAt,
       companySlug: companies.slug,
+      fullName: employees.fullName,
     })
     .from(machinePunches)
     .innerJoin(employees, eq(machinePunches.employeeId, employees.id))
@@ -321,6 +325,7 @@ export async function runProcessMachinePunchesJob(
             employeeId: row.employeeId,
             punchAt: row.punchAt,
             companySlug: row.companySlug,
+            fullName: row.fullName,
             direction: parseMachinePunchDirection(row.rawPunchAt),
           },
         ]

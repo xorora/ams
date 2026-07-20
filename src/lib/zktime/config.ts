@@ -26,7 +26,7 @@ export function isZktimeConfigured(): boolean {
  * Uses ZKTIME_DEFAULT_SYNC_SINCE when set; otherwise midnight of the previous calendar day.
  *
  * Anchored at midnight (not an expected check-in hour) so early check-ins — someone
- * badging in at 17:40 for an 18:00 shift, for example — are never excluded by the
+ * badging in at 14:40 for a 15:00 shift, for example — are never excluded by the
  * default cursor. Any employee-specific "expected" time is a scheduling concept, not
  * a bound on when a real punch can occur.
  */

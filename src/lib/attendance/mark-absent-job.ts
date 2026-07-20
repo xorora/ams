@@ -1,7 +1,11 @@
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { attendanceDays, companies, employees } from "@/db/schema";
-import { getAutoAbsentShiftDateForCompany, getCompanyShiftConfig, isClosedShiftDate } from "./company-shift";
+import {
+  getAutoAbsentShiftDateForCompany,
+  getShiftConfigForEmployee,
+  isClosedShiftDate,
+} from "./company-shift";
 import { shouldAutoMarkAbsent, shouldAutoMarkWeekendOff } from "./mark-absent-eligibility";
 import {
   type MarkMissedCheckoutJobResult,
@@ -52,15 +56,22 @@ export async function runMarkAbsentJob(runAt: Date = new Date()): Promise<MarkAb
   const now = runAt;
 
   const activeEmployees = await db
-    .select({ id: employees.id, companySlug: companies.slug })
+    .select({
+      id: employees.id,
+      companySlug: companies.slug,
+      fullName: employees.fullName,
+    })
     .from(employees)
     .innerJoin(companies, eq(employees.companyId, companies.id))
     .where(eq(employees.isActive, true));
 
   const shiftDateByEmployee = new Map(
-    activeEmployees.map(({ id, companySlug }) => [
+    activeEmployees.map(({ id, companySlug, fullName }) => [
       id,
-      getAutoAbsentShiftDateForCompany(runAt, getCompanyShiftConfig(companySlug)),
+      getAutoAbsentShiftDateForCompany(
+        runAt,
+        getShiftConfigForEmployee(companySlug, fullName),
+      ),
     ]),
   );
   const uniqueShiftDates = [...new Set(shiftDateByEmployee.values())];
@@ -90,8 +101,8 @@ export async function runMarkAbsentJob(runAt: Date = new Date()): Promise<MarkAb
   let markedWeekendOff = 0;
   let markedAbsent = 0;
 
-  for (const { id: employeeId, companySlug } of activeEmployees) {
-    const config = getCompanyShiftConfig(companySlug);
+  for (const { id: employeeId, companySlug, fullName } of activeEmployees) {
+    const config = getShiftConfigForEmployee(companySlug, fullName);
     const shiftDate = getAutoAbsentShiftDateForCompany(runAt, config);
     shiftDates.add(shiftDate);
     const isWeekend = isClosedShiftDate(shiftDate, config, companySlug);

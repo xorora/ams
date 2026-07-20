@@ -1,7 +1,8 @@
 import { and, desc, eq, isNotNull, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
-import { attendanceDays, breakSessions, companies, employees } from "@/db/schema";
-import { getCompanyShiftConfig, isActiveShiftWindow } from "./company-shift";
+import { attendanceDays, breakSessions, employees } from "@/db/schema";
+import { isActiveShiftWindow } from "./company-shift";
+import { loadEmployeeShiftConfig } from "./employee-shift";
 import {
   type BreakSessionInput,
   computeTotalBreakSeconds,
@@ -65,14 +66,7 @@ export async function findActiveOpenShift(
     return null;
   }
 
-  const [row] = await db
-    .select({ slug: companies.slug })
-    .from(employees)
-    .innerJoin(companies, eq(employees.companyId, companies.id))
-    .where(eq(employees.id, employeeId))
-    .limit(1);
-
-  const config = getCompanyShiftConfig(row?.slug ?? "xorora");
+  const config = await loadEmployeeShiftConfig(employeeId);
   if (!isActiveShiftWindow(open.shiftDate, now, config)) {
     return null;
   }

@@ -6,10 +6,10 @@ import { formatProbationEndDate, isCurrentlyOnProbation } from "@/lib/admin/prob
 import { adminFailure, type ServiceFailure, type ServiceSuccess } from "@/lib/admin/types";
 import { BUSINESS_TIMEZONE } from "@/lib/attendance/constants";
 import {
-  getCompanyShiftConfig,
   isClosedShiftDate,
   type CompanyShiftConfig,
 } from "@/lib/attendance/company-shift";
+import { loadEmployeeShiftContext } from "@/lib/attendance/employee-shift";
 import { ENTITLED_LEAVE_TYPES, LEAVE_ENTITLEMENTS } from "./constants";
 import type { LeaveApplicationPdfData } from "./leave-pdf";
 import type {
@@ -115,18 +115,7 @@ function getLeaveDatesForAttendance(
 async function getEmployeeShiftContext(
   employeeId: string,
 ): Promise<{ config: CompanyShiftConfig; companySlug: string }> {
-  const [row] = await db
-    .select({ companySlug: companies.slug })
-    .from(employees)
-    .innerJoin(companies, eq(employees.companyId, companies.id))
-    .where(eq(employees.id, employeeId))
-    .limit(1);
-
-  const companySlug = row?.companySlug ?? "xorora";
-  return {
-    config: getCompanyShiftConfig(companySlug),
-    companySlug,
-  };
+  return loadEmployeeShiftContext(employeeId);
 }
 
 
