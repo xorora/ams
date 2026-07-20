@@ -2,21 +2,13 @@ export const dynamic = "force-dynamic";
 
 import { DevicesManager } from "@/components/admin/devices-manager";
 import { requireAdminSession } from "@/lib/auth/require-session";
-import {
-  getDeviceSyncAdminState,
-  listDevicesWithSyncState,
-  listUnmappedPunches,
-} from "@/lib/device-sync/admin";
-import { serializeDeviceTerminal, serializeUnmappedPunch } from "@/lib/device-sync/serialize";
+import { getDeviceSyncAdminState, listDevicesWithSyncState } from "@/lib/device-sync/admin";
+import { serializeDeviceTerminal } from "@/lib/device-sync/serialize";
 
 export default async function AdminDevicesPage() {
   await requireAdminSession();
 
-  const [{ devices, syncState }, unmappedPunches] = await Promise.all([
-    listDevicesWithSyncState(),
-    listUnmappedPunches(),
-  ]);
-
+  const { devices, syncState } = await listDevicesWithSyncState();
   const serializedSyncState = getDeviceSyncAdminState(syncState);
 
   return (
@@ -32,7 +24,6 @@ export default async function AdminDevicesPage() {
       <DevicesManager
         devices={devices.map(serializeDeviceTerminal)}
         syncState={serializedSyncState}
-        unmappedPunches={unmappedPunches.map(serializeUnmappedPunch)}
       />
     </div>
   );

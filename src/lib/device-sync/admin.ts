@@ -1,8 +1,5 @@
 import { getZktimeBaseUrl, isZktimeConfigured } from "@/lib/zktime/config";
-import {
-  listDevicesWithSyncState as listZktimeDevicesWithSyncState,
-  listUnmappedPunches as listZktimeUnmappedPunches,
-} from "@/lib/zktime/employee-sync";
+import { listDevicesWithSyncState as listZktimeDevicesWithSyncState } from "@/lib/zktime/employee-sync";
 
 export type DeviceSyncAdminState = {
   lastAttendanceSync: string | null;
@@ -15,10 +12,6 @@ export type DeviceSyncAdminState = {
 
 export async function listDevicesWithSyncState() {
   return listZktimeDevicesWithSyncState();
-}
-
-export async function listUnmappedPunches() {
-  return listZktimeUnmappedPunches();
 }
 
 export function getDeviceSyncAdminState(syncState: {

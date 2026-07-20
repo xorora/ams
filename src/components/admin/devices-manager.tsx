@@ -5,12 +5,9 @@ import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { type ColumnDef, DataTable } from "@/components/ui/table";
-import { formatPktIso } from "@/lib/admin/display";
 import type {
   SerializedDeviceSyncState,
   SerializedDeviceTerminal,
-  SerializedUnmappedPunch,
 } from "@/lib/device-sync/serialize";
 import { toastAsync } from "@/lib/toast";
 import {
@@ -22,11 +19,10 @@ import {
 
 type DevicesManagerProps = {
   devices: SerializedDeviceTerminal[];
-  unmappedPunches: SerializedUnmappedPunch[];
   syncState: SerializedDeviceSyncState;
 };
 
-export function DevicesManager({ unmappedPunches, syncState }: DevicesManagerProps) {
+export function DevicesManager({ syncState }: DevicesManagerProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -125,32 +121,6 @@ export function DevicesManager({ unmappedPunches, syncState }: DevicesManagerPro
     }
   }
 
-  const unmappedColumns: ColumnDef<SerializedUnmappedPunch>[] = [
-    {
-      accessorKey: "empCode",
-      header: "Emp code",
-    },
-    {
-      accessorKey: "machineEmpName",
-      header: "Name on device",
-      cell: ({ row }) => row.original.machineEmpName ?? "—",
-    },
-    {
-      accessorKey: "machineNo",
-      header: "Terminal",
-      cell: ({ row }) => row.original.machineNo ?? "—",
-    },
-    {
-      accessorKey: "punchCount",
-      header: "Punches",
-    },
-    {
-      accessorKey: "lastPunchAt",
-      header: "Last punch",
-      cell: ({ row }) => formatPktIso(row.original.lastPunchAt),
-    },
-  ];
-
   return (
     <div className="flex flex-col gap-4 md:min-h-0 md:flex-1 md:overflow-hidden">
       <div className="shrink-0">
@@ -201,23 +171,6 @@ export function DevicesManager({ unmappedPunches, syncState }: DevicesManagerPro
           </div>
         )}
       </div>
-
-      {unmappedPunches.length > 0 ? (
-        <>
-          <div className="shrink-0">
-            <h2 className="font-semibold text-lg">Unmapped punches</h2>
-            <p className="mt-1 text-muted-foreground text-sm">
-              These emp codes punched on the device but do not match an AMS employee. Create or
-              update employees with matching employee codes.
-            </p>
-          </div>
-          <DataTable
-            className="md:min-h-0 md:flex-1"
-            columns={unmappedColumns}
-            data={unmappedPunches}
-          />
-        </>
-      ) : null}
     </div>
   );
 }

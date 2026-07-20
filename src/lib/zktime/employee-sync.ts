@@ -1,6 +1,6 @@
-import { desc, eq, isNull } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { companies, deviceTerminals, employees, machinePunches } from "@/db/schema";
+import { companies, deviceTerminals, employees } from "@/db/schema";
 import { findEmployeeForZktimeImport, findEmployeeByCodeVariants } from "@/lib/admin/employee-identity";
 import { ZktimeClient } from "@/lib/zktime/client";
 import {
@@ -369,58 +369,6 @@ export async function syncTerminalsFromZktime(client: ZktimeClient): Promise<num
 
   await setSyncStateValue(ZKTIME_LAST_TERMINAL_SYNC_AT, now.toISOString());
   return synced;
-}
-
-export type UnmappedZktimePunch = {
-  empCode: string;
-  machineNo: string | null;
-  machineEmpName: string | null;
-  punchCount: number;
-  lastPunchAt: Date;
-};
-
-export async function listUnmappedPunches(): Promise<UnmappedZktimePunch[]> {
-  const punches = await db
-    .select({
-      cardNo: machinePunches.cardNo,
-      machineNo: machinePunches.machineNo,
-      machineEmpName: machinePunches.machineEmpName,
-      punchAt: machinePunches.punchAt,
-    })
-    .from(machinePunches)
-    .where(isNull(machinePunches.employeeId))
-    .orderBy(desc(machinePunches.punchAt))
-    .limit(1000);
-
-  const grouped = new Map<string, UnmappedZktimePunch>();
-
-  for (const punch of punches) {
-    const key = `${punch.cardNo}|${punch.machineNo ?? ""}`;
-    const existing = grouped.get(key);
-
-    if (!existing) {
-      grouped.set(key, {
-        empCode: punch.cardNo,
-        machineNo: punch.machineNo,
-        machineEmpName: punch.machineEmpName,
-        punchCount: 1,
-        lastPunchAt: punch.punchAt,
-      });
-      continue;
-    }
-
-    existing.punchCount += 1;
-    if (punch.punchAt > existing.lastPunchAt) {
-      existing.lastPunchAt = punch.punchAt;
-      if (punch.machineEmpName) {
-        existing.machineEmpName = punch.machineEmpName;
-      }
-    }
-  }
-
-  return [...grouped.values()].sort(
-    (left, right) => right.lastPunchAt.getTime() - left.lastPunchAt.getTime(),
-  );
 }
 
 export async function listDevicesWithSyncState() {
