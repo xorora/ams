@@ -67,13 +67,17 @@ export async function runMarkAbsentJob(runAt: Date = new Date()): Promise<MarkAb
     .where(eq(employees.isActive, true));
 
   const shiftDateByEmployee = new Map(
-    activeEmployees.map(({ id, companySlug, fullName, shiftPreset }) => [
-      id,
-      getAutoAbsentShiftDateForCompany(
-        runAt,
-        getShiftConfigForEmployee(companySlug, shiftPreset, fullName),
-      ),
-    ]),
+    activeEmployees.map(({ id, companySlug, fullName, shiftPreset }) => {
+      const provisional = getShiftConfigForEmployee(companySlug, shiftPreset, fullName);
+      const shiftDate = getAutoAbsentShiftDateForCompany(runAt, provisional);
+      return [
+        id,
+        getAutoAbsentShiftDateForCompany(
+          runAt,
+          getShiftConfigForEmployee(companySlug, shiftPreset, fullName, shiftDate),
+        ),
+      ];
+    }),
   );
   const uniqueShiftDates = [...new Set(shiftDateByEmployee.values())];
 
@@ -103,8 +107,9 @@ export async function runMarkAbsentJob(runAt: Date = new Date()): Promise<MarkAb
   let markedAbsent = 0;
 
   for (const { id: employeeId, companySlug, fullName, shiftPreset } of activeEmployees) {
-    const config = getShiftConfigForEmployee(companySlug, shiftPreset, fullName);
-    const shiftDate = getAutoAbsentShiftDateForCompany(runAt, config);
+    const provisional = getShiftConfigForEmployee(companySlug, shiftPreset, fullName);
+    const shiftDate = getAutoAbsentShiftDateForCompany(runAt, provisional);
+    const config = getShiftConfigForEmployee(companySlug, shiftPreset, fullName, shiftDate);
     shiftDates.add(shiftDate);
     const isWeekend = isClosedShiftDate(shiftDate, config, companySlug);
     const day = dayByEmployeeAndDate.get(`${employeeId}:${shiftDate}`) ?? null;

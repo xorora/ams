@@ -127,12 +127,12 @@ export async function adoptSiblingAttendanceToEmployee(
     .where(eq(companies.id, employee.companyId))
     .limit(1);
 
-  const shiftConfig = getShiftConfigForEmployee(
+  const provisional = getShiftConfigForEmployee(
     company?.slug ?? "xorora",
     employee.shiftPreset,
     employee.fullName,
   );
-  const shiftDate = getShiftDateForCompany(now, shiftConfig);
+  const shiftDate = getShiftDateForCompany(now, provisional);
 
   const [primaryRow] = await db
     .select()
@@ -227,12 +227,12 @@ export async function resolveEmployeeIdForAttendance(
     .where(eq(companies.id, employee.companyId))
     .limit(1);
 
-  const shiftConfig = getShiftConfigForEmployee(
+  const provisional = getShiftConfigForEmployee(
     company?.slug ?? "xorora",
     employee.shiftPreset,
     employee.fullName,
   );
-  const shiftDate = getShiftDateForCompany(now, shiftConfig);
+  const shiftDate = getShiftDateForCompany(now, provisional);
 
   if (await hasAttendanceForShift(employeeId, shiftDate)) {
     return employeeId;

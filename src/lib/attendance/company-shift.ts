@@ -59,6 +59,12 @@ export const XORORA_AFTERNOON_SHIFT: CompanyShiftConfig = {
   closedWeekdays: CLOSED_WEEKDAYS_XORORA,
 };
 
+/**
+ * First shift date that uses the afternoon (3pm) default for Xorora.
+ * Shift dates before this keep the legacy evening (6pm–3am) schedule.
+ */
+export const XORORA_AFTERNOON_SHIFT_EFFECTIVE_DATE = "2026-07-21";
+
 /** Xorora evening override: 6:00 PM – 3:00 AM PKT (+15 min grace). */
 export const XORORA_EVENING_SHIFT: CompanyShiftConfig = {
   expectedCheckInHour: 18,
@@ -152,15 +158,20 @@ export function getCompanyShiftConfig(slug: string): CompanyShiftConfig {
  * Resolve shift for a company employee.
  * Xorora uses `shiftPreset` from the admin panel (`afternoon` | `evening`).
  * Name-based evening list is only a fallback when preset is unset.
+ * Before {@link XORORA_AFTERNOON_SHIFT_EFFECTIVE_DATE}, all Xorora staff use evening.
  */
 export function getShiftConfigForEmployee(
   companySlug: string,
   shiftPreset?: string | null,
   fullName?: string | null,
+  shiftDate?: string | null,
 ): CompanyShiftConfig {
   const slug = companySlug || "xorora";
 
   if (slug === "xorora") {
+    if (shiftDate && shiftDate < XORORA_AFTERNOON_SHIFT_EFFECTIVE_DATE) {
+      return XORORA_EVENING_SHIFT;
+    }
     if (shiftPreset === "evening") {
       return XORORA_EVENING_SHIFT;
     }

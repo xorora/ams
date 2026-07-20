@@ -95,7 +95,12 @@ export async function runMarkMissedCheckoutJob(
 
   for (const day of openDays) {
     shiftDates.add(day.shiftDate);
-    const config = getShiftConfigForEmployee(day.companySlug, day.shiftPreset, day.fullName);
+    const config = getShiftConfigForEmployee(
+      day.companySlug,
+      day.shiftPreset,
+      day.fullName,
+      day.shiftDate,
+    );
     if (!isPastMissedCheckOutDeadlineForCompany(runAt, day.shiftDate, config)) {
       skipped += 1;
       continue;

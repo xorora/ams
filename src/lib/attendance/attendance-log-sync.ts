@@ -2,12 +2,13 @@ import { and, desc, eq, inArray, isNotNull, isNull, or } from "drizzle-orm";
 import { db } from "@/db";
 import { attendanceDays, employees, machinePunches } from "@/db/schema";
 import {
+  getShiftConfigForEmployee,
   getShiftDateForCompany,
   isEarlyLeaveForCompany,
   isLateCheckInForCompany,
   type CompanyShiftConfig,
 } from "./company-shift";
-import { loadEmployeeShiftConfig } from "./employee-shift";
+import { loadEmployeeShiftContext } from "./employee-shift";
 import {
   parseMachinePunchDirection,
   relinkMachinePunchesToEmployees,
@@ -208,8 +209,13 @@ export async function reconcileEmployeeAttendanceFromLog(
 ): Promise<void> {
   await relinkMachinePunchesToEmployees();
 
-  const shiftConfig = await loadEmployeeShiftConfig(employeeId);
-  const shiftDate = getShiftDateForCompany(now, shiftConfig);
+  const {
+    config: shiftConfig,
+    shiftDate,
+    companySlug,
+    fullName,
+    shiftPreset,
+  } = await loadEmployeeShiftContext(employeeId, now);
 
   await runProcessMachinePunchesJob({ employeeIds: [employeeId] });
 
@@ -220,7 +226,13 @@ export async function reconcileEmployeeAttendanceFromLog(
   }
 
   for (const date of [...shiftDates].sort()) {
-    await backfillShiftRowFromPunches(employeeId, date, shiftConfig);
+    const configForDate = getShiftConfigForEmployee(
+      companySlug,
+      shiftPreset,
+      fullName,
+      date,
+    );
+    await backfillShiftRowFromPunches(employeeId, date, configForDate);
   }
 }
 
@@ -242,9 +254,17 @@ export async function reconcileAttendanceFromLogForEmployees(
 
   let updated = 0;
   for (const employeeId of uniqueIds) {
-    const shiftConfig = await loadEmployeeShiftConfig(employeeId);
-    const shiftDate = getShiftDateForCompany(now, shiftConfig);
-    const changed = await backfillShiftRowFromPunches(employeeId, shiftDate, shiftConfig);
+    const { shiftDate, companySlug, fullName, shiftPreset } = await loadEmployeeShiftContext(
+      employeeId,
+      now,
+    );
+    const configForDate = getShiftConfigForEmployee(
+      companySlug,
+      shiftPreset,
+      fullName,
+      shiftDate,
+    );
+    const changed = await backfillShiftRowFromPunches(employeeId, shiftDate, configForDate);
     if (changed) {
       updated += 1;
     }

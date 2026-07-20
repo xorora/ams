@@ -2,6 +2,7 @@ import { and, eq, gte, inArray, isNotNull, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { attendanceDays, companies, employees, machinePunches } from "@/db/schema";
 import {
+  getCompanyShiftConfig,
   getShiftDateForCompany,
   getShiftConfigForEmployee,
   isEarlyLeaveForCompany,
@@ -88,8 +89,8 @@ function groupPunches(rows: PunchRow[]): ShiftPunchGroup[] {
   const byKey = new Map<string, ShiftPunchGroup>();
 
   for (const { employeeId, punchAt, companySlug, fullName, shiftPreset, direction } of rows) {
-    const config = getShiftConfigForEmployee(companySlug, shiftPreset, fullName);
-    const shiftDate = getShiftDateForCompany(punchAt, config);
+    const provisional = getCompanyShiftConfig(companySlug);
+    const shiftDate = getShiftDateForCompany(punchAt, provisional);
     const key = `${employeeId}:${shiftDate}`;
     const existing =
       byKey.get(key) ??
@@ -198,7 +199,12 @@ function buildMergedAttendanceRow(
     return null;
   }
 
-  const config = getShiftConfigForEmployee(group.companySlug, group.shiftPreset, group.fullName);
+  const config = getShiftConfigForEmployee(
+    group.companySlug,
+    group.shiftPreset,
+    group.fullName,
+    group.shiftDate,
+  );
   const isLate = checkInAt ? isLateCheckInForCompany(checkInAt, group.shiftDate, config) : false;
   const isEarlyLeave = checkOutAt
     ? isEarlyLeaveForCompany(checkOutAt, group.shiftDate, config)

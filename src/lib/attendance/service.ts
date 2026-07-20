@@ -4,7 +4,7 @@ import { attendanceDays, breakSessions, employees } from "@/db/schema";
 import {
   getClosedDaysLabel,
   getClosedShiftDateReason,
-  getShiftDateForCompany,
+  getShiftConfigForEmployee,
   getShiftScheduleLabels,
   isClosedShiftDate,
   isEarlyLeaveForCompany,
@@ -115,8 +115,13 @@ async function resolveShiftAttendance(
   employeeId: string,
   now: Date,
 ): Promise<ShiftAttendanceContext> {
-  const { config: shiftConfig, companySlug } = await loadEmployeeShiftContext(employeeId);
-  const shiftDate = getShiftDateForCompany(now, shiftConfig);
+  const {
+    config: shiftConfig,
+    companySlug,
+    shiftDate,
+    fullName,
+    shiftPreset,
+  } = await loadEmployeeShiftContext(employeeId, now);
   const current = await loadShiftAttendance(employeeId, shiftDate);
 
   if (
@@ -134,7 +139,17 @@ async function resolveShiftAttendance(
   if (openShift) {
     const prior = await loadShiftAttendance(employeeId, openShift.shiftDate);
     if (prior.day) {
-      return { ...prior, shiftConfig, companySlug, shiftDate: prior.day.shiftDate };
+      return {
+        ...prior,
+        shiftConfig: getShiftConfigForEmployee(
+          companySlug,
+          shiftPreset,
+          fullName,
+          prior.day.shiftDate,
+        ),
+        companySlug,
+        shiftDate: prior.day.shiftDate,
+      };
     }
   }
 
@@ -241,8 +256,11 @@ export async function checkIn(
 
   const now = new Date();
   const resolvedEmployeeId = await resolveEmployeeId(employeeId, now);
-  const { config: shiftConfig, companySlug } = await loadEmployeeShiftContext(resolvedEmployeeId);
-  const shiftDate = getShiftDateForCompany(now, shiftConfig);
+  const {
+    config: shiftConfig,
+    companySlug,
+    shiftDate,
+  } = await loadEmployeeShiftContext(resolvedEmployeeId, now);
   if (isClosedShiftDate(shiftDate, shiftConfig, companySlug)) {
     return officeClosedFailure(shiftDate, shiftConfig, companySlug);
   }
