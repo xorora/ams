@@ -10,11 +10,13 @@ export async function loadEmployeeShiftContext(employeeId: string): Promise<{
   config: CompanyShiftConfig;
   companySlug: string;
   fullName: string | null;
+  shiftPreset: string | null;
 }> {
   const [row] = await db
     .select({
       slug: companies.slug,
       fullName: employees.fullName,
+      shiftPreset: employees.shiftPreset,
     })
     .from(employees)
     .innerJoin(companies, eq(employees.companyId, companies.id))
@@ -25,7 +27,8 @@ export async function loadEmployeeShiftContext(employeeId: string): Promise<{
   return {
     companySlug,
     fullName: row?.fullName ?? null,
-    config: getShiftConfigForEmployee(companySlug, row?.fullName),
+    shiftPreset: row?.shiftPreset ?? null,
+    config: getShiftConfigForEmployee(companySlug, row?.shiftPreset, row?.fullName),
   };
 }
 

@@ -35,9 +35,16 @@ type EmployeesManagerProps = {
   employees: SerializedEmployee[];
   search: string;
   includeInactive: boolean;
+  /** Xorora only: show per-employee shift timing in create/edit and the table. */
+  showXororaShiftPreset?: boolean;
 };
 
-export function EmployeesManager({ employees, search, includeInactive }: EmployeesManagerProps) {
+export function EmployeesManager({
+  employees,
+  search,
+  includeInactive,
+  showXororaShiftPreset = false,
+}: EmployeesManagerProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [searchInput, setSearchInput] = useState(search);
@@ -161,6 +168,8 @@ export function EmployeesManager({ employees, search, includeInactive }: Employe
         return;
       }
 
+      const shiftFields = showXororaShiftPreset ? { shiftPreset: form.shiftPreset } : {};
+
       const payload = form.probationCompleted
         ? {
             employeeCode: form.employeeCode,
@@ -173,6 +182,7 @@ export function EmployeesManager({ employees, search, includeInactive }: Employe
             probationStartDate: null,
             probationPeriodMonths: DEFAULT_PROBATION_PERIOD_MONTHS,
             password: form.password.trim() || undefined,
+            ...shiftFields,
           }
         : {
             employeeCode: form.employeeCode,
@@ -187,6 +197,7 @@ export function EmployeesManager({ employees, search, includeInactive }: Employe
               ? periodMonths
               : DEFAULT_PROBATION_PERIOD_MONTHS,
             password: form.password.trim() || undefined,
+            ...shiftFields,
           };
 
       await toastAsync(
@@ -437,6 +448,7 @@ export function EmployeesManager({ employees, search, includeInactive }: Employe
           onStartProbation={editingId ? handleSheetStartProbation : undefined}
           onEndProbation={editingId ? handleSheetEndProbation : undefined}
           probationActionPending={probationActionPending}
+          showXororaShiftPreset={showXororaShiftPreset}
         />
 
         <ClearanceFormSheet
@@ -466,6 +478,7 @@ export function EmployeesManager({ employees, search, includeInactive }: Employe
         onReactivate={handleReactivate}
         onStartProbation={handleStartProbation}
         onEndProbation={handleEndProbation}
+        showXororaShiftPreset={showXororaShiftPreset}
         resetDeps={[search, includeInactive]}
       />
     </div>

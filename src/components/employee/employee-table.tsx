@@ -29,6 +29,7 @@ type EmployeeTableProps = {
   onReactivate: (id: string) => void;
   onStartProbation?: (id: string, name: string) => void;
   onEndProbation?: (id: string, name: string) => void;
+  showXororaShiftPreset?: boolean;
   resetDeps?: readonly unknown[];
   className?: string;
 };
@@ -43,6 +44,13 @@ function probationBadgeVariant(employee: SerializedEmployee): "default" | "secon
   return "secondary";
 }
 
+function shiftPresetLabel(preset: string | null | undefined): string {
+  if (preset === "evening") {
+    return "6pm–3am";
+  }
+  return "3pm–12am";
+}
+
 export function EmployeeTable({
   employees,
   loading,
@@ -52,6 +60,7 @@ export function EmployeeTable({
   onReactivate,
   onStartProbation,
   onEndProbation,
+  showXororaShiftPreset = false,
   resetDeps,
   className,
 }: EmployeeTableProps) {
@@ -82,6 +91,17 @@ export function EmployeeTable({
         header: "Department",
         cell: ({ row }) => row.original.department ?? "—",
       },
+      ...(showXororaShiftPreset
+        ? [
+            {
+              id: "shift",
+              accessorFn: (row: SerializedEmployee) => shiftPresetLabel(row.shiftPreset),
+              header: "Shift",
+              cell: ({ row }: { row: { original: SerializedEmployee } }) =>
+                shiftPresetLabel(row.original.shiftPreset),
+            } satisfies ColumnDef<SerializedEmployee>,
+          ]
+        : []),
       {
         id: "status",
         accessorFn: (row) => (row.isActive ? "Active" : "Inactive"),
@@ -182,7 +202,7 @@ export function EmployeeTable({
         },
       },
     ],
-    [onClearanceForm, onDeactivate, onEdit, onEndProbation, onReactivate, onStartProbation],
+    [onClearanceForm, onDeactivate, onEdit, onEndProbation, onReactivate, onStartProbation, showXororaShiftPreset],
   );
 
   return (

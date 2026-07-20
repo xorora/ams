@@ -1,6 +1,6 @@
 import { and, asc, eq, ilike, or } from "drizzle-orm";
 import { db } from "@/db";
-import { employees, users } from "@/db/schema";
+import { companies, employees, users } from "@/db/schema";
 import {
   dedupeEmployeeRecords,
   findEmployeeByCodeVariants,
@@ -10,6 +10,7 @@ import {
   defaultProbationValues,
   getTodayPkt,
 } from "@/lib/admin/probation";
+import { isXororaShiftPreset, type XororaShiftPreset } from "@/lib/attendance/company-shift";
 import { closeOpenShiftForEmployee, findOpenShift } from "@/lib/attendance/close-open-shift";
 import { hashPassword, validatePassword } from "@/lib/auth/password";
 import { linkUserToEmployeeRecord } from "@/lib/auth/employee-link";
@@ -29,6 +30,8 @@ export type CreateEmployeeInput = {
   probationCompleted?: boolean;
   probationStartDate?: string | null;
   probationPeriodMonths?: number;
+  /** Xorora only: afternoon (3pm–12am) or evening (6pm–3am). */
+  shiftPreset?: "afternoon" | "evening" | null;
   /** Optional password for email sign-in; stored on the linked user account. */
   password?: string | null;
 };
@@ -50,6 +53,8 @@ export type UpdateEmployeeInput = {
   probationCompleted?: boolean;
   probationStartDate?: string | null;
   probationPeriodMonths?: number;
+  /** Xorora only: afternoon (3pm–12am) or evening (6pm–3am). */
+  shiftPreset?: "afternoon" | "evening" | null;
   /** When set (non-empty), creates or updates the linked user's password. */
   password?: string | null;
 };
@@ -171,6 +176,38 @@ function validateEmployeeInput(
       designation: input.designation?.trim() || null,
     },
   };
+}
+
+async function resolveCompanySlug(companyId: string): Promise<string | null> {
+  const [company] = await db
+    .select({ slug: companies.slug })
+    .from(companies)
+    .where(eq(companies.id, companyId))
+    .limit(1);
+  return company?.slug ?? null;
+}
+
+function resolveShiftPresetForCompany(
+  companySlug: string | null,
+  shiftPreset: string | null | undefined,
+): ServiceFailure | ServiceSuccess<XororaShiftPreset | null> {
+  if (companySlug !== "xorora") {
+    return { ok: true, data: null };
+  }
+
+  if (shiftPreset == null || shiftPreset === "") {
+    return { ok: true, data: "afternoon" };
+  }
+
+  if (!isXororaShiftPreset(shiftPreset)) {
+    return adminFailure(
+      400,
+      "INVALID_SHIFT_PRESET",
+      "Xorora shift must be afternoon (3pm–12am) or evening (6pm–3am).",
+    );
+  }
+
+  return { ok: true, data: shiftPreset };
 }
 
 async function linkEmployeeToUserByEmail(employeeId: string, email: string): Promise<void> {
@@ -379,6 +416,12 @@ export async function createEmployee(
     return probation;
   }
 
+  const companySlug = await resolveCompanySlug(data.companyId);
+  const shiftPresetResult = resolveShiftPresetForCompany(companySlug, input.shiftPreset);
+  if (!shiftPresetResult.ok) {
+    return shiftPresetResult;
+  }
+
   const [created] = await db
     .insert(employees)
     .values({
@@ -392,6 +435,7 @@ export async function createEmployee(
       probationCompleted: probation.data.probationCompleted,
       probationStartDate: probation.data.probationStartDate,
       probationPeriodMonths: probation.data.probationPeriodMonths,
+      shiftPreset: shiftPresetResult.data,
     })
     .returning();
 
@@ -456,6 +500,15 @@ export async function updateEmployee(
 
   if (input.designation !== undefined) {
     updates.designation = input.designation?.trim() || null;
+  }
+
+  if (input.shiftPreset !== undefined) {
+    const companySlug = await resolveCompanySlug(employee.companyId);
+    const shiftPresetResult = resolveShiftPresetForCompany(companySlug, input.shiftPreset);
+    if (!shiftPresetResult.ok) {
+      return shiftPresetResult;
+    }
+    updates.shiftPreset = shiftPresetResult.data;
   }
 
   if (input.isActive !== undefined) {

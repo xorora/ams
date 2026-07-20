@@ -14,6 +14,9 @@ import {
   getCompanyFederalHolidayName,
   isCompanyFederalHoliday,
 } from "./company-holidays";
+import type { XororaShiftPreset } from "@/db/schema";
+
+export type { XororaShiftPreset };
 
 const DAY_SHIFT_CHECK_IN_HOUR = 9;
 const DAY_SHIFT_CHECK_OUT_HOUR = 17;
@@ -70,13 +73,17 @@ export const XORORA_EVENING_SHIFT: CompanyShiftConfig = {
 };
 
 /**
- * Xorora employees who keep the 6pm–3am evening shift.
- * Matched case-insensitively on full name.
+ * Xorora employees who keep the 6pm–3am evening shift (seed / legacy fallback).
+ * Prefer `employees.shift_preset` from the admin panel.
  */
 export const XORORA_EVENING_SHIFT_EMPLOYEE_NAMES = new Set([
   "daniyal zafar",
   "sadia saif",
 ]);
+
+export function isXororaShiftPreset(value: string | null | undefined): value is XororaShiftPreset {
+  return value === "afternoon" || value === "evening";
+}
 
 export const COMPANY_SHIFT_BY_SLUG: Record<CompanySlug, CompanyShiftConfig> = {
   xorora: XORORA_AFTERNOON_SHIFT,
@@ -141,16 +148,30 @@ export function getCompanyShiftConfig(slug: string): CompanyShiftConfig {
   return config;
 }
 
-/** Resolve shift for a company employee (Xorora evening overrides by name). */
+/**
+ * Resolve shift for a company employee.
+ * Xorora uses `shiftPreset` from the admin panel (`afternoon` | `evening`).
+ * Name-based evening list is only a fallback when preset is unset.
+ */
 export function getShiftConfigForEmployee(
   companySlug: string,
-  fullName: string | null | undefined,
+  shiftPreset?: string | null,
+  fullName?: string | null,
 ): CompanyShiftConfig {
   const slug = companySlug || "xorora";
-  const normalizedName = fullName?.trim().toLowerCase() ?? "";
 
-  if (slug === "xorora" && XORORA_EVENING_SHIFT_EMPLOYEE_NAMES.has(normalizedName)) {
-    return XORORA_EVENING_SHIFT;
+  if (slug === "xorora") {
+    if (shiftPreset === "evening") {
+      return XORORA_EVENING_SHIFT;
+    }
+    if (shiftPreset === "afternoon") {
+      return XORORA_AFTERNOON_SHIFT;
+    }
+    const normalizedName = fullName?.trim().toLowerCase() ?? "";
+    if (XORORA_EVENING_SHIFT_EMPLOYEE_NAMES.has(normalizedName)) {
+      return XORORA_EVENING_SHIFT;
+    }
+    return XORORA_AFTERNOON_SHIFT;
   }
 
   return getCompanyShiftConfig(slug);

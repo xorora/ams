@@ -15,6 +15,13 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   DEFAULT_PROBATION_PERIOD_MONTHS,
   formatProbationEndDate,
   getProbationDaysSpent,
@@ -24,6 +31,7 @@ import {
   isProbationCompleted,
 } from "@/lib/admin/probation";
 import type { SerializedEmployee } from "@/lib/admin/serialize";
+import type { XororaShiftPreset } from "@/lib/attendance/company-shift";
 
 export type EmployeeFormValues = {
   employeeCode: string;
@@ -35,6 +43,7 @@ export type EmployeeFormValues = {
   probationCompleted: boolean;
   probationStartDate: string;
   probationPeriodMonths: string;
+  shiftPreset: XororaShiftPreset;
   /** Optional; leave blank when editing to keep the existing password. */
   password: string;
 };
@@ -49,6 +58,7 @@ export const emptyEmployeeForm: EmployeeFormValues = {
   probationCompleted: false,
   probationStartDate: getTodayPkt(),
   probationPeriodMonths: String(DEFAULT_PROBATION_PERIOD_MONTHS),
+  shiftPreset: "afternoon",
   password: "",
 };
 
@@ -63,6 +73,7 @@ export function employeeToForm(employee: SerializedEmployee): EmployeeFormValues
     probationCompleted: isProbationCompleted(employee),
     probationStartDate: employee.probationStartDate ?? getTodayPkt(),
     probationPeriodMonths: String(employee.probationPeriodMonths),
+    shiftPreset: employee.shiftPreset === "evening" ? "evening" : "afternoon",
     password: "",
   };
 }
@@ -79,6 +90,8 @@ type EmployeeSheetProps = {
   onStartProbation?: () => void;
   onEndProbation?: () => void;
   probationActionPending?: boolean;
+  /** When true, show Xorora shift timing selector. */
+  showXororaShiftPreset?: boolean;
 };
 
 function ProbationSummary({ form }: { form: EmployeeFormValues }) {
@@ -118,6 +131,7 @@ export function EmployeeSheet({
   onStartProbation,
   onEndProbation,
   probationActionPending = false,
+  showXororaShiftPreset = false,
 }: EmployeeSheetProps) {
   const periodMonths = Number.parseInt(form.probationPeriodMonths, 10);
   const showOnProbation =
@@ -206,6 +220,40 @@ export function EmployeeSheet({
               onChange={(e) => onFormChange((f) => ({ ...f, department: e.target.value }))}
             />
           </div>
+
+          {showXororaShiftPreset ? (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="shift-preset">Shift timing</Label>
+              <Select
+                items={{
+                  afternoon: "Afternoon — 3:00 PM to 12:00 AM (+15 min grace)",
+                  evening: "Evening — 6:00 PM to 3:00 AM (+15 min grace)",
+                }}
+                value={form.shiftPreset}
+                onValueChange={(value) =>
+                  onFormChange((f) => ({
+                    ...f,
+                    shiftPreset: value === "evening" ? "evening" : "afternoon",
+                  }))
+                }
+              >
+                <SelectTrigger id="shift-preset" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="afternoon">
+                    Afternoon — 3:00 PM to 12:00 AM (+15 min grace)
+                  </SelectItem>
+                  <SelectItem value="evening">
+                    Evening — 6:00 PM to 3:00 AM (+15 min grace)
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-muted-foreground text-xs">
+                Xorora only. Late starts one minute after the grace deadline.
+              </p>
+            </div>
+          ) : null}
 
           <Separator />
 

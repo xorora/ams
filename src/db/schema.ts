@@ -31,6 +31,9 @@ export const leaveRequestStatusEnum = pgEnum("leave_request_status", [
 ]);
 export const machinePunchSourceEnum = pgEnum("machine_punch_source", ["ebio", "zkteco", "wdms"]);
 
+/** Xorora-only: afternoon = 3pm–12am, evening = 6pm–3am. Ignored for other companies. */
+export type XororaShiftPreset = "afternoon" | "evening";
+
 export const companies = pgTable("companies", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull().unique(),
@@ -55,6 +58,11 @@ export const employees = pgTable("employees", {
   probationCompleted: boolean("probation_completed").notNull().default(false),
   probationStartDate: date("probation_start_date"),
   probationPeriodMonths: integer("probation_period_months").notNull().default(3),
+  /**
+   * Xorora shift: `afternoon` (3pm–12am) or `evening` (6pm–3am).
+   * Null / other companies use the company default shift.
+   */
+  shiftPreset: text("shift_preset").$type<XororaShiftPreset | null>(),
   userId: uuid("user_id").references((): AnyPgColumn => users.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

@@ -82,6 +82,7 @@ export async function runMarkMissedCheckoutJob(
       notes: attendanceDays.notes,
       companySlug: companies.slug,
       fullName: employees.fullName,
+      shiftPreset: employees.shiftPreset,
     })
     .from(attendanceDays)
     .innerJoin(employees, eq(attendanceDays.employeeId, employees.id))
@@ -94,7 +95,7 @@ export async function runMarkMissedCheckoutJob(
 
   for (const day of openDays) {
     shiftDates.add(day.shiftDate);
-    const config = getShiftConfigForEmployee(day.companySlug, day.fullName);
+    const config = getShiftConfigForEmployee(day.companySlug, day.shiftPreset, day.fullName);
     if (!isPastMissedCheckOutDeadlineForCompany(runAt, day.shiftDate, config)) {
       skipped += 1;
       continue;
