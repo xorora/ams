@@ -46,7 +46,7 @@ export function CompanySwitcher({ companies, selectedCompanyId }: CompanySwitche
     >
       <SelectTrigger
         size="sm"
-        className="min-w-[140px]"
+        className="w-full min-w-0 max-w-full sm:min-w-[140px]"
         aria-label="Select company"
         disabled={isPending}
       >

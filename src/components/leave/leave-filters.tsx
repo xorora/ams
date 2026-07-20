@@ -54,9 +54,9 @@ export function LeaveFilters({ filters, employees, onChange }: LeaveFiltersProps
   }, []);
 
   return (
-    <div className="flex flex-wrap items-end gap-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 lg:gap-4">
       {employees ? (
-        <div className="flex min-w-[200px] flex-col gap-1.5">
+        <div className="flex min-w-0 flex-col gap-1.5">
           <Label>Employee</Label>
           <Select
             items={employeeItems}
@@ -82,7 +82,7 @@ export function LeaveFilters({ filters, employees, onChange }: LeaveFiltersProps
         </div>
       ) : null}
 
-      <div className="flex min-w-[160px] flex-col gap-1.5">
+      <div className="flex min-w-0 flex-col gap-1.5">
         <Label>Status</Label>
         <Select
           items={STATUS_ITEMS}
@@ -106,7 +106,7 @@ export function LeaveFilters({ filters, employees, onChange }: LeaveFiltersProps
         </Select>
       </div>
 
-      <div className="flex min-w-[160px] flex-col gap-1.5">
+      <div className="flex min-w-0 flex-col gap-1.5">
         <Label>Leave type</Label>
         <Select
           items={leaveTypeItems}

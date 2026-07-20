@@ -103,7 +103,7 @@ function PaperCheckbox({
 
   if (!interactive) {
     return (
-      <span className="inline-flex cursor-default items-center gap-1.5 text-[11px] whitespace-nowrap">
+      <span className="inline-flex cursor-default items-center gap-1.5 text-[11px] sm:whitespace-nowrap">
         {box}
         {label}
       </span>
@@ -111,7 +111,7 @@ function PaperCheckbox({
   }
 
   return (
-    <label className="group/checkbox inline-flex cursor-pointer items-center gap-1.5 text-[11px] whitespace-nowrap">
+    <label className="group/checkbox inline-flex cursor-pointer items-center gap-1.5 text-[11px] sm:whitespace-nowrap">
       <input
         type="radio"
         name="leave-type"
@@ -206,7 +206,7 @@ export function LeaveFormDocument({
   return (
     <div
       className={cn(
-        "mx-auto w-full max-w-[820px] border border-black bg-white px-12 py-8 font-[Arial,Helvetica,sans-serif] text-black shadow-sm",
+        "mx-auto w-full max-w-[820px] border border-black bg-white px-4 py-6 font-[Arial,Helvetica,sans-serif] text-black shadow-sm sm:px-12 sm:py-8",
         className,
       )}
     >
@@ -225,51 +225,57 @@ export function LeaveFormDocument({
       </div>
 
       <div className="mt-7 space-y-5 text-sm">
-        <div className="grid grid-cols-[72px_1fr] items-end gap-x-3">
+        <div className="grid grid-cols-[4.5rem_1fr] items-end gap-x-3 sm:grid-cols-[72px_1fr]">
           <span className="font-semibold">Name:</span>
           <PaperLine>{employeeName}</PaperLine>
         </div>
 
-        <div className="grid grid-cols-2 gap-x-8">
-          <div className="grid grid-cols-[92px_1fr] items-end gap-x-3">
+        <div className="grid grid-cols-1 gap-y-5 sm:grid-cols-2 sm:gap-x-8">
+          <div className="grid grid-cols-[5.75rem_1fr] items-end gap-x-3 sm:grid-cols-[92px_1fr]">
             <span className="font-semibold">Designation:</span>
             <PaperLine>{designation?.trim() || "\u00A0"}</PaperLine>
           </div>
-          <div className="grid grid-cols-[92px_1fr] items-end gap-x-3">
+          <div className="grid grid-cols-[5.75rem_1fr] items-end gap-x-3 sm:grid-cols-[92px_1fr]">
             <span className="font-semibold">Department:</span>
             <PaperLine>{department?.trim() || "\u00A0"}</PaperLine>
           </div>
         </div>
 
-        <div className="grid grid-cols-[92px_1fr_36px_1fr_88px_72px] items-end gap-x-3">
-          <span className="font-semibold">Applied From:</span>
-          {isApply && form && onFormChange ? (
-            <DatePicker
-              value={form.startDate}
-              onChange={(value) =>
-                onFormChange((current) => ({
-                  ...current,
-                  startDate: value,
-                  endDate: value > current.endDate ? value : current.endDate,
-                }))
-              }
-              className="h-7 rounded-none border-0 border-black border-b bg-transparent px-0 shadow-none"
-            />
-          ) : (
-            <PaperLine>{activeStart ? formatLeaveFormDate(activeStart) : "\u00A0"}</PaperLine>
-          )}
-          <span className="font-semibold">To:</span>
-          {isApply && form && onFormChange ? (
-            <DatePicker
-              value={form.endDate}
-              onChange={(value) => onFormChange((current) => ({ ...current, endDate: value }))}
-              className="h-7 rounded-none border-0 border-black border-b bg-transparent px-0 shadow-none"
-            />
-          ) : (
-            <PaperLine>{activeEnd ? formatLeaveFormDate(activeEnd) : "\u00A0"}</PaperLine>
-          )}
-          <span className="font-semibold">Total Days:</span>
-          <PaperLine>{activeDays > 0 ? String(activeDays) : "\u00A0"}</PaperLine>
+        <div className="grid grid-cols-1 gap-y-4 sm:grid-cols-[92px_1fr_36px_1fr_88px_72px] sm:items-end sm:gap-x-3">
+          <div className="grid grid-cols-[5.75rem_1fr] items-end gap-x-3 sm:contents">
+            <span className="font-semibold">Applied From:</span>
+            {isApply && form && onFormChange ? (
+              <DatePicker
+                value={form.startDate}
+                onChange={(value) =>
+                  onFormChange((current) => ({
+                    ...current,
+                    startDate: value,
+                    endDate: value > current.endDate ? value : current.endDate,
+                  }))
+                }
+                className="h-7 rounded-none border-0 border-black border-b bg-transparent px-0 shadow-none"
+              />
+            ) : (
+              <PaperLine>{activeStart ? formatLeaveFormDate(activeStart) : "\u00A0"}</PaperLine>
+            )}
+          </div>
+          <div className="grid grid-cols-[5.75rem_1fr] items-end gap-x-3 sm:contents">
+            <span className="font-semibold">To:</span>
+            {isApply && form && onFormChange ? (
+              <DatePicker
+                value={form.endDate}
+                onChange={(value) => onFormChange((current) => ({ ...current, endDate: value }))}
+                className="h-7 rounded-none border-0 border-black border-b bg-transparent px-0 shadow-none"
+              />
+            ) : (
+              <PaperLine>{activeEnd ? formatLeaveFormDate(activeEnd) : "\u00A0"}</PaperLine>
+            )}
+          </div>
+          <div className="grid grid-cols-[5.75rem_1fr] items-end gap-x-3 sm:contents">
+            <span className="font-semibold">Total Days:</span>
+            <PaperLine>{activeDays > 0 ? String(activeDays) : "\u00A0"}</PaperLine>
+          </div>
         </div>
 
         {exceedsBalance ? (
@@ -314,7 +320,7 @@ export function LeaveFormDocument({
           )}
         </div>
 
-        <div className="grid grid-cols-[140px_1fr] items-start gap-x-3">
+        <div className="grid grid-cols-1 items-start gap-x-3 gap-y-2 sm:grid-cols-[140px_1fr]">
           <span className="pt-0.5 font-semibold">Reason for Leave:</span>
           {isApply && form && onFormChange ? (
             <PaperReasonField
@@ -330,7 +336,7 @@ export function LeaveFormDocument({
         form &&
         onFormChange &&
         LEAVE_ENTITLEMENTS[form.leaveType].requiresMedicalCertificate ? (
-          <div className="grid grid-cols-[140px_1fr] items-end gap-x-3">
+          <div className="grid grid-cols-1 items-end gap-x-3 gap-y-2 sm:grid-cols-[140px_1fr]">
             <span className="font-semibold text-xs">Medical certificate:</span>
             <Input
               required
@@ -348,13 +354,13 @@ export function LeaveFormDocument({
         ) : null}
 
         {!isApply && medicalCertificateNote ? (
-          <div className="grid grid-cols-[140px_1fr] items-end gap-x-3">
+          <div className="grid grid-cols-1 items-end gap-x-3 gap-y-2 sm:grid-cols-[140px_1fr]">
             <span className="font-semibold text-xs">Medical certificate:</span>
             <PaperLine>{medicalCertificateNote}</PaperLine>
           </div>
         ) : null}
 
-        <div className="grid grid-cols-[140px_1fr] items-end gap-x-3">
+        <div className="grid grid-cols-1 items-end gap-x-3 gap-y-2 sm:grid-cols-[140px_1fr]">
           <span className="font-semibold">Contact # During Leave:</span>
           <PaperLine>{"\u00A0"}</PaperLine>
         </div>

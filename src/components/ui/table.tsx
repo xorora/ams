@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  type Cell,
   type ColumnDef,
   flexRender,
   getCoreRowModel,
@@ -105,6 +106,20 @@ function TableCaption({ className, ...props }: React.ComponentProps<"caption">) 
   );
 }
 
+function isActionsColumn(columnId: string, header: unknown) {
+  if (columnId === "actions") {
+    return true;
+  }
+  return typeof header === "string" && header.toLowerCase() === "actions";
+}
+
+function columnHeaderLabel(columnId: string, header: unknown): string {
+  if (typeof header === "string") {
+    return header;
+  }
+  return columnId.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase());
+}
+
 type DataTableProps<TData> = {
   columns: ColumnDef<TData, unknown>[];
   data: TData[];
@@ -176,66 +191,116 @@ function DataTable<TData>({
           "**:data-[slot=table-head]:shadow-[inset_0_-1px_0_hsl(var(--border))]",
         )}
       >
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  const align = header.column.columnDef.meta?.align;
+        <div className="md:hidden">
+          {loading ? (
+            <p className="px-4 py-6 text-muted-foreground text-sm">Loading…</p>
+          ) : rows.length === 0 ? (
+            <p className="px-4 py-6 text-muted-foreground text-sm">{emptyMessage}</p>
+          ) : (
+            <ul className="divide-y">
+              {rows.map((row) => {
+                const fieldCells: Cell<TData, unknown>[] = [];
+                let actionsCell: Cell<TData, unknown> | undefined;
 
-                  return (
-                    <TableHead
-                      key={header.id}
-                      className={cn(
-                        align === "right" && "text-right",
-                        align === "center" && "text-center",
-                      )}
-                    >
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(header.column.columnDef.header, header.getContext())}
-                    </TableHead>
-                  );
-                })}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={columns.length} className="text-muted-foreground">
-                  Loading…
-                </TableCell>
-              </TableRow>
-            ) : rows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={columns.length} className="text-muted-foreground">
-                  {emptyMessage}
-                </TableCell>
-              </TableRow>
-            ) : (
-              rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => {
-                    const align = cell.column.columnDef.meta?.align;
+                for (const cell of row.getVisibleCells()) {
+                  if (isActionsColumn(cell.column.id, cell.column.columnDef.header)) {
+                    actionsCell = cell;
+                  } else {
+                    fieldCells.push(cell);
+                  }
+                }
+
+                return (
+                  <li key={row.id} className="flex flex-col gap-3 px-4 py-4">
+                    <dl className="grid gap-2">
+                      {fieldCells.map((cell) => (
+                        <div
+                          key={cell.id}
+                          className="grid grid-cols-[minmax(0,7.5rem)_minmax(0,1fr)] items-start gap-x-3"
+                        >
+                          <dt className="font-medium text-muted-foreground text-xs leading-5">
+                            {columnHeaderLabel(cell.column.id, cell.column.columnDef.header)}
+                          </dt>
+                          <dd className="min-w-0 break-words text-sm leading-5 whitespace-normal">
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                    {actionsCell ? (
+                      <div className="flex items-center justify-end border-t pt-3">
+                        {flexRender(actionsCell.column.columnDef.cell, actionsCell.getContext())}
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        <div className="hidden md:block">
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => {
+                    const align = header.column.columnDef.meta?.align;
 
                     return (
-                      <TableCell
-                        key={cell.id}
+                      <TableHead
+                        key={header.id}
                         className={cn(
                           align === "right" && "text-right",
                           align === "center" && "text-center",
                         )}
                       >
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(header.column.columnDef.header, header.getContext())}
+                      </TableHead>
                     );
                   })}
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={columns.length} className="text-muted-foreground">
+                    Loading…
+                  </TableCell>
+                </TableRow>
+              ) : rows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={columns.length} className="text-muted-foreground">
+                    {emptyMessage}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                rows.map((row) => (
+                  <TableRow key={row.id}>
+                    {row.getVisibleCells().map((cell) => {
+                      const align = cell.column.columnDef.meta?.align;
+
+                      return (
+                        <TableCell
+                          key={cell.id}
+                          className={cn(
+                            align === "right" && "text-right",
+                            align === "center" && "text-center",
+                          )}
+                        >
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
       <TablePagination
         page={page}

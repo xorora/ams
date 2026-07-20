@@ -31,27 +31,29 @@ export function ApplicationShell({
   const showAppChrome = user != null && !isPublicPath(pathname);
 
   if (!showAppChrome || !user) {
-    return <div className="flex min-h-svh flex-1 flex-col">{children}</div>;
+    return <div className="flex min-h-dvh flex-1 flex-col">{children}</div>;
   }
 
   return (
     <TooltipProvider>
-      <SidebarProvider className="h-svh overflow-hidden">
+      <SidebarProvider className="h-dvh overflow-hidden">
         <AppSidebar
           user={user}
           hasLinkedEmployee={hasLinkedEmployee}
           leaveRequestsIndicator={leaveRequestsIndicator}
         />
-        <SidebarInset className="flex h-svh min-h-0 flex-col overflow-hidden">
-          <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
-            <SidebarTrigger className="-ml-1" />
+        <SidebarInset className="flex h-dvh min-h-0 flex-col overflow-hidden">
+          <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4 pt-[max(0px,env(safe-area-inset-top))]">
+            <SidebarTrigger className="-ml-1 size-9" />
             {user.role === "admin" && companies.length > 0 && selectedCompanyId ? (
-              <div className="ml-auto">
+              <div className="ml-auto min-w-0 max-w-[55%]">
                 <CompanySwitcher companies={companies} selectedCompanyId={selectedCompanyId} />
               </div>
             ) : null}
           </header>
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">{children}</div>
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-[max(0px,env(safe-area-inset-bottom))]">
+            {children}
+          </div>
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>

@@ -124,7 +124,8 @@ export function LeaveTable({
                 render={
                   <Button
                     variant="ghost"
-                    size="icon-sm"
+                    size="icon"
+                    className="size-11 md:size-8"
                     aria-label="Open actions menu"
                     disabled={actionPending || downloadPending}
                   />

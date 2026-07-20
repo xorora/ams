@@ -72,8 +72,8 @@ export function SalarySlipsManager({
 
   return (
     <div className="flex flex-col gap-4 md:min-h-0 md:flex-1 md:overflow-hidden">
-      <div className="flex shrink-0 flex-wrap items-end gap-3">
-        <div className="flex min-w-[180px] flex-col gap-1.5">
+      <div className="grid shrink-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-end">
+        <div className="flex min-w-0 flex-col gap-1.5 lg:min-w-[180px]">
           <Label htmlFor="slip-month">Month</Label>
           <Input
             id="slip-month"
@@ -89,7 +89,7 @@ export function SalarySlipsManager({
           />
         </div>
 
-        <div className="flex min-w-[200px] flex-col gap-1.5">
+        <div className="flex min-w-0 flex-col gap-1.5 lg:min-w-[200px]">
           <Label>Employee</Label>
           <Select
             items={employeeItems}
@@ -115,7 +115,7 @@ export function SalarySlipsManager({
           </Select>
         </div>
 
-        <Button type="button" onClick={() => setCreateOpen(true)}>
+        <Button type="button" className="w-full sm:col-span-2 sm:w-auto lg:col-span-1" onClick={() => setCreateOpen(true)}>
           Create slip
         </Button>
       </div>

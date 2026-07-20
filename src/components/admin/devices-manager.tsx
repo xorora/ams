@@ -162,15 +162,26 @@ export function DevicesManager({ unmappedPunches, syncState }: DevicesManagerPro
             </AlertDescription>
           </Alert>
         ) : (
-          <div className="flex w-full items-center justify-end gap-5">
-            <Button disabled={isPending} onClick={handleEmployeePush} type="button">
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-3">
+            <Button
+              className="w-full sm:w-auto"
+              disabled={isPending}
+              onClick={handleEmployeePush}
+              type="button"
+            >
               Push changes to device
             </Button>
-            <Button disabled={isPending} onClick={handleAttendanceSync} type="button">
+            <Button
+              className="w-full sm:w-auto"
+              disabled={isPending}
+              onClick={handleAttendanceSync}
+              type="button"
+            >
               <RefreshCwIcon className="size-4" />
               Pull attendance
             </Button>
             <Button
+              className="w-full sm:w-auto"
               disabled={isPending}
               onClick={handleEmployeeSync}
               type="button"
@@ -179,6 +190,7 @@ export function DevicesManager({ unmappedPunches, syncState }: DevicesManagerPro
               Pull employees
             </Button>
             <Button
+              className="w-full sm:w-auto"
               disabled={isPending}
               onClick={handleTerminalSync}
               type="button"

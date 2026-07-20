@@ -155,7 +155,14 @@ export function EmployeeTable({
           return (
             <DropdownMenu>
               <DropdownMenuTrigger
-                render={<Button variant="ghost" size="icon-sm" aria-label="Open actions menu" />}
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-11 md:size-8"
+                    aria-label="Open actions menu"
+                  />
+                }
               >
                 <MoreHorizontalIcon />
               </DropdownMenuTrigger>

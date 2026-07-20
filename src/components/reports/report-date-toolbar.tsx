@@ -32,28 +32,36 @@ export function ReportDateToolbar({
   showExport = true,
 }: ReportDateToolbarProps) {
   return (
-    <div className="flex flex-wrap items-end gap-3">
-      <div className="flex flex-col gap-1.5">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-end">
+      <div className="flex min-w-0 flex-col gap-1.5 lg:min-w-[180px]">
         <Label htmlFor={fromInputId}>From shift date</Label>
-        <DatePicker
-          id={fromInputId}
-          value={from}
-          onChange={onFromChange}
-          className="min-w-[180px]"
-        />
+        <DatePicker id={fromInputId} value={from} onChange={onFromChange} className="w-full" />
       </div>
-      <div className="flex flex-col gap-1.5">
+      <div className="flex min-w-0 flex-col gap-1.5 lg:min-w-[180px]">
         <Label htmlFor={toInputId}>To shift date</Label>
-        <DatePicker id={toInputId} value={to} onChange={onToChange} className="min-w-[180px]" />
+        <DatePicker id={toInputId} value={to} onChange={onToChange} className="w-full" />
       </div>
-      <Button type="button" variant="outline" onClick={onRefresh} disabled={loading}>
-        Refresh
-      </Button>
-      {showExport ? (
-        <Button type="button" onClick={onExport} disabled={exporting || loading}>
-          {exporting ? "Exporting…" : "Download Excel"}
+      <div className="flex flex-col gap-2 sm:col-span-2 sm:flex-row lg:col-span-1 lg:items-end">
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full sm:w-auto"
+          onClick={onRefresh}
+          disabled={loading}
+        >
+          Refresh
         </Button>
-      ) : null}
+        {showExport ? (
+          <Button
+            type="button"
+            className="w-full sm:w-auto"
+            onClick={onExport}
+            disabled={exporting || loading}
+          >
+            {exporting ? "Exporting…" : "Download Excel"}
+          </Button>
+        ) : null}
+      </div>
     </div>
   );
 }

@@ -10,6 +10,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import type { NavItem } from "@/lib/auth/navigation";
 import { isNavItemActive } from "@/lib/auth/navigation";
@@ -67,13 +68,23 @@ function NavMenuItem({
 }) {
   const Icon = item.icon;
   const active = isNavItemActive(pathname, item);
+  const { isMobile, setOpenMobile } = useSidebar();
 
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
         isActive={active}
         tooltip={item.label}
-        render={<Link href={item.href} />}
+        render={
+          <Link
+            href={item.href}
+            onClick={() => {
+              if (isMobile) {
+                setOpenMobile(false);
+              }
+            }}
+          />
+        }
       >
         <span className="relative inline-flex">
           <Icon />

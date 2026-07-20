@@ -76,7 +76,8 @@ export function TablePagination({
           <Button
             type="button"
             variant="outline"
-            size="icon-sm"
+            size="icon"
+            className="size-9 md:size-8"
             aria-label="Previous page"
             disabled={page <= 1}
             onClick={() => onPageChange(page - 1)}
@@ -86,7 +87,8 @@ export function TablePagination({
           <Button
             type="button"
             variant="outline"
-            size="icon-sm"
+            size="icon"
+            className="size-9 md:size-8"
             aria-label="Next page"
             disabled={page >= pageCount}
             onClick={() => onPageChange(page + 1)}
