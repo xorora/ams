@@ -6,7 +6,31 @@
     },
     {
       "path": "/api/cron/scheduled-breaks",
-      "schedule": "* * * * *"
+      "schedule": "0 8 * * 1-6"
+    },
+    {
+      "path": "/api/cron/scheduled-breaks",
+      "schedule": "0 9 * * 1-4,6"
+    },
+    {
+      "path": "/api/cron/scheduled-breaks",
+      "schedule": "30 9 * * 5"
+    },
+    {
+      "path": "/api/cron/scheduled-breaks",
+      "schedule": "0 14 * * 1-5"
+    },
+    {
+      "path": "/api/cron/scheduled-breaks",
+      "schedule": "0 15 * * 1-5"
+    },
+    {
+      "path": "/api/cron/scheduled-breaks",
+      "schedule": "0 17 * * 1-5"
+    },
+    {
+      "path": "/api/cron/scheduled-breaks",
+      "schedule": "0 18 * * 1-5"
     },
     {
       "path": "/api/sync/attendance",
