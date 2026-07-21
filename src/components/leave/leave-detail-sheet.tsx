@@ -33,13 +33,16 @@ export function LeaveDetailSheet({
 }: LeaveDetailSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="flex w-full flex-col sm:max-w-[880px]">
-        <SheetHeader>
+      <SheetContent
+        side="bottom"
+        className="flex h-[min(94dvh,940px)] w-full flex-col gap-0 p-0 sm:mx-auto sm:max-w-3xl sm:rounded-t-2xl"
+      >
+        <SheetHeader className="shrink-0 gap-1.5 px-4 pt-1 pb-3 sm:px-6">
           <SheetTitle>Leave request</SheetTitle>
         </SheetHeader>
 
         {request ? (
-          <div className="flex-1 space-y-4 overflow-y-auto px-1 pb-4">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6">
             <div className="space-y-2 rounded-xl border border-white/12 bg-[#050d22]/70 p-4">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-medium text-[#c8cce0]">Status</span>
