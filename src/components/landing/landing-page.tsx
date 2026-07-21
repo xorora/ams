@@ -82,6 +82,16 @@ type LandingPageProps = {
   companies: CompanyOption[];
 };
 
+function Grain({ className, opacity = 0.22 }: { className?: string; opacity?: number }) {
+  return (
+    <div
+      aria-hidden
+      className={cn("pointer-events-none absolute inset-0 mix-blend-soft-light", className)}
+      style={{ backgroundImage: GRAIN_DATA_URI, opacity }}
+    />
+  );
+}
+
 function HeroOrbitVisual({ className }: { className?: string }) {
   return (
     <div aria-hidden className={cn("pointer-events-none absolute inset-0 overflow-hidden", className)}>
@@ -181,18 +191,14 @@ function HeroOrbitVisual({ className }: { className?: string }) {
 
 export function LandingPage({ callbackUrl, errorMessage, companies }: LandingPageProps) {
   return (
-    <div className="relative flex min-h-svh flex-col overflow-hidden bg-[#f3f4f8]">
+    <div className="relative flex min-h-svh flex-col overflow-hidden bg-[#010c28]">
       <main className="relative flex flex-1 flex-col">
-        {/* Cinematic hero header */}
         <section className="relative isolate min-h-[100svh] overflow-hidden bg-[#010c28] text-[#eceef5]">
           <div aria-hidden className="pointer-events-none absolute inset-0">
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_20%_15%,#464c9f55,transparent_55%)]" />
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_55%_45%_at_88%_70%,#f26b2130,transparent_50%)]" />
             <div className="absolute inset-0 bg-[linear-gradient(180deg,#010c28_0%,#0a1230_55%,#010c28_100%)]" />
-            <div
-              className="absolute inset-0 opacity-[0.22] mix-blend-soft-light"
-              style={{ backgroundImage: GRAIN_DATA_URI }}
-            />
+            <Grain opacity={0.22} />
             <div
               className="absolute inset-0 opacity-30"
               style={{
@@ -254,6 +260,7 @@ export function LandingPage({ callbackUrl, errorMessage, companies }: LandingPag
               </div>
 
               <div
+                id="sign-in"
                 className={cn(
                   "relative z-10",
                   "animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 fill-mode-both",
@@ -311,98 +318,144 @@ export function LandingPage({ callbackUrl, errorMessage, companies }: LandingPag
               </div>
             </div>
           </div>
-
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-b from-transparent to-[#f3f4f8]"
-          />
         </section>
 
-        <section className="relative border-t border-[#d5d9e8] bg-white/80 py-16 md:py-20">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 opacity-[0.2] mix-blend-multiply"
-            style={{ backgroundImage: GRAIN_DATA_URI }}
-          />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 opacity-40"
-            style={{
-              backgroundImage:
-                "radial-gradient(circle at 1px 1px,#c8cce04d 1px,transparent 0)",
-              backgroundSize: "18px 18px",
-              maskImage: "linear-gradient(to bottom,black,transparent 95%)",
-            }}
-          />
-          <div className="relative mx-auto w-full max-w-6xl px-6">
-            <div className="max-w-2xl">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#08080d] md:text-3xl">
-                Everything attendance needs in one place
-              </h2>
-              <p className="mt-3 text-[#586178]">
+        {/* Features — light editorial band */}
+        <section className="relative overflow-hidden bg-[#eceef5] text-[#08080d]">
+          <div aria-hidden className="pointer-events-none absolute inset-0">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_0%_0%,#464c9f22,transparent_55%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_50%_40%_at_100%_100%,#f26b2114,transparent_50%)]" />
+            <Grain className="mix-blend-multiply" opacity={0.18} />
+            <div
+              className="absolute inset-0 opacity-50"
+              style={{
+                backgroundImage:
+                  "linear-gradient(to right,#010c2808 1px,transparent 1px),linear-gradient(to bottom,#010c2808 1px,transparent 1px)",
+                backgroundSize: "3.5rem 3.5rem",
+                maskImage: "linear-gradient(to bottom,black 20%,transparent 95%)",
+              }}
+            />
+          </div>
+
+          <div className="relative mx-auto w-full max-w-6xl px-6 py-20 md:py-28">
+            <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between md:gap-12">
+              <div className="max-w-xl">
+                <p className="mb-3 font-mono text-[11px] tracking-[0.2em] text-[#464c9f] uppercase">
+                  Capabilities
+                </p>
+                <h2 className="text-3xl font-semibold tracking-tight text-balance md:text-4xl">
+                  Everything attendance needs in one place
+                </h2>
+              </div>
+              <p className="max-w-sm text-[#586178] text-pretty md:pb-1 md:text-right">
                 From the shop floor to HR — punches, leave, relaxations, and reports.
               </p>
             </div>
 
-            <ul className="mt-12 grid gap-x-10 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
-              {features.map((feature) => (
-                <li key={feature.title} className="group flex flex-col gap-3">
-                  <div className="flex size-11 items-center justify-center rounded-xl border border-[#dcdfea] bg-gradient-to-br from-[#e7e9f7] to-white text-[#464c9f] shadow-sm transition-transform duration-300 group-hover:-translate-y-0.5">
-                    <feature.icon className="size-5" aria-hidden />
+            <ul className="mt-16 grid gap-x-10 gap-y-0 sm:grid-cols-2 lg:grid-cols-3">
+              {features.map((feature, index) => (
+                <li
+                  key={feature.title}
+                  className="group relative flex flex-col gap-4 border-t border-[#c8cce0]/80 py-9"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="flex size-10 items-center justify-center text-[#464c9f] transition-colors duration-300 group-hover:text-[#f26b21]">
+                      <feature.icon className="size-5" strokeWidth={1.75} aria-hidden />
+                    </span>
+                    <span className="font-mono text-[11px] tracking-widest text-[#9aa3b8]">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
                   </div>
-                  <h3 className="font-medium text-[#08080d]">{feature.title}</h3>
-                  <p className="text-[#586178] text-sm leading-relaxed">{feature.description}</p>
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-medium tracking-tight">{feature.title}</h3>
+                    <p className="text-[#586178] text-sm leading-relaxed">{feature.description}</p>
+                  </div>
+                  <div
+                    aria-hidden
+                    className="h-px w-0 bg-gradient-to-r from-[#f26b21] to-transparent transition-all duration-500 group-hover:w-16"
+                  />
                 </li>
               ))}
             </ul>
           </div>
         </section>
 
-        <section className="relative border-t border-[#d5d9e8] py-16 md:py-20">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,#f6f7fb_0%,#eef0f6_100%)]"
-          />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 opacity-[0.22] mix-blend-multiply"
-            style={{ backgroundImage: GRAIN_DATA_URI }}
-          />
-          <div className="relative mx-auto w-full max-w-6xl px-6">
+        {/* Steps — navy bookend */}
+        <section className="relative overflow-hidden bg-[#010c28] text-[#eceef5]">
+          <div aria-hidden className="pointer-events-none absolute inset-0">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_50%_0%,#464c9f40,transparent_60%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_40%_35%_at_90%_80%,#f26b2120,transparent_45%)]" />
+            <Grain opacity={0.2} />
+            <div
+              className="absolute inset-0 opacity-25"
+              style={{
+                backgroundImage:
+                  "linear-gradient(to right,#ffffff0a 1px,transparent 1px),linear-gradient(to bottom,#ffffff0a 1px,transparent 1px)",
+                backgroundSize: "4rem 4rem",
+              }}
+            />
+          </div>
+
+          <div className="relative mx-auto w-full max-w-6xl px-6 py-20 md:py-28">
             <div className="max-w-2xl">
-              <h2 className="text-2xl font-semibold tracking-tight text-[#08080d] md:text-3xl">
+              <p className="mb-3 font-mono text-[11px] tracking-[0.2em] text-[#f26b21] uppercase">
+                Get started
+              </p>
+              <h2 className="text-3xl font-semibold tracking-tight text-balance text-white md:text-4xl">
                 Three steps to your first check-in
               </h2>
-              <p className="mt-3 text-[#586178]">
+              <p className="mt-4 max-w-md text-[#a8aec4] text-pretty">
                 Sign in, link your employee number if needed, then start tracking.
               </p>
             </div>
 
-            <ol className="mt-12 grid gap-10 md:grid-cols-3">
+            <ol className="relative mt-16 grid gap-12 md:grid-cols-3 md:gap-8">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute top-[1.15rem] right-[16%] left-[16%] hidden h-px bg-gradient-to-r from-[#f26b21]/80 via-[#464c9f]/60 to-[#f26b21]/80 md:block"
+              />
               {steps.map((item) => (
-                <li
-                  key={item.step}
-                  className="relative flex flex-col gap-3 border-l-2 border-[#f26b21]/50 pl-4"
-                >
-                  <span className="font-mono text-[#f26b21] text-sm font-medium">{item.step}</span>
-                  <h3 className="font-medium text-lg text-[#08080d]">{item.title}</h3>
-                  <p className="text-[#586178] text-sm leading-relaxed">{item.description}</p>
+                <li key={item.step} className="relative flex flex-col gap-4">
+                  <span className="relative z-10 flex size-9 items-center justify-center rounded-full border border-[#f26b21]/50 bg-[#010c28] font-mono text-sm font-medium text-[#f26b21]">
+                    {item.step}
+                  </span>
+                  <h3 className="text-xl font-medium tracking-tight text-white">{item.title}</h3>
+                  <p className="text-[#a8aec4] text-sm leading-relaxed">{item.description}</p>
                 </li>
               ))}
             </ol>
+
+            <div className="mt-16 flex flex-col items-start gap-4 border-t border-white/10 pt-10 sm:flex-row sm:items-center sm:justify-between">
+              <p className="max-w-md text-[#a8aec4] text-sm">
+                Ready for your team? Sign in above and link employee codes in minutes.
+              </p>
+              <a
+                href="#sign-in"
+                className="inline-flex h-11 items-center justify-center rounded-lg bg-[#f26b21] px-5 text-sm font-medium text-white transition-colors hover:bg-[#e05f1a]"
+              >
+                Back to sign in
+              </a>
+            </div>
           </div>
         </section>
       </main>
 
-      <footer className="relative border-t border-[#d5d9e8] bg-white/90 py-8 backdrop-blur-sm">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-[0.15] mix-blend-multiply"
-          style={{ backgroundImage: GRAIN_DATA_URI }}
-        />
-        <div className="relative mx-auto flex w-full max-w-6xl flex-col items-start justify-between gap-2 px-6 text-[#586178] text-sm sm:flex-row sm:items-center">
-          <p className="font-medium text-[#08080d]">Xorora Punch</p>
-          <p className="font-mono text-xs">Timezone: Asia/Karachi (PKT)</p>
+      <footer className="relative border-t border-white/10 bg-[#010c28] py-8">
+        <Grain opacity={0.15} />
+        <div className="relative mx-auto flex w-full max-w-6xl flex-col items-start justify-between gap-4 px-6 sm:flex-row sm:items-center">
+          <div className="flex items-center gap-2.5">
+            <Image
+              src="/xorora-full.png"
+              alt=""
+              width={140}
+              height={28}
+              className="h-4 w-auto object-contain brightness-0 invert opacity-80"
+            />
+            <span className="text-sm font-medium text-white/90">Punch</span>
+          </div>
+          <p className="font-mono text-[11px] tracking-[0.14em] text-[#7d859e] uppercase">
+            Asia/Karachi · PKT
+          </p>
         </div>
       </footer>
     </div>
