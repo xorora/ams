@@ -418,15 +418,11 @@ export function LandingPage({ callbackUrl, errorMessage, companies }: LandingPag
             <ol className="relative mt-10 grid gap-10 sm:mt-16 sm:gap-12 md:grid-cols-3 md:gap-8">
               <div
                 aria-hidden
-                className="pointer-events-none absolute top-[1.125rem] right-[calc(100%/6)] left-[calc(100%/6)] hidden h-px bg-[#464c9f]/70 md:block"
-              />
-              <div
-                aria-hidden
-                className="pointer-events-none absolute top-[1.125rem] right-[calc(100%/6)] left-[calc(100%/6)] hidden h-px bg-[linear-gradient(90deg,transparent_0%,#f26b21_18%,#f26b21_82%,transparent_100%)] opacity-80 md:block"
+                className="pointer-events-none absolute top-[1.125rem] right-[calc(100%/6)] left-[calc(100%/6)] hidden h-px bg-[#f26b21]/70 md:block"
               />
               {steps.map((item) => (
                 <li key={item.step} className="relative flex flex-col gap-3 sm:gap-4">
-                  <span className="relative z-10 flex size-9 items-center justify-center rounded-full border border-[#f26b21]/55 bg-[#010c28] font-mono text-sm font-medium text-[#f26b21] shadow-[0_0_0_4px_#010c28]">
+                  <span className="relative z-10 flex size-9 items-center justify-center rounded-full border border-[#f26b21]/55 bg-[#010c28] font-mono text-sm font-medium text-[#f26b21] shadow-[0_0_0_6px_#010c28]">
                     {item.step}
                   </span>
                   <h3 className="text-lg font-medium tracking-tight text-white sm:text-xl">
@@ -437,16 +433,19 @@ export function LandingPage({ callbackUrl, errorMessage, companies }: LandingPag
               ))}
             </ol>
 
-            <div className="mt-12 flex flex-col items-stretch gap-4 border-t border-white/10 pt-8 sm:mt-16 sm:flex-row sm:items-center sm:justify-between sm:pt-10">
-              <p className="max-w-md text-[#a8aec4] text-sm">
-                Ready for your team? Sign in above and link employee codes in minutes.
-              </p>
-              <a
-                href="#sign-in"
-                className="inline-flex h-11 w-full touch-manipulation items-center justify-center rounded-lg border border-[#f26b21]/50 bg-[#f26b21] px-5 text-sm font-medium text-white transition-colors hover:border-[#e05f1a] hover:bg-[#e05f1a] sm:w-auto"
-              >
-                Back to sign in
-              </a>
+            <div className="mt-12 sm:mt-16">
+              <div aria-hidden className="h-px w-full bg-white/20" />
+              <div className="flex flex-col items-stretch gap-4 pt-8 sm:flex-row sm:items-center sm:justify-between sm:pt-10">
+                <p className="max-w-md text-[#a8aec4] text-sm">
+                  Ready for your team? Sign in above and link employee codes in minutes.
+                </p>
+                <a
+                  href="#sign-in"
+                  className="inline-flex h-11 w-full touch-manipulation items-center justify-center rounded-lg bg-[#f26b21] px-5 text-sm font-medium text-white transition-colors hover:bg-[#e05f1a] sm:w-auto"
+                >
+                  Back to sign in
+                </a>
+              </div>
             </div>
           </div>
         </section>
