@@ -165,7 +165,7 @@ export function EmployeeDashboard({
   }
 
   return (
-    <div className="flex flex-col gap-5 sm:gap-6">
+    <div className="flex flex-col gap-3 sm:gap-3.5">
       {status.employeeInactive && (
         <Alert variant="destructive">
           <AlertTitle>Account deactivated</AlertTitle>
@@ -175,16 +175,16 @@ export function EmployeeDashboard({
         </Alert>
       )}
 
-      <div className="grid gap-5 sm:gap-6 lg:grid-cols-2">
+      <div className="grid gap-3 sm:gap-3.5 lg:grid-cols-2">
         <EmployeeClockCard pktClock={pktClock} shiftDate={status.shiftDate} />
         <EmployeeStatusCard status={status} />
       </div>
 
       {status.warnings.length > 0 && (
-        <Alert className="border-amber-400/40 bg-amber-400/15 text-amber-50">
+        <Alert className="border-amber-400/40 bg-amber-400/15 py-3 text-amber-50">
           <AlertTitle className="font-semibold text-amber-50">Notice</AlertTitle>
           <AlertDescription className="text-amber-50/95">
-            <ul className="list-disc pl-4">
+            <ul className="list-disc pl-4 text-sm">
               {status.warnings.map((warning) => (
                 <li key={warning}>{warning}</li>
               ))}
@@ -208,7 +208,7 @@ export function EmployeeDashboard({
       )}
 
       {status.isWeekendOff && !status.employeeInactive && (
-        <Alert className="border-white/20 bg-[#0a1230] text-white">
+        <Alert className="border-white/20 bg-[#0a1230] py-3 text-white">
           <AlertTitle className="font-semibold text-white">Office closed</AlertTitle>
           <AlertDescription className="text-[#d7dceb]">
             {status.warnings.find((warning) => warning.includes("office is closed")) ??
@@ -263,11 +263,19 @@ export function EmployeeDashboard({
           status.actions.canCheckOut ||
           status.actions.canStartBreak ||
           status.actions.canEndBreak) && (
-          <div className="rounded-xl border border-white/12 bg-[#050d22]/80 px-4 py-3.5">
-            <p className="text-xs font-semibold tracking-wide text-[#f26b21] uppercase">
-              Shift rules
-            </p>
-            <p className="mt-1.5 text-sm leading-relaxed text-[#d7dceb]">
+          <details className="group rounded-xl border border-white/12 bg-[#050d22]/80 px-4 py-3">
+            <summary className="cursor-pointer list-none text-xs font-semibold tracking-wide text-[#f26b21] uppercase marker:content-none [&::-webkit-details-marker]:hidden">
+              <span className="flex items-center justify-between gap-2">
+                Shift rules
+                <span className="text-[10px] font-medium tracking-normal text-[#9aa3b8] normal-case group-open:hidden">
+                  Show
+                </span>
+                <span className="hidden text-[10px] font-medium tracking-normal text-[#9aa3b8] normal-case group-open:inline">
+                  Hide
+                </span>
+              </span>
+            </summary>
+            <p className="mt-2.5 text-sm leading-relaxed text-[#d7dceb]">
               Actions require your location inside the office geofence. Check in by{" "}
               <span className="font-semibold text-white">
                 {status.shiftSchedule.lateCheckInDeadline}
@@ -286,7 +294,7 @@ export function EmployeeDashboard({
               </span>
               .
             </p>
-          </div>
+          </details>
         )}
     </div>
   );

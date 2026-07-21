@@ -114,38 +114,32 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-5 p-3 sm:gap-6 sm:p-4 md:p-8">
+    <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-3 p-3 sm:gap-3.5 sm:p-4 md:p-6">
       <Suspense fallback={null}>
         <NewEmployeeCodeToast />
       </Suspense>
-      <header className="relative overflow-hidden rounded-2xl border border-white/15 bg-[#0a1230] p-5 sm:p-6">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_80%_at_0%_0%,#464c9f40,transparent_55%)]"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_50%_60%_at_100%_100%,#f26b2120,transparent_50%)]"
-        />
-        <div className="relative space-y-2.5">
-          <p className="font-mono text-[11px] font-semibold tracking-[0.2em] text-[#f26b21] uppercase">
-            Asia/Karachi · PKT
-          </p>
-          <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-            {employeeProfile ? `Welcome, ${employeeProfile.fullName.split(" ")[0]}` : "Dashboard"}
-          </h1>
-          <p className="max-w-xl text-sm font-medium leading-relaxed text-[#d7dceb] text-pretty sm:text-base">
-            {canCheckIn
-              ? "Your profile, shift status, and attendance tools for today."
-              : session.user.role === "admin"
+
+      {employeeProfile ? (
+        <EmployeeDashboardProfile profile={employeeProfile} />
+      ) : (
+        <header className="relative overflow-hidden rounded-xl border border-white/15 bg-[#0a1230] px-4 py-3.5 sm:px-5 sm:py-4">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_80%_at_0%_0%,#464c9f40,transparent_55%)]"
+          />
+          <div className="relative space-y-1.5">
+            <p className="font-mono text-[10px] font-semibold tracking-[0.18em] text-[#f26b21] uppercase">
+              Asia/Karachi · PKT
+            </p>
+            <h1 className="text-xl font-semibold tracking-tight text-white sm:text-2xl">Dashboard</h1>
+            <p className="max-w-xl text-sm font-medium leading-relaxed text-[#d7dceb]">
+              {session.user.role === "admin"
                 ? "Add an employee record with your corporate email under Admin → Employees to enable check-in here."
                 : "Your account is not linked to an employee record yet."}
-          </p>
-          <div className="h-1 w-16 rounded-full bg-gradient-to-r from-[#f26b21] to-transparent" />
-        </div>
-      </header>
-
-      {employeeProfile ? <EmployeeDashboardProfile profile={employeeProfile} /> : null}
+            </p>
+          </div>
+        </header>
+      )}
 
       {canCheckIn ? (
         <EmployeeDashboard
@@ -157,7 +151,7 @@ export default async function DashboardPage() {
           unpaidSummary={unpaidSummary}
         />
       ) : (
-        <div className="rounded-2xl border border-white/15 bg-[#0a1230] p-5 text-sm font-medium leading-relaxed text-[#d7dceb]">
+        <div className="rounded-xl border border-white/15 bg-[#0a1230] p-4 text-sm font-medium leading-relaxed text-[#d7dceb]">
           {session.user.role === "admin" ? (
             <p>
               Use the admin section in the sidebar for team attendance. To check in for yourself,
