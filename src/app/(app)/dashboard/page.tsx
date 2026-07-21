@@ -1,9 +1,20 @@
+import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { EmployeeDashboard } from "@/components/attendance/employee-dashboard";
+import {
+  type DashboardEmployeeProfile,
+  EmployeeDashboardProfile,
+} from "@/components/attendance/employee-dashboard-profile";
 import { NewEmployeeCodeToast } from "@/components/auth/new-employee-code-toast";
+import { db } from "@/db";
+import { companies } from "@/db/schema";
 import { getEmployee } from "@/lib/admin/employees-service";
 import { isCurrentlyOnProbation } from "@/lib/admin/probation";
+import {
+  getShiftConfigForEmployee,
+  getShiftScheduleLabels,
+} from "@/lib/attendance/company-shift";
 import { type SerializedTodayStatus, serializeTodayStatus } from "@/lib/attendance/serialize";
 import { getTodayStatus } from "@/lib/attendance/service";
 import { hasLinkedEmployee } from "@/lib/auth/attendance-access";
@@ -12,6 +23,55 @@ import { requireSession } from "@/lib/auth/require-session";
 import { canEmployeeAccessLeave } from "@/lib/leave/access";
 import { getLeaveBalances, getUnpaidLeaveSummary } from "@/lib/leave/leave-service";
 import type { LeaveBalance, UnpaidLeaveSummary } from "@/lib/leave/types";
+
+function shiftPresetLabel(preset: string | null | undefined): string | null {
+  switch (preset) {
+    case "afternoon":
+      return "Afternoon";
+    case "evening":
+      return "Evening";
+    case "day":
+      return "Day";
+    default:
+      return null;
+  }
+}
+
+async function loadEmployeeProfile(
+  employeeId: string,
+): Promise<DashboardEmployeeProfile | null> {
+  const employeeResult = await getEmployee(employeeId);
+  if (!employeeResult.ok) {
+    return null;
+  }
+
+  const employee = employeeResult.data;
+  const [company] = await db
+    .select({ name: companies.name, slug: companies.slug })
+    .from(companies)
+    .where(eq(companies.id, employee.companyId))
+    .limit(1);
+
+  const shiftConfig = getShiftConfigForEmployee(
+    company?.slug ?? "xorora",
+    employee.shiftPreset,
+    employee.fullName,
+  );
+  const hours = getShiftScheduleLabels(shiftConfig);
+
+  return {
+    fullName: employee.fullName,
+    employeeCode: employee.employeeCode,
+    email: employee.email,
+    department: employee.department,
+    designation: employee.designation,
+    companyName: company?.name ?? null,
+    shiftLabel: shiftPresetLabel(employee.shiftPreset),
+    shiftHours: `${hours.expectedCheckInTime} – ${hours.expectedCheckOutTime}`,
+    isActive: employee.isActive,
+    onProbation: isCurrentlyOnProbation(employee),
+  };
+}
 
 export default async function DashboardPage() {
   const session = await requireSession();
@@ -28,22 +88,21 @@ export default async function DashboardPage() {
   let probationUnpaidOnly = false;
   let leaveBalances: LeaveBalance[] = [];
   let unpaidSummary: UnpaidLeaveSummary = { used: 0, pending: 0, total: 0 };
+  let employeeProfile: DashboardEmployeeProfile | null = null;
 
   if (canCheckIn && employeeId) {
-    const [result, canApply, employeeResult] = await Promise.all([
+    const [result, canApply, profile] = await Promise.all([
       getTodayStatus(employeeId),
       canEmployeeAccessLeave(session.user),
-      getEmployee(employeeId),
+      loadEmployeeProfile(employeeId),
     ]);
 
     initialStatus = serializeTodayStatus(result.data);
-
-    const employee = employeeResult.ok ? employeeResult.data : null;
-    probationUnpaidOnly = employee ? isCurrentlyOnProbation(employee) : false;
+    employeeProfile = profile;
+    probationUnpaidOnly = profile?.onProbation ?? false;
     showLeaveOverview = canApply;
 
     if (canApply) {
-      // Parallel leave payload — avoids a second sequential round-trip.
       if (probationUnpaidOnly) {
         const unpaidResult = await getUnpaidLeaveSummary(employeeId);
         unpaidSummary = unpaidResult.ok ? unpaidResult.data : unpaidSummary;
@@ -72,10 +131,12 @@ export default async function DashboardPage() {
           <p className="font-mono text-[11px] font-semibold tracking-[0.2em] text-[#f26b21] uppercase">
             Asia/Karachi · PKT
           </p>
-          <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">Dashboard</h1>
+          <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
+            {employeeProfile ? `Welcome, ${employeeProfile.fullName.split(" ")[0]}` : "Dashboard"}
+          </h1>
           <p className="max-w-xl text-sm font-medium leading-relaxed text-[#d7dceb] text-pretty sm:text-base">
             {canCheckIn
-              ? "Check in, take breaks, and check out for your shift — timed live in Pakistan Standard Time."
+              ? "Your profile, shift status, and attendance tools for today."
               : session.user.role === "admin"
                 ? "Add an employee record with your corporate email under Admin → Employees to enable check-in here."
                 : "Your account is not linked to an employee record yet."}
@@ -83,6 +144,8 @@ export default async function DashboardPage() {
           <div className="h-1 w-16 rounded-full bg-gradient-to-r from-[#f26b21] to-transparent" />
         </div>
       </header>
+
+      {employeeProfile ? <EmployeeDashboardProfile profile={employeeProfile} /> : null}
 
       {canCheckIn ? (
         <EmployeeDashboard
