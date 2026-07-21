@@ -415,27 +415,41 @@ export function LandingPage({ callbackUrl, errorMessage, companies }: LandingPag
               </p>
             </div>
 
-            <ol className="relative mt-10 grid gap-10 sm:mt-16 sm:gap-12 md:grid-cols-3 md:gap-8">
-              <div
-                aria-hidden
-                className="pointer-events-none absolute top-[1.125rem] right-[calc(100%/6)] left-[calc(100%/6)] hidden h-px bg-[#f26b21]/70 md:block"
-              />
-              {steps.map((item) => (
-                <li key={item.step} className="relative flex flex-col gap-3 sm:gap-4">
-                  <span className="relative z-10 flex size-9 items-center justify-center rounded-full border border-[#f26b21]/55 bg-[#010c28] font-mono text-sm font-medium text-[#f26b21] shadow-[0_0_0_6px_#010c28]">
-                    {item.step}
-                  </span>
-                  <h3 className="text-lg font-medium tracking-tight text-white sm:text-xl">
-                    {item.title}
-                  </h3>
-                  <p className="text-[#a8aec4] text-sm leading-relaxed">{item.description}</p>
-                </li>
-              ))}
-            </ol>
+            <div className="mt-10 sm:mt-16">
+              {/* Desktop: circles + solid segments that touch each badge */}
+              <div className="mb-6 hidden grid-cols-3 gap-8 md:grid">
+                {steps.map((item, index) => (
+                  <div key={item.step} className="relative flex h-9 items-center">
+                    <span className="relative z-10 flex size-9 shrink-0 items-center justify-center rounded-full border border-[#f26b21] bg-[#010c28] font-mono text-sm font-medium text-[#f26b21]">
+                      {item.step}
+                    </span>
+                    {index < steps.length - 1 ? (
+                      <div
+                        aria-hidden
+                        className="absolute top-1/2 left-9 right-[-2rem] z-0 h-px -translate-y-1/2 bg-[#f26b21]"
+                      />
+                    ) : null}
+                  </div>
+                ))}
+              </div>
 
-            <div className="mt-12 sm:mt-16">
-              <div aria-hidden className="h-px w-full bg-white/20" />
-              <div className="flex flex-col items-stretch gap-4 pt-8 sm:flex-row sm:items-center sm:justify-between sm:pt-10">
+              <ol className="grid gap-10 sm:gap-12 md:grid-cols-3 md:gap-8">
+                {steps.map((item) => (
+                  <li key={item.step} className="flex flex-col gap-3 sm:gap-4">
+                    <span className="flex size-9 items-center justify-center rounded-full border border-[#f26b21] bg-[#010c28] font-mono text-sm font-medium text-[#f26b21] md:hidden">
+                      {item.step}
+                    </span>
+                    <h3 className="text-lg font-medium tracking-tight text-white sm:text-xl">
+                      {item.title}
+                    </h3>
+                    <p className="text-[#a8aec4] text-sm leading-relaxed">{item.description}</p>
+                  </li>
+                ))}
+              </ol>
+            </div>
+
+            <div className="mt-12 border-t border-white/25 pt-8 sm:mt-16 sm:pt-10">
+              <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="max-w-md text-[#a8aec4] text-sm">
                   Ready for your team? Sign in above and link employee codes in minutes.
                 </p>
