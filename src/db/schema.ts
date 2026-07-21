@@ -37,8 +37,10 @@ export const lateRelaxationStatusEnum = pgEnum("late_relaxation_status", [
 ]);
 export const machinePunchSourceEnum = pgEnum("machine_punch_source", ["ebio", "zkteco", "wdms"]);
 
-/** Xorora-only: afternoon = 3pm–12am, evening = 6pm–3am. Ignored for other companies. */
-export type XororaShiftPreset = "afternoon" | "evening";
+/** Per-employee shift: afternoon/evening (Xorora), day/evening (Crest LED). */
+export type EmployeeShiftPreset = "afternoon" | "evening" | "day";
+/** @deprecated Prefer EmployeeShiftPreset — kept for existing call sites. */
+export type XororaShiftPreset = EmployeeShiftPreset;
 
 export const companies = pgTable("companies", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -65,10 +67,12 @@ export const employees = pgTable("employees", {
   probationStartDate: date("probation_start_date"),
   probationPeriodMonths: integer("probation_period_months").notNull().default(3),
   /**
-   * Xorora shift: `afternoon` (3pm–12am) or `evening` (6pm–3am).
-   * Null / other companies use the company default shift.
+   * Per-employee shift override.
+   * Xorora: `afternoon` (3pm–12am) or `evening` (6pm–3am).
+   * Crest LED: `day` (9am–5pm) or `evening` (6pm–3am).
+   * Null uses the company default.
    */
-  shiftPreset: text("shift_preset").$type<XororaShiftPreset | null>(),
+  shiftPreset: text("shift_preset").$type<EmployeeShiftPreset | null>(),
   userId: uuid("user_id").references((): AnyPgColumn => users.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

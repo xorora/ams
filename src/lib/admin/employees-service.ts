@@ -1,4 +1,5 @@
 import { and, asc, eq, ilike, or } from "drizzle-orm";
+import { formatInTimeZone } from "date-fns-tz";
 import { db } from "@/db";
 import { companies, employees, users } from "@/db/schema";
 import {
@@ -10,7 +11,8 @@ import {
   defaultProbationValues,
   getTodayPkt,
 } from "@/lib/admin/probation";
-import { isXororaShiftPreset, type XororaShiftPreset } from "@/lib/attendance/company-shift";
+import { type EmployeeShiftPreset } from "@/lib/attendance/company-shift";
+import { BUSINESS_TIMEZONE } from "@/lib/attendance/constants";
 import { closeOpenShiftForEmployee, findOpenShift } from "@/lib/attendance/close-open-shift";
 import { hashPassword, validatePassword } from "@/lib/auth/password";
 import { linkUserToEmployeeRecord } from "@/lib/auth/employee-link";
@@ -38,8 +40,8 @@ export type CreateEmployeeInput = {
   probationCompleted?: boolean;
   probationStartDate?: string | null;
   probationPeriodMonths?: number;
-  /** Xorora only: afternoon (3pm–12am) or evening (6pm–3am). */
-  shiftPreset?: "afternoon" | "evening" | null;
+  /** Xorora: afternoon/evening. Crest LED: day/evening. */
+  shiftPreset?: EmployeeShiftPreset | null;
   /** Optional password for email sign-in; stored on the linked user account. */
   password?: string | null;
 };
@@ -61,8 +63,8 @@ export type UpdateEmployeeInput = {
   probationCompleted?: boolean;
   probationStartDate?: string | null;
   probationPeriodMonths?: number;
-  /** Xorora only: afternoon (3pm–12am) or evening (6pm–3am). */
-  shiftPreset?: "afternoon" | "evening" | null;
+  /** Xorora: afternoon/evening. Crest LED: day/evening. */
+  shiftPreset?: EmployeeShiftPreset | null;
   /** When set (non-empty), creates or updates the linked user's password. */
   password?: string | null;
 };
@@ -198,24 +200,36 @@ async function resolveCompanySlug(companyId: string): Promise<string | null> {
 function resolveShiftPresetForCompany(
   companySlug: string | null,
   shiftPreset: string | null | undefined,
-): ServiceFailure | ServiceSuccess<XororaShiftPreset | null> {
-  if (companySlug !== "xorora") {
-    return { ok: true, data: null };
+): ServiceFailure | ServiceSuccess<EmployeeShiftPreset | null> {
+  if (companySlug === "xorora") {
+    if (shiftPreset == null || shiftPreset === "") {
+      return { ok: true, data: "afternoon" };
+    }
+    if (shiftPreset !== "afternoon" && shiftPreset !== "evening") {
+      return adminFailure(
+        400,
+        "INVALID_SHIFT_PRESET",
+        "Xorora shift must be afternoon (3pm–12am) or evening (6pm–3am).",
+      );
+    }
+    return { ok: true, data: shiftPreset };
   }
 
-  if (shiftPreset == null || shiftPreset === "") {
-    return { ok: true, data: "afternoon" };
+  if (companySlug === "crest-led") {
+    if (shiftPreset == null || shiftPreset === "") {
+      return { ok: true, data: "day" };
+    }
+    if (shiftPreset !== "day" && shiftPreset !== "evening") {
+      return adminFailure(
+        400,
+        "INVALID_SHIFT_PRESET",
+        "Crest LED shift must be day (9am–5pm) or evening (6pm–3am).",
+      );
+    }
+    return { ok: true, data: shiftPreset };
   }
 
-  if (!isXororaShiftPreset(shiftPreset)) {
-    return adminFailure(
-      400,
-      "INVALID_SHIFT_PRESET",
-      "Xorora shift must be afternoon (3pm–12am) or evening (6pm–3am).",
-    );
-  }
-
-  return { ok: true, data: shiftPreset };
+  return { ok: true, data: null };
 }
 
 async function linkEmployeeToUserByEmail(employeeId: string, email: string): Promise<void> {
@@ -647,6 +661,18 @@ export async function updateEmployee(
 
   if (!updated) {
     return adminFailure(404, "EMPLOYEE_NOT_FOUND", "Employee not found.");
+  }
+
+  const shiftPresetChanged =
+    updates.shiftPreset !== undefined && updates.shiftPreset !== employee.shiftPreset;
+  if (shiftPresetChanged) {
+    const year = formatInTimeZone(new Date(), BUSINESS_TIMEZONE, "yyyy");
+    const { recalcEmployeeLateFlags } = await import("@/lib/admin/recalc-employee-late-flags");
+    await recalcEmployeeLateFlags({
+      employeeId: id,
+      from: `${year}-01-01`,
+      to: `${year}-12-31`,
+    });
   }
 
   const employeeCodeChanged =

@@ -11,7 +11,8 @@ import { EmployeeFilters } from "@/components/employee/employee-filters";
 import {
   type EmployeeFormValues,
   employeeToForm,
-  emptyEmployeeForm,
+  emptyEmployeeFormForCompany,
+  type ShiftPresetCompany,
 } from "@/components/employee/employee-sheet";
 import { EmployeeTable } from "@/components/employee/employee-table";
 import {
@@ -47,22 +48,24 @@ type EmployeesManagerProps = {
   employees: SerializedEmployee[];
   search: string;
   includeInactive: boolean;
-  /** Xorora only: show per-employee shift timing in create/edit and the table. */
-  showXororaShiftPreset?: boolean;
+  /** When set, show and save per-employee shift timing for that company. */
+  shiftPresetCompany?: ShiftPresetCompany | null;
 };
 
 export function EmployeesManager({
   employees,
   search,
   includeInactive,
-  showXororaShiftPreset = false,
+  shiftPresetCompany = null,
 }: EmployeesManagerProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [searchInput, setSearchInput] = useState(search);
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<EmployeeFormValues>(emptyEmployeeForm);
+  const [form, setForm] = useState<EmployeeFormValues>(() =>
+    emptyEmployeeFormForCompany(shiftPresetCompany),
+  );
   const [saving, setSaving] = useState(false);
   const [probationActionPending, setProbationActionPending] = useState(false);
   const [clearanceOpen, setClearanceOpen] = useState(false);
@@ -100,7 +103,7 @@ export function EmployeesManager({
 
   function openCreate() {
     setEditingId(null);
-    setForm(emptyEmployeeForm);
+    setForm(emptyEmployeeFormForCompany(shiftPresetCompany));
     setFormOpen(true);
   }
 
@@ -157,14 +160,14 @@ export function EmployeesManager({
 
   function openEdit(employee: SerializedEmployee) {
     setEditingId(employee.id);
-    setForm(employeeToForm(employee));
+    setForm(employeeToForm(employee, shiftPresetCompany));
     setFormOpen(true);
   }
 
   function closeForm() {
     setFormOpen(false);
     setEditingId(null);
-    setForm(emptyEmployeeForm);
+    setForm(emptyEmployeeFormForCompany(shiftPresetCompany));
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -180,7 +183,7 @@ export function EmployeesManager({
         return;
       }
 
-      const shiftFields = showXororaShiftPreset ? { shiftPreset: form.shiftPreset } : {};
+      const shiftFields = shiftPresetCompany ? { shiftPreset: form.shiftPreset } : {};
 
       const payload = form.probationCompleted
         ? {
@@ -460,7 +463,7 @@ export function EmployeesManager({
           onStartProbation={editingId ? handleSheetStartProbation : undefined}
           onEndProbation={editingId ? handleSheetEndProbation : undefined}
           probationActionPending={probationActionPending}
-          showXororaShiftPreset={showXororaShiftPreset}
+          shiftPresetCompany={shiftPresetCompany}
         />
 
         <ClearanceFormSheet
@@ -490,7 +493,7 @@ export function EmployeesManager({
         onReactivate={handleReactivate}
         onStartProbation={handleStartProbation}
         onEndProbation={handleEndProbation}
-        showXororaShiftPreset={showXororaShiftPreset}
+        showShiftPreset={Boolean(shiftPresetCompany)}
         resetDeps={[search, includeInactive]}
       />
     </div>

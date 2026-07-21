@@ -31,7 +31,7 @@ import {
   isProbationCompleted,
 } from "@/lib/admin/probation";
 import type { SerializedEmployee } from "@/lib/admin/serialize";
-import type { XororaShiftPreset } from "@/lib/attendance/company-shift";
+import type { EmployeeShiftPreset } from "@/lib/attendance/company-shift";
 
 export type EmployeeFormValues = {
   employeeCode: string;
@@ -43,10 +43,12 @@ export type EmployeeFormValues = {
   probationCompleted: boolean;
   probationStartDate: string;
   probationPeriodMonths: string;
-  shiftPreset: XororaShiftPreset;
+  shiftPreset: EmployeeShiftPreset;
   /** Optional; leave blank when editing to keep the existing password. */
   password: string;
 };
+
+export type ShiftPresetCompany = "xorora" | "crest-led";
 
 export const emptyEmployeeForm: EmployeeFormValues = {
   employeeCode: "",
@@ -62,7 +64,27 @@ export const emptyEmployeeForm: EmployeeFormValues = {
   password: "",
 };
 
-export function employeeToForm(employee: SerializedEmployee): EmployeeFormValues {
+export function emptyEmployeeFormForCompany(
+  company: ShiftPresetCompany | null | undefined,
+): EmployeeFormValues {
+  return {
+    ...emptyEmployeeForm,
+    shiftPreset: company === "crest-led" ? "day" : "afternoon",
+  };
+}
+
+export function employeeToForm(
+  employee: SerializedEmployee,
+  company: ShiftPresetCompany | null | undefined = null,
+): EmployeeFormValues {
+  const fallback: EmployeeShiftPreset = company === "crest-led" ? "day" : "afternoon";
+  const shiftPreset: EmployeeShiftPreset =
+    employee.shiftPreset === "evening" ||
+    employee.shiftPreset === "afternoon" ||
+    employee.shiftPreset === "day"
+      ? employee.shiftPreset
+      : fallback;
+
   return {
     employeeCode: employee.employeeCode,
     fullName: employee.fullName,
@@ -73,7 +95,7 @@ export function employeeToForm(employee: SerializedEmployee): EmployeeFormValues
     probationCompleted: isProbationCompleted(employee),
     probationStartDate: employee.probationStartDate ?? getTodayPkt(),
     probationPeriodMonths: String(employee.probationPeriodMonths),
-    shiftPreset: employee.shiftPreset === "evening" ? "evening" : "afternoon",
+    shiftPreset,
     password: "",
   };
 }
@@ -90,8 +112,8 @@ type EmployeeSheetProps = {
   onStartProbation?: () => void;
   onEndProbation?: () => void;
   probationActionPending?: boolean;
-  /** When true, show Xorora shift timing selector. */
-  showXororaShiftPreset?: boolean;
+  /** When set, show per-employee shift timing for that company. */
+  shiftPresetCompany?: ShiftPresetCompany | null;
 };
 
 function ProbationSummary({ form }: { form: EmployeeFormValues }) {
@@ -131,7 +153,7 @@ export function EmployeeSheet({
   onStartProbation,
   onEndProbation,
   probationActionPending = false,
-  showXororaShiftPreset = false,
+  shiftPresetCompany = null,
 }: EmployeeSheetProps) {
   const periodMonths = Number.parseInt(form.probationPeriodMonths, 10);
   const showOnProbation =
@@ -221,7 +243,7 @@ export function EmployeeSheet({
             />
           </div>
 
-          {showXororaShiftPreset ? (
+          {shiftPresetCompany === "xorora" ? (
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="shift-preset">Shift timing</Label>
               <Select
@@ -229,7 +251,7 @@ export function EmployeeSheet({
                   afternoon: "Afternoon — 3:00 PM to 12:00 AM (+15 min grace)",
                   evening: "Evening — 6:00 PM to 3:00 AM (+15 min grace)",
                 }}
-                value={form.shiftPreset}
+                value={form.shiftPreset === "evening" ? "evening" : "afternoon"}
                 onValueChange={(value) =>
                   onFormChange((f) => ({
                     ...f,
@@ -250,7 +272,39 @@ export function EmployeeSheet({
                 </SelectContent>
               </Select>
               <p className="text-muted-foreground text-xs">
-                Xorora only. Late starts one minute after the grace deadline.
+                Late starts one minute after the grace deadline.
+              </p>
+            </div>
+          ) : null}
+
+          {shiftPresetCompany === "crest-led" ? (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="shift-preset">Shift timing</Label>
+              <Select
+                items={{
+                  day: "Day — 9:00 AM to 5:00 PM (+15 min grace)",
+                  evening: "Evening — 6:00 PM to 3:00 AM (+15 min grace)",
+                }}
+                value={form.shiftPreset === "evening" ? "evening" : "day"}
+                onValueChange={(value) =>
+                  onFormChange((f) => ({
+                    ...f,
+                    shiftPreset: value === "evening" ? "evening" : "day",
+                  }))
+                }
+              >
+                <SelectTrigger id="shift-preset" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="day">Day — 9:00 AM to 5:00 PM (+15 min grace)</SelectItem>
+                  <SelectItem value="evening">
+                    Evening — 6:00 PM to 3:00 AM (+15 min grace)
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-muted-foreground text-xs">
+                Late starts one minute after the grace deadline.
               </p>
             </div>
           ) : null}

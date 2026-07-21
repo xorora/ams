@@ -14,9 +14,9 @@ import {
   getCompanyFederalHolidayName,
   isCompanyFederalHoliday,
 } from "./company-holidays";
-import type { XororaShiftPreset } from "@/db/schema";
+import type { EmployeeShiftPreset, XororaShiftPreset } from "@/db/schema";
 
-export type { XororaShiftPreset };
+export type { EmployeeShiftPreset, XororaShiftPreset };
 
 const DAY_SHIFT_CHECK_IN_HOUR = 9;
 const DAY_SHIFT_CHECK_OUT_HOUR = 17;
@@ -87,6 +87,13 @@ export const XORORA_EVENING_SHIFT_EMPLOYEE_NAMES = new Set([
   "sadia saif",
 ]);
 
+export function isEmployeeShiftPreset(
+  value: string | null | undefined,
+): value is EmployeeShiftPreset {
+  return value === "afternoon" || value === "evening" || value === "day";
+}
+
+/** @deprecated Prefer isEmployeeShiftPreset. */
 export function isXororaShiftPreset(value: string | null | undefined): value is XororaShiftPreset {
   return value === "afternoon" || value === "evening";
 }
@@ -105,6 +112,21 @@ export const COMPANY_SHIFT_BY_SLUG: Record<CompanySlug, CompanyShiftConfig> = {
     closedWeekdays: CLOSED_WEEKDAYS_CREST_LED,
   },
 };
+
+/** Crest LED evening override: 6:00 PM – 3:00 AM PKT (+15 min grace). */
+export const CREST_LED_EVENING_SHIFT: CompanyShiftConfig = {
+  expectedCheckInHour: 18,
+  expectedCheckInMinute: 0,
+  checkInGraceMinutes: CHECK_IN_GRACE_MINUTES,
+  checkOutGraceMinutes: CHECK_OUT_GRACE_MINUTES,
+  expectedCheckOutHour: 3,
+  expectedCheckOutMinute: 0,
+  checkOutNextDay: true,
+  shiftDateBoundaryHour: SHIFT_DATE_NOON_BOUNDARY_HOUR,
+  closedWeekdays: CLOSED_WEEKDAYS_CREST_LED,
+};
+
+export const CREST_LED_DAY_SHIFT = COMPANY_SHIFT_BY_SLUG["crest-led"];
 
 export type ShiftScheduleLabels = {
   expectedCheckInTime: string;
@@ -156,8 +178,9 @@ export function getCompanyShiftConfig(slug: string): CompanyShiftConfig {
 
 /**
  * Resolve shift for a company employee.
- * Xorora uses `shiftPreset` from the admin panel (`afternoon` | `evening`).
- * Name-based evening list is only a fallback when preset is unset.
+ * Xorora uses `shiftPreset` (`afternoon` | `evening`).
+ * Crest LED uses `shiftPreset` (`day` | `evening`); null defaults to day.
+ * Name-based evening list is only a Xorora fallback when preset is unset.
  * Before {@link XORORA_AFTERNOON_SHIFT_EFFECTIVE_DATE}, all Xorora staff use evening.
  */
 export function getShiftConfigForEmployee(
@@ -183,6 +206,13 @@ export function getShiftConfigForEmployee(
       return XORORA_EVENING_SHIFT;
     }
     return XORORA_AFTERNOON_SHIFT;
+  }
+
+  if (slug === "crest-led") {
+    if (shiftPreset === "evening") {
+      return CREST_LED_EVENING_SHIFT;
+    }
+    return CREST_LED_DAY_SHIFT;
   }
 
   return getCompanyShiftConfig(slug);

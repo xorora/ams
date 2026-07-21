@@ -42,7 +42,8 @@ export default async function AdminEmployeesPage({ searchParams }: PageProps) {
     });
   });
 
-  const showXororaShiftPreset = company?.slug === "xorora";
+  const shiftPresetCompany =
+    company?.slug === "xorora" || company?.slug === "crest-led" ? company.slug : null;
 
   return (
     <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col gap-6 p-4 md:h-full md:overflow-hidden md:p-8">
@@ -58,7 +59,7 @@ export default async function AdminEmployeesPage({ searchParams }: PageProps) {
         employees={employees}
         search={search}
         includeInactive={includeInactive}
-        showXororaShiftPreset={showXororaShiftPreset}
+        shiftPresetCompany={shiftPresetCompany}
       />
     </div>
   );

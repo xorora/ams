@@ -29,7 +29,7 @@ type EmployeeTableProps = {
   onReactivate: (id: string) => void;
   onStartProbation?: (id: string, name: string) => void;
   onEndProbation?: (id: string, name: string) => void;
-  showXororaShiftPreset?: boolean;
+  showShiftPreset?: boolean;
   resetDeps?: readonly unknown[];
   className?: string;
 };
@@ -48,7 +48,13 @@ function shiftPresetLabel(preset: string | null | undefined): string {
   if (preset === "evening") {
     return "6pm–3am";
   }
-  return "3pm–12am";
+  if (preset === "day") {
+    return "9am–5pm";
+  }
+  if (preset === "afternoon") {
+    return "3pm–12am";
+  }
+  return "—";
 }
 
 export function EmployeeTable({
@@ -60,7 +66,7 @@ export function EmployeeTable({
   onReactivate,
   onStartProbation,
   onEndProbation,
-  showXororaShiftPreset = false,
+  showShiftPreset = false,
   resetDeps,
   className,
 }: EmployeeTableProps) {
@@ -91,7 +97,7 @@ export function EmployeeTable({
         header: "Department",
         cell: ({ row }) => row.original.department ?? "—",
       },
-      ...(showXororaShiftPreset
+      ...(showShiftPreset
         ? [
             {
               id: "shift",
@@ -209,7 +215,7 @@ export function EmployeeTable({
         },
       },
     ],
-    [onClearanceForm, onDeactivate, onEdit, onEndProbation, onReactivate, onStartProbation, showXororaShiftPreset],
+    [onClearanceForm, onDeactivate, onEdit, onEndProbation, onReactivate, onStartProbation, showShiftPreset],
   );
 
   return (

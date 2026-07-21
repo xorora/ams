@@ -4,6 +4,7 @@ import type { Session } from "next-auth";
 import { ApplicationShell } from "@/components/layout/application-shell";
 import { PendingLateRelaxationIndicator } from "@/components/layout/pending-late-relaxation-indicator";
 import { PendingLeaveIndicator } from "@/components/layout/pending-leave-indicator";
+import { ensureCrestEveningShiftEmployees } from "@/lib/admin/ensure-crest-evening-shifts";
 import { getCompanies } from "@/lib/admin/selected-company";
 import {
   COMPANY_COOKIE,
@@ -22,6 +23,11 @@ export default async function AppLayout({
     ? hasLinkedEmployee({ user: session.user } as Session)
     : false;
   const isAdmin = session?.user?.role === "admin";
+
+  if (isAdmin) {
+    // Idempotent seed: Crest evening staff (e.g. Mumtaz) + late recalc when applied.
+    await ensureCrestEveningShiftEmployees();
+  }
 
   const [companies, cookieStore] = isAdmin
     ? await Promise.all([getCompanies(), cookies()])
