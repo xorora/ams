@@ -165,7 +165,7 @@ export function EmployeeDashboard({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5 sm:gap-6">
       {status.employeeInactive && (
         <Alert variant="destructive">
           <AlertTitle>Account deactivated</AlertTitle>
@@ -175,21 +175,15 @@ export function EmployeeDashboard({
         </Alert>
       )}
 
-      <EmployeeClockCard pktClock={pktClock} shiftDate={status.shiftDate} />
-      <EmployeeStatusCard status={status} />
-
-      {showLeaveOverview ? (
-        <EmployeeDashboardLeaveOverview
-          probationUnpaidOnly={probationUnpaidOnly}
-          balances={leaveBalances}
-          unpaidSummary={unpaidSummary}
-        />
-      ) : null}
+      <div className="grid gap-5 sm:gap-6 lg:grid-cols-2">
+        <EmployeeClockCard pktClock={pktClock} shiftDate={status.shiftDate} />
+        <EmployeeStatusCard status={status} />
+      </div>
 
       {status.warnings.length > 0 && (
-        <Alert className="border-amber-400/40 bg-amber-400/10 text-amber-100">
-          <AlertTitle>Notice</AlertTitle>
-          <AlertDescription>
+        <Alert className="border-amber-400/40 bg-amber-400/15 text-amber-50">
+          <AlertTitle className="font-semibold text-amber-50">Notice</AlertTitle>
+          <AlertDescription className="text-amber-50/95">
             <ul className="list-disc pl-4">
               {status.warnings.map((warning) => (
                 <li key={warning}>{warning}</li>
@@ -214,9 +208,9 @@ export function EmployeeDashboard({
       )}
 
       {status.isWeekendOff && !status.employeeInactive && (
-        <Alert className="border-white/15 bg-[#0a1230]/80 text-[#eceef5]">
-          <AlertTitle>Office closed</AlertTitle>
-          <AlertDescription>
+        <Alert className="border-white/20 bg-[#0a1230] text-white">
+          <AlertTitle className="font-semibold text-white">Office closed</AlertTitle>
+          <AlertDescription className="text-[#d7dceb]">
             {status.warnings.find((warning) => warning.includes("office is closed")) ??
               "The office is closed today."}{" "}
             Attendance actions are disabled until the next working day.
@@ -256,22 +250,43 @@ export function EmployeeDashboard({
           />
         )}
 
+      {showLeaveOverview ? (
+        <EmployeeDashboardLeaveOverview
+          probationUnpaidOnly={probationUnpaidOnly}
+          balances={leaveBalances}
+          unpaidSummary={unpaidSummary}
+        />
+      ) : null}
+
       {!status.employeeInactive &&
         (!status.isWeekendOff ||
           status.actions.canCheckOut ||
           status.actions.canStartBreak ||
           status.actions.canEndBreak) && (
-          <p className="text-[#7d859e] text-xs leading-relaxed">
-            Actions require your location and you must be within the office geofence. Expected
-            shift: check-in by {status.shiftSchedule.lateCheckInDeadline} (
-            {status.shiftSchedule.checkInGraceMinutes} min grace), check-out by&nbsp;
-            {status.shiftSchedule.lateCheckOutDeadline} ({status.shiftSchedule.checkOutGraceMinutes}
-            &nbsp; min grace after {status.shiftSchedule.expectedCheckOutTime}). Missing check-out
-            after the grace period marks the shift absent. You get&nbsp;
-            {MONTHLY_LATE_ALLOWANCE}&nbsp;free late check-ins per month; each additional late
-            costs&nbsp;
-            {formatLateFinePkr(LATE_FINE_AMOUNT_PKR)}.
-          </p>
+          <div className="rounded-xl border border-white/12 bg-[#050d22]/80 px-4 py-3.5">
+            <p className="text-xs font-semibold tracking-wide text-[#f26b21] uppercase">
+              Shift rules
+            </p>
+            <p className="mt-1.5 text-sm leading-relaxed text-[#d7dceb]">
+              Actions require your location inside the office geofence. Check in by{" "}
+              <span className="font-semibold text-white">
+                {status.shiftSchedule.lateCheckInDeadline}
+              </span>{" "}
+              ({status.shiftSchedule.checkInGraceMinutes} min grace). Check out by{" "}
+              <span className="font-semibold text-white">
+                {status.shiftSchedule.lateCheckOutDeadline}
+              </span>{" "}
+              ({status.shiftSchedule.checkOutGraceMinutes} min grace after{" "}
+              {status.shiftSchedule.expectedCheckOutTime}). Missing check-out after grace marks the
+              shift absent. You get{" "}
+              <span className="font-semibold text-white">{MONTHLY_LATE_ALLOWANCE}</span> free late
+              check-ins per month; each additional late costs{" "}
+              <span className="font-semibold text-white">
+                {formatLateFinePkr(LATE_FINE_AMOUNT_PKR)}
+              </span>
+              .
+            </p>
+          </div>
         )}
     </div>
   );

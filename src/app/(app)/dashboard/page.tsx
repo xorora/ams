@@ -55,26 +55,34 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-5 p-3 sm:gap-6 sm:p-4 md:p-8">
+    <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-5 p-3 sm:gap-6 sm:p-4 md:p-8">
       <Suspense fallback={null}>
         <NewEmployeeCodeToast />
       </Suspense>
-      <div className="space-y-2.5 sm:space-y-3">
-        <p className="font-mono text-[11px] tracking-[0.2em] text-[#f26b21] uppercase">
-          Asia/Karachi
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl md:text-4xl">
-          Dashboard
-        </h1>
-        <p className="max-w-lg text-[#a8aec4] text-sm text-pretty">
-          {canCheckIn
-            ? "Check in, take breaks, and check out for your shift."
-            : session.user.role === "admin"
-              ? "Add an employee record with your corporate email under Admin → Employees to enable check-in here."
-              : "Your account is not linked to an employee record yet."}
-        </p>
-        <div className="h-1 w-14 rounded-full bg-gradient-to-r from-[#f26b21] to-transparent" />
-      </div>
+      <header className="relative overflow-hidden rounded-2xl border border-white/15 bg-[#0a1230] p-5 sm:p-6">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_80%_at_0%_0%,#464c9f40,transparent_55%)]"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_50%_60%_at_100%_100%,#f26b2120,transparent_50%)]"
+        />
+        <div className="relative space-y-2.5">
+          <p className="font-mono text-[11px] font-semibold tracking-[0.2em] text-[#f26b21] uppercase">
+            Asia/Karachi · PKT
+          </p>
+          <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">Dashboard</h1>
+          <p className="max-w-xl text-sm font-medium leading-relaxed text-[#d7dceb] text-pretty sm:text-base">
+            {canCheckIn
+              ? "Check in, take breaks, and check out for your shift — timed live in Pakistan Standard Time."
+              : session.user.role === "admin"
+                ? "Add an employee record with your corporate email under Admin → Employees to enable check-in here."
+                : "Your account is not linked to an employee record yet."}
+          </p>
+          <div className="h-1 w-16 rounded-full bg-gradient-to-r from-[#f26b21] to-transparent" />
+        </div>
+      </header>
 
       {canCheckIn ? (
         <EmployeeDashboard
@@ -86,7 +94,7 @@ export default async function DashboardPage() {
           unpaidSummary={unpaidSummary}
         />
       ) : (
-        <div className="rounded-xl border border-white/10 bg-[#0a1230]/80 p-5 text-sm text-[#c8cce0]">
+        <div className="rounded-2xl border border-white/15 bg-[#0a1230] p-5 text-sm font-medium leading-relaxed text-[#d7dceb]">
           {session.user.role === "admin" ? (
             <p>
               Use the admin section in the sidebar for team attendance. To check in for yourself,
