@@ -274,17 +274,17 @@ export function LandingPage({ callbackUrl, errorMessage, companies }: LandingPag
               >
                 <div
                   aria-hidden
-                  className="absolute -inset-2 rounded-[1.5rem] bg-gradient-to-br from-[#f26b21]/25 via-[#464c9f]/20 to-transparent blur-xl sm:-inset-4"
+                  className="absolute -inset-2 rounded-[1.5rem] bg-[#464c9f]/20 blur-2xl sm:-inset-3"
                 />
-                <div className="relative overflow-hidden rounded-2xl border border-white/15 bg-[#f6f7fb] text-[#08080d] shadow-[0_30px_80px_-28px_rgba(0,0,0,0.65)]">
+                <div className="relative overflow-hidden rounded-2xl border border-[#464c9f]/35 bg-[#f6f7fb] text-[#08080d] shadow-[0_28px_70px_-24px_rgba(1,12,40,0.8)] ring-1 ring-[#f26b21]/20">
                   <div
                     aria-hidden
-                    className="pointer-events-none absolute inset-0 opacity-[0.14] mix-blend-multiply"
+                    className="pointer-events-none absolute inset-0 opacity-[0.12] mix-blend-multiply"
                     style={{ backgroundImage: GRAIN_DATA_URI }}
                   />
                   <div
                     aria-hidden
-                    className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#464c9f] via-[#f26b21] to-[#464c9f]"
+                    className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-[#f26b21]"
                   />
                   <div className="relative p-5 sm:p-6 md:p-8">
                     <div className="mb-5 space-y-1">
@@ -304,14 +304,14 @@ export function LandingPage({ callbackUrl, errorMessage, companies }: LandingPag
                       <CredentialsAuthForm callbackUrl={callbackUrl} companies={companies} />
 
                       <div className="relative flex items-center gap-3">
-                        <div className="h-px flex-1 bg-[#dcdfea]" />
+                        <div className="h-px flex-1 bg-[#c8cce0]" />
                         <span className="text-[#586178] text-xs uppercase tracking-wide">or</span>
-                        <div className="h-px flex-1 bg-[#dcdfea]" />
+                        <div className="h-px flex-1 bg-[#c8cce0]" />
                       </div>
 
                       <GoogleSignInButton
                         callbackUrl={callbackUrl}
-                        className="h-12 w-full touch-manipulation border border-[#dcdfea] bg-white text-base font-medium shadow-sm"
+                        className="h-12 w-full touch-manipulation border border-[#c8cce0] bg-white text-base font-medium text-[#08080d] shadow-none hover:border-[#464c9f]/45 hover:bg-[#eceef5]"
                       />
 
                       <p className="text-center text-[#586178] text-xs leading-relaxed">
@@ -358,11 +358,11 @@ export function LandingPage({ callbackUrl, errorMessage, companies }: LandingPag
               </p>
             </div>
 
-            <ul className="mt-10 grid gap-x-8 gap-y-0 sm:mt-16 sm:grid-cols-2 sm:gap-x-10 lg:grid-cols-3">
+            <ul className="mt-10 grid gap-x-0 gap-y-0 sm:mt-16 sm:grid-cols-2 lg:grid-cols-3">
               {features.map((feature, index) => (
                 <li
                   key={feature.title}
-                  className="group relative flex flex-col gap-3 border-t border-[#c8cce0]/80 py-7 sm:gap-4 sm:py-9"
+                  className="group relative flex flex-col gap-3 border-t border-[#c8cce0] py-7 sm:gap-4 sm:px-5 sm:py-9 lg:px-6 sm:odd:pl-0 sm:even:pr-0 lg:odd:pl-5 lg:even:pr-5 lg:[&:nth-child(3n+1)]:pl-0 lg:[&:nth-child(3n)]:pr-0"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <span className="flex size-10 items-center justify-center rounded-xl bg-[#464c9f]/10 text-[#464c9f] transition-colors duration-300 group-hover:text-[#f26b21]">
@@ -418,11 +418,15 @@ export function LandingPage({ callbackUrl, errorMessage, companies }: LandingPag
             <ol className="relative mt-10 grid gap-10 sm:mt-16 sm:gap-12 md:grid-cols-3 md:gap-8">
               <div
                 aria-hidden
-                className="pointer-events-none absolute top-[1.15rem] right-[16%] left-[16%] hidden h-px bg-gradient-to-r from-[#f26b21]/80 via-[#464c9f]/60 to-[#f26b21]/80 md:block"
+                className="pointer-events-none absolute top-[1.125rem] right-[calc(100%/6)] left-[calc(100%/6)] hidden h-px bg-[#464c9f]/70 md:block"
+              />
+              <div
+                aria-hidden
+                className="pointer-events-none absolute top-[1.125rem] right-[calc(100%/6)] left-[calc(100%/6)] hidden h-px bg-[linear-gradient(90deg,transparent_0%,#f26b21_18%,#f26b21_82%,transparent_100%)] opacity-80 md:block"
               />
               {steps.map((item) => (
                 <li key={item.step} className="relative flex flex-col gap-3 sm:gap-4">
-                  <span className="relative z-10 flex size-9 items-center justify-center rounded-full border border-[#f26b21]/50 bg-[#010c28] font-mono text-sm font-medium text-[#f26b21]">
+                  <span className="relative z-10 flex size-9 items-center justify-center rounded-full border border-[#f26b21]/55 bg-[#010c28] font-mono text-sm font-medium text-[#f26b21] shadow-[0_0_0_4px_#010c28]">
                     {item.step}
                   </span>
                   <h3 className="text-lg font-medium tracking-tight text-white sm:text-xl">
@@ -439,7 +443,7 @@ export function LandingPage({ callbackUrl, errorMessage, companies }: LandingPag
               </p>
               <a
                 href="#sign-in"
-                className="inline-flex h-11 w-full touch-manipulation items-center justify-center rounded-lg bg-[#f26b21] px-5 text-sm font-medium text-white transition-colors hover:bg-[#e05f1a] sm:w-auto"
+                className="inline-flex h-11 w-full touch-manipulation items-center justify-center rounded-lg border border-[#f26b21]/50 bg-[#f26b21] px-5 text-sm font-medium text-white transition-colors hover:border-[#e05f1a] hover:bg-[#e05f1a] sm:w-auto"
               >
                 Back to sign in
               </a>
