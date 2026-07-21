@@ -5,31 +5,20 @@ import {
   MapPin,
   Moon,
   ShieldCheck,
-  Sparkles,
   Timer,
 } from "lucide-react";
+import Image from "next/image";
 import { CredentialsAuthForm } from "@/components/auth/credentials-auth-form";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
-import { BrandMark } from "@/components/layout/brand-mark";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import type { CompanyOption } from "@/lib/admin/selected-company";
-import {
-  CHECK_IN_GRACE_MINUTES,
-  EXPECTED_CHECK_IN_TIME_PKT,
-  EXPECTED_CHECK_OUT_TIME_PKT,
-  formatLateCheckInDeadline,
-  formatLateCheckOutDeadline,
-} from "@/lib/attendance/constants";
-
-const shiftWindowLabel = `${EXPECTED_CHECK_IN_TIME_PKT.replace(" PKT", "")} - ${EXPECTED_CHECK_OUT_TIME_PKT}`;
+import { cn } from "@/lib/utils";
 
 const features = [
   {
     icon: Fingerprint,
     title: "Biometric machine sync",
     description:
-      "Pull punches from ZKTime biometric terminals and push new hires for device enrollment.",
+      "Pull punches from ZKTime terminals and push new hires for device enrollment.",
   },
   {
     icon: MapPin,
@@ -38,8 +27,9 @@ const features = [
   },
   {
     icon: Moon,
-    title: "Afternoon & night shifts",
-    description: `${shiftWindowLabel} with ${CHECK_IN_GRACE_MINUTES}-minute grace windows.`,
+    title: "Flexible shift timing",
+    description:
+      "Day, afternoon, and evening schedules per company and employee — all in Asia/Karachi.",
   },
   {
     icon: Timer,
@@ -49,28 +39,19 @@ const features = [
   {
     icon: CalendarDays,
     title: "Leave management",
-    description: "Annual, casual, and sick leave with balances and approvals.",
+    description: "Annual, casual, sick, and unpaid leave with balances and approvals.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Late fine relaxations",
+    description:
+      "After more than three lates in a month, request a waiver — HR reviews and approves.",
   },
   {
     icon: BarChart3,
     title: "Admin reporting",
-    description: "Date-range summaries, drill-downs, and Excel exports.",
+    description: "Date-range summaries, drill-downs, and Excel exports for HR.",
   },
-  {
-    icon: ShieldCheck,
-    title: "Flexible sign-in",
-    description:
-      "Sign in with email and password or Google. Link your account with your employee code once.",
-  },
-] as const;
-
-const shiftFacts = [
-  { label: "Check-in", value: EXPECTED_CHECK_IN_TIME_PKT },
-  { label: "Late after", value: formatLateCheckInDeadline() },
-  { label: "Check-out", value: EXPECTED_CHECK_OUT_TIME_PKT },
-  { label: "Grace", value: `${CHECK_IN_GRACE_MINUTES} min` },
-  { label: "Check-out by", value: formatLateCheckOutDeadline() },
-  { label: "Max break", value: "60 min" },
 ] as const;
 
 const steps = [
@@ -83,12 +64,12 @@ const steps = [
     step: "02",
     title: "Link your employee number",
     description:
-      "If this is your first time, confirm your company and employee code to connect your account.",
+      "On first sign-in, confirm your company and employee code to connect your account.",
   },
   {
     step: "03",
     title: "Start tracking",
-    description: "Check in from the office, manage breaks, and view leave balances.",
+    description: "Check in from the office, manage breaks, leave, and see your attendance.",
   },
 ] as const;
 
@@ -100,174 +81,152 @@ type LandingPageProps = {
 
 export function LandingPage({ callbackUrl, errorMessage, companies }: LandingPageProps) {
   return (
-    <div className="relative flex min-h-svh flex-col overflow-hidden">
+    <div className="relative flex min-h-svh flex-col overflow-hidden bg-[#f6f7fb]">
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,oklch(0.92_0.05_275/0.55),transparent)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,oklch(0.5_0.03_275/0.16)_1px,transparent_1px),linear-gradient(to_bottom,oklch(0.5_0.03_275/0.16)_1px,transparent_1px)] bg-size-[3.5rem_3.5rem] mask-[radial-gradient(ellipse_at_center,black,transparent_70%)] opacity-55" />
-        <div className="absolute -right-32 top-1/4 size-[28rem] rounded-full bg-primary/5 blur-3xl" />
-        <div className="absolute -left-24 bottom-1/4 size-80 rounded-full bg-muted blur-3xl" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_90%_55%_at_50%_-15%,#464c9f22,transparent_55%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_85%_20%,#f26b2114,transparent_50%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#dcdfea66_1px,transparent_1px),linear-gradient(to_bottom,#dcdfea66_1px,transparent_1px)] bg-size-[3.25rem_3.25rem] mask-[radial-gradient(ellipse_at_center,black,transparent_72%)] opacity-70" />
+        <div className="absolute -left-28 bottom-0 size-[22rem] rounded-full bg-[#010c28]/[0.04] blur-3xl" />
       </div>
 
-      <header>
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6">
-          <BrandMark showSubtitle />
-          <Badge variant="secondary" className="font-mono text-xs">
-            Asia/Karachi
-          </Badge>
-        </div>
-      </header>
-
       <main className="flex flex-1 flex-col">
-        <section className="mx-auto w-full max-w-6xl px-6 pb-20 pt-4 md:pt-10">
-          <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
+        <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-6 py-10 md:py-16">
+          <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
             <div className="flex flex-col gap-6">
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="gap-1.5">
-                  <Sparkles className="size-3" />
-                  Biometric & geofenced attendance
-                </Badge>
+              <div
+                className={cn(
+                  "flex items-center gap-3",
+                  "animate-in fade-in slide-in-from-bottom-2 duration-700 fill-mode-both",
+                )}
+              >
+                <Image
+                  src="/xorora-full.png"
+                  alt="Xorora"
+                  width={280}
+                  height={54}
+                  sizes="(max-width: 768px) 180px, 240px"
+                  className="h-8 w-auto object-contain sm:h-10"
+                  priority
+                />
+                <p className="font-semibold text-3xl tracking-tight text-[#08080d] sm:text-4xl">
+                  Punch
+                </p>
               </div>
 
-              <h1 className="text-4xl font-semibold tracking-tight text-balance md:text-5xl lg:text-[3.25rem] lg:leading-[1.1]">
-                Attendance that works on the floor&nbsp;
-                <span className="text-muted-foreground">and after midnight</span>
-              </h1>
-
-              <p className="max-w-lg text-lg text-muted-foreground text-pretty">
-                Biometric machine integration, geofenced check-in, break tracking, leave balances,
-                and HR reporting — built for&nbsp;
-                {shiftWindowLabel.replace(/ PKT/g, "")} shifts in Pakistan Standard Time.
-              </p>
-
-              <div className="flex flex-wrap gap-2">
-                {shiftFacts.slice(0, 4).map((fact) => (
-                  <div
-                    key={fact.label}
-                    className="rounded-lg border bg-card/60 px-3 py-2 backdrop-blur-sm"
-                  >
-                    <p className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider">
-                      {fact.label}
-                    </p>
-                    <p className="font-mono text-sm font-medium">{fact.value}</p>
-                  </div>
-                ))}
+              <div
+                className={cn(
+                  "space-y-4",
+                  "animate-in fade-in slide-in-from-bottom-3 duration-700 delay-100 fill-mode-both",
+                )}
+              >
+                <h1 className="max-w-xl text-3xl font-semibold tracking-tight text-balance text-[#08080d] sm:text-4xl lg:text-[2.75rem] lg:leading-[1.12]">
+                  Attendance for the floor and the night shift
+                </h1>
+                <p className="max-w-md text-base text-[#586178] text-pretty sm:text-lg">
+                  Biometric sync and geofenced check-in for day and evening teams — timed in
+                  Asia/Karachi.
+                </p>
               </div>
             </div>
 
-            <div className="flex flex-col gap-4">
-              <Card className="border-2 bg-card/80 shadow-lg backdrop-blur-sm">
-                <CardContent className="flex flex-col gap-5 p-6 md:p-8">
-                  <div className="space-y-1">
-                    <h2 className="text-xl font-semibold tracking-tight">Welcome back</h2>
-                    <p className="text-muted-foreground text-sm">
-                      Sign in with your email, or continue with Google.
-                    </p>
-                  </div>
+            <div
+              className={cn(
+                "flex flex-col gap-4",
+                "animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 fill-mode-both",
+              )}
+            >
+              <div className="rounded-2xl border border-[#dcdfea] bg-white/90 p-6 shadow-lg shadow-[#010c28]/[0.06] backdrop-blur-sm md:p-8">
+                <div className="mb-5 space-y-1">
+                  <h2 className="text-xl font-semibold tracking-tight text-[#08080d]">
+                    Sign in
+                  </h2>
+                  <p className="text-[#586178] text-sm">
+                    Use your work email, or continue with Google.
+                  </p>
+                </div>
 
-                  {errorMessage ? (
-                    <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-destructive text-sm">
-                      {errorMessage}
-                    </p>
-                  ) : null}
+                {errorMessage ? (
+                  <p className="mb-5 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-destructive text-sm">
+                    {errorMessage}
+                  </p>
+                ) : null}
 
+                <div className="flex flex-col gap-5">
                   <CredentialsAuthForm callbackUrl={callbackUrl} companies={companies} />
 
                   <div className="relative flex items-center gap-3">
-                    <div className="h-px flex-1 bg-border" />
-                    <span className="text-muted-foreground text-xs uppercase tracking-wide">or</span>
-                    <div className="h-px flex-1 bg-border" />
+                    <div className="h-px flex-1 bg-[#dcdfea]" />
+                    <span className="text-[#586178] text-xs uppercase tracking-wide">or</span>
+                    <div className="h-px flex-1 bg-[#dcdfea]" />
                   </div>
 
                   <GoogleSignInButton
                     callbackUrl={callbackUrl}
-                    className="h-12 w-full bg-background text-base font-medium shadow-sm"
+                    className="h-12 w-full bg-[#f6f7fb] text-base font-medium shadow-sm"
                   />
 
-                  <p className="text-center text-muted-foreground text-xs leading-relaxed">
-                    Work email and Google both work. First-time email sign-in links your employee
-                    code; after that, use your password.
+                  <p className="text-center text-[#586178] text-xs leading-relaxed">
+                    First-time email sign-in links your employee code; after that, use your
+                    password.
                   </p>
-                </CardContent>
-              </Card>
-
-              <div className="grid grid-cols-3 gap-3">
-                {shiftFacts.slice(4).map((fact) => (
-                  <div
-                    key={fact.label}
-                    className="rounded-lg border bg-card/50 px-3 py-2.5 text-center backdrop-blur-sm"
-                  >
-                    <p className="text-muted-foreground text-[10px] uppercase tracking-wide">
-                      {fact.label}
-                    </p>
-                    <p className="mt-0.5 font-mono text-sm font-medium">{fact.value}</p>
-                  </div>
-                ))}
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="bg-muted/20 py-20">
+        <section className="border-t border-[#dcdfea] bg-white py-16 md:py-20">
           <div className="mx-auto w-full max-w-6xl px-6">
-            <div className="mx-auto max-w-2xl text-center">
-              <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">
-                Built for how your team actually works
+            <div className="max-w-2xl">
+              <h2 className="text-2xl font-semibold tracking-tight text-[#08080d] md:text-3xl">
+                Everything attendance needs in one place
               </h2>
-              <p className="mt-3 text-muted-foreground">
-                From the shop floor to HR — one system for attendance, leave, and reporting.
+              <p className="mt-3 text-[#586178]">
+                From the shop floor to HR — punches, leave, relaxations, and reports.
               </p>
             </div>
 
-            <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <ul className="mt-12 grid gap-x-10 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
               {features.map((feature) => (
-                <Card
-                  key={feature.title}
-                  className="border bg-card/60 backdrop-blur-sm transition-colors hover:bg-card/80"
-                >
-                  <CardContent className="flex flex-col gap-3 p-5">
-                    <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                      <feature.icon className="size-5" />
-                    </div>
-                    <h3 className="font-medium">{feature.title}</h3>
-                    <p className="text-muted-foreground text-sm leading-relaxed">
-                      {feature.description}
-                    </p>
-                  </CardContent>
-                </Card>
+                <li key={feature.title} className="flex flex-col gap-3">
+                  <div className="flex size-10 items-center justify-center rounded-lg bg-[#e7e9f7] text-[#464c9f]">
+                    <feature.icon className="size-5" aria-hidden />
+                  </div>
+                  <h3 className="font-medium text-[#08080d]">{feature.title}</h3>
+                  <p className="text-[#586178] text-sm leading-relaxed">{feature.description}</p>
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
         </section>
 
-        <section className="py-20">
+        <section className="border-t border-[#dcdfea] bg-[#f6f7fb] py-16 md:py-20">
           <div className="mx-auto w-full max-w-6xl px-6">
-            <div className="mx-auto max-w-2xl text-center">
-              <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">
+            <div className="max-w-2xl">
+              <h2 className="text-2xl font-semibold tracking-tight text-[#08080d] md:text-3xl">
                 Three steps to your first check-in
               </h2>
-              <p className="mt-3 text-muted-foreground">
-                Use email or Google, then link your employee number if needed.
+              <p className="mt-3 text-[#586178]">
+                Sign in, link your employee number if needed, then start tracking.
               </p>
             </div>
 
-            <div className="mt-12 grid gap-8 md:grid-cols-3">
+            <ol className="mt-12 grid gap-10 md:grid-cols-3">
               {steps.map((item) => (
-                <div key={item.step} className="relative flex flex-col gap-3">
-                  <span className="font-mono text-primary text-sm font-medium">{item.step}</span>
-                  <h3 className="font-medium text-lg">{item.title}</h3>
-                  <p className="text-muted-foreground text-sm leading-relaxed">
-                    {item.description}
-                  </p>
-                </div>
+                <li key={item.step} className="flex flex-col gap-3">
+                  <span className="font-mono text-[#f26b21] text-sm font-medium">{item.step}</span>
+                  <h3 className="font-medium text-lg text-[#08080d]">{item.title}</h3>
+                  <p className="text-[#586178] text-sm leading-relaxed">{item.description}</p>
+                </li>
               ))}
-            </div>
+            </ol>
           </div>
         </section>
       </main>
 
-      <footer className="border-t border-border py-8">
-        <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-2 px-6 text-muted-foreground text-sm sm:flex-row">
-          <p>Xorora Punch — Attendance</p>
+      <footer className="border-t border-[#dcdfea] bg-white py-8">
+        <div className="mx-auto flex w-full max-w-6xl flex-col items-start justify-between gap-2 px-6 text-[#586178] text-sm sm:flex-row sm:items-center">
+          <p className="font-medium text-[#08080d]">Xorora Punch</p>
           <p className="font-mono text-xs">Timezone: Asia/Karachi (PKT)</p>
         </div>
       </footer>

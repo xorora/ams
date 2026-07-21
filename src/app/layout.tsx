@@ -21,7 +21,7 @@ const fontMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Xorora Punch",
   description:
-    "Biometric and geofenced attendance for afternoon and night-shift teams (PKT)",
+    "Biometric and geofenced attendance for day and night-shift teams — timed in Asia/Karachi (PKT).",
 };
 
 export const viewport: Viewport = {
