@@ -1,4 +1,4 @@
-import { countPendingLateRelaxationRequests } from "@/lib/late-relaxation/late-relaxation-service";
+import { countPendingLateRelaxationRequestsCached } from "@/lib/late-relaxation/late-relaxation-service";
 
 /** Server-only: streams into the sidebar late-relaxation indicator. */
 export async function PendingLateRelaxationIndicator({
@@ -6,7 +6,7 @@ export async function PendingLateRelaxationIndicator({
 }: {
   companyId: string | null;
 }) {
-  const count = await countPendingLateRelaxationRequests(companyId);
+  const count = await countPendingLateRelaxationRequestsCached(companyId);
   if (count <= 0) {
     return null;
   }

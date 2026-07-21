@@ -20,19 +20,20 @@ export function BrandMark({
       <Image
         src="/xorora-full.png"
         alt="Xorora"
-        width={1024}
-        height={198}
+        width={160}
+        height={31}
+        sizes="160px"
         className="h-4 w-auto shrink-0 object-contain group-data-[collapsible=icon]:hidden"
         priority
       />
-      {/* X mark only: shown when the sidebar is collapsed to icons. */}
+      {/* X mark only: shown when the sidebar is collapsed to icons — lazy, not LCP. */}
       <Image
         src="/xorora-mark.png"
         alt="Xorora"
-        width={354}
-        height={268}
+        width={24}
+        height={18}
+        sizes="24px"
         className="hidden size-6 shrink-0 object-contain group-data-[collapsible=icon]:block"
-        priority
       />
       <div className="min-w-0 group-data-[collapsible=icon]:hidden">
         <p className={cn("truncate font-semibold leading-none tracking-tight", textClassName)}>

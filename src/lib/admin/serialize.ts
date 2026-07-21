@@ -1,5 +1,5 @@
 import type { AttendanceListItem } from "./attendance-service";
-import type { EmployeeRecord } from "./employees-service";
+import type { EmployeeOption, EmployeeRecord } from "./employees-service";
 
 export type SerializedEmployee = Omit<EmployeeRecord, "createdAt" | "updatedAt"> & {
   createdAt: string;
@@ -7,6 +7,9 @@ export type SerializedEmployee = Omit<EmployeeRecord, "createdAt" | "updatedAt">
   pendingLateFinePkr: number;
   pendingFineableLates: number;
 };
+
+/** Dropdown / filter option — avoids shipping full employee records to the client. */
+export type SerializedEmployeeOption = EmployeeOption;
 
 export type SerializedAttendance = Omit<
   AttendanceListItem,

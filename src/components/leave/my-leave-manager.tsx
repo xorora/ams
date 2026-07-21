@@ -1,9 +1,9 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useState } from "react";
 import { LeaveBalanceCards } from "@/components/leave/leave-balance-cards";
-import { LeaveDetailSheet } from "@/components/leave/leave-detail-sheet";
-import { emptyLeaveForm, type LeaveFormValues, LeaveSheet } from "@/components/leave/leave-sheet";
+import { emptyLeaveForm, type LeaveFormValues } from "@/components/leave/leave-sheet";
 import { LeaveTable } from "@/components/leave/leave-table";
 import { UnpaidLeaveSummaryCard } from "@/components/leave/unpaid-leave-summary-card";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,16 @@ import type { SerializedLeaveRequest } from "@/lib/leave/serialize";
 import type { LeaveBalance, UnpaidLeaveSummary } from "@/lib/leave/types";
 import { toastAsync } from "@/lib/toast";
 import { cn } from "@/lib/utils";
+
+const LeaveDetailSheet = dynamic(
+  () => import("@/components/leave/leave-detail-sheet").then((module) => module.LeaveDetailSheet),
+  { loading: () => null },
+);
+
+const LeaveSheet = dynamic(
+  () => import("@/components/leave/leave-sheet").then((module) => module.LeaveSheet),
+  { loading: () => null },
+);
 
 type MyLeaveManagerProps = {
   balances: LeaveBalance[];

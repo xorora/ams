@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { type ActionResult, actionFailure, actionSuccess } from "@/lib/actions/result";
 import { requireAdminSession, requireEmployeeSession } from "@/lib/auth/require-session";
 import {
@@ -22,6 +22,7 @@ function revalidateLeavePaths() {
   revalidatePath("/dashboard");
   // Refresh streamed leave badge in the authenticated app layout.
   revalidatePath("/dashboard", "layout");
+  updateTag("pending-leave");
 }
 
 export async function submitLeaveRequestAction(input: SubmitLeaveInput): Promise<ActionResult> {

@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { SerializedEmployee } from "@/lib/admin/serialize";
+import type { SerializedEmployeeOption } from "@/lib/admin/serialize";
 
 export type AttendanceFiltersState = {
   from: string;
@@ -26,7 +26,7 @@ export type AttendanceFiltersState = {
 type AttendanceFiltersProps = {
   filters: AttendanceFiltersState;
   onFiltersChange: React.Dispatch<React.SetStateAction<AttendanceFiltersState>>;
-  employees: SerializedEmployee[];
+  employees: SerializedEmployeeOption[];
   onAddRecord: () => void;
 };
 

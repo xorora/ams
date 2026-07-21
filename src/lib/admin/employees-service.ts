@@ -19,6 +19,14 @@ import { adminFailure, type ServiceFailure, type ServiceSuccess } from "./types"
 
 export type EmployeeRecord = typeof employees.$inferSelect;
 
+/** Lean row for attendance/leave dropdowns (avoids selecting full employee rows). */
+export type EmployeeOption = {
+  id: string;
+  employeeCode: string;
+  fullName: string;
+  isActive: boolean;
+};
+
 export type CreateEmployeeInput = {
   employeeCode: string;
   fullName: string;
@@ -371,6 +379,48 @@ export async function listEmployees(
   const data = filters.companyId ? dedupeEmployeeRecords(rows) : rows;
 
   return { ok: true, data };
+}
+
+function dedupeEmployeeOptions(rows: EmployeeOption[]): EmployeeOption[] {
+  const byCode = new Map<string, EmployeeOption>();
+  for (const row of rows) {
+    const key = row.employeeCode.trim().toLowerCase();
+    const existing = byCode.get(key);
+    if (!existing || (!existing.isActive && row.isActive)) {
+      byCode.set(key, row);
+    }
+  }
+  return [...byCode.values()].sort((left, right) => left.fullName.localeCompare(right.fullName));
+}
+
+export async function listEmployeeOptions(
+  filters: Pick<ListEmployeesFilters, "companyId" | "includeInactive"> = {},
+): Promise<ServiceSuccess<EmployeeOption[]>> {
+  const conditions = [];
+
+  if (!filters.includeInactive) {
+    conditions.push(eq(employees.isActive, true));
+  }
+
+  if (filters.companyId) {
+    conditions.push(eq(employees.companyId, filters.companyId));
+  }
+
+  const rows = await db
+    .select({
+      id: employees.id,
+      employeeCode: employees.employeeCode,
+      fullName: employees.fullName,
+      isActive: employees.isActive,
+    })
+    .from(employees)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(asc(employees.fullName));
+
+  return {
+    ok: true,
+    data: filters.companyId ? dedupeEmployeeOptions(rows) : rows,
+  };
 }
 
 export async function getEmployee(

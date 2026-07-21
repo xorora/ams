@@ -1,8 +1,7 @@
 import { formatInTimeZone } from "date-fns-tz";
 import { LeaveManager } from "@/components/leave/leave-manager";
-import { listEmployees } from "@/lib/admin/employees-service";
+import { listEmployeeOptions } from "@/lib/admin/employees-service";
 import { getCompanies, requireSelectedCompanyId } from "@/lib/admin/selected-company";
-import { serializeEmployee } from "@/lib/admin/serialize";
 import { BUSINESS_TIMEZONE } from "@/lib/attendance/constants";
 import { requireAdminSession } from "@/lib/auth/require-session";
 import { listLeaveRequests } from "@/lib/leave/leave-service";
@@ -51,12 +50,12 @@ export default async function AdminLeavePage({ searchParams }: PageProps) {
   };
 
   const [employeesResult, requestsResult, activeCompanies] = await Promise.all([
-    listEmployees({ includeInactive: false, companyId }),
+    listEmployeeOptions({ includeInactive: false, companyId }),
     listLeaveRequests({ ...filters, companyId, year }),
     getCompanies(),
   ]);
 
-  const employees = employeesResult.data.map((employee) => serializeEmployee(employee));
+  const employees = employeesResult.data;
   const requests = requestsResult.data.map(serializeLeaveRequest);
   const companyName =
     activeCompanies.find((company) => company.id === companyId)?.name ?? "Company";

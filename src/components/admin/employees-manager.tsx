@@ -1,16 +1,15 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import {
-  ClearanceFormSheet,
   type ClearanceFormValues,
   employeeToClearanceForm,
 } from "@/components/employee/clearance-form-sheet";
 import { EmployeeFilters } from "@/components/employee/employee-filters";
 import {
   type EmployeeFormValues,
-  EmployeeSheet,
   employeeToForm,
   emptyEmployeeForm,
 } from "@/components/employee/employee-sheet";
@@ -30,6 +29,19 @@ import { employeesListQuery } from "@/lib/admin/query-params";
 import type { SerializedEmployee } from "@/lib/admin/serialize";
 import { downloadResponseBlob, previewResponseBlob, toastAsync, toastError } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
+
+const EmployeeSheet = dynamic(
+  () => import("@/components/employee/employee-sheet").then((module) => module.EmployeeSheet),
+  { loading: () => null },
+);
+
+const ClearanceFormSheet = dynamic(
+  () =>
+    import("@/components/employee/clearance-form-sheet").then(
+      (module) => module.ClearanceFormSheet,
+    ),
+  { loading: () => null },
+);
 
 type EmployeesManagerProps = {
   employees: SerializedEmployee[];

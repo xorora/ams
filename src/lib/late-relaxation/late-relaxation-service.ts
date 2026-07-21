@@ -1,5 +1,6 @@
 import { and, count, desc, eq, inArray, type SQL } from "drizzle-orm";
 import { formatInTimeZone } from "date-fns-tz";
+import { unstable_cache } from "next/cache";
 import { db } from "@/db";
 import { employees, lateRelaxationRequests } from "@/db/schema";
 import { adminFailure, type ServiceFailure, type ServiceSuccess } from "@/lib/admin/types";
@@ -139,6 +140,18 @@ export async function countPendingLateRelaxationRequests(
   );
 
   return row?.value ?? 0;
+}
+
+/** Cross-request cache for sidebar badge (invalidated via updateTag on relaxation actions). */
+export async function countPendingLateRelaxationRequestsCached(
+  companyId?: string | null,
+): Promise<number> {
+  const key = companyId ?? "all";
+  return unstable_cache(
+    () => countPendingLateRelaxationRequests(companyId),
+    ["pending-late-relaxation-count", key],
+    { revalidate: 30, tags: ["pending-late-relaxation"] },
+  )();
 }
 
 export async function submitLateRelaxationRequest(

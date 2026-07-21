@@ -1,8 +1,8 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { LateRelaxationDetailSheet } from "@/components/late-relaxation/late-relaxation-detail-sheet";
 import { LateRelaxationTable } from "@/components/late-relaxation/late-relaxation-table";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,14 @@ import {
 import type { SerializedLateRelaxationRequest } from "@/lib/late-relaxation/serialize";
 import type { LateRelaxationStatus } from "@/lib/late-relaxation/types";
 import { toastAsync } from "@/lib/toast";
+
+const LateRelaxationDetailSheet = dynamic(
+  () =>
+    import("@/components/late-relaxation/late-relaxation-detail-sheet").then(
+      (module) => module.LateRelaxationDetailSheet,
+    ),
+  { loading: () => null },
+);
 
 type LateRelaxationManagerProps = {
   requests: SerializedLateRelaxationRequest[];

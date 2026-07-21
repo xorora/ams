@@ -3,10 +3,10 @@ import { AttendanceManager } from "@/components/admin/attendance-manager";
 import { db } from "@/db";
 import { companies } from "@/db/schema";
 import { type AttendanceStatus, listAttendance } from "@/lib/admin/attendance-service";
-import { listEmployees } from "@/lib/admin/employees-service";
+import { listEmployeeOptions } from "@/lib/admin/employees-service";
 import { normalizeAttendanceDateRange } from "@/lib/admin/query-params";
 import { requireSelectedCompanyId } from "@/lib/admin/selected-company";
-import { serializeAttendance, serializeEmployee } from "@/lib/admin/serialize";
+import { serializeAttendance } from "@/lib/admin/serialize";
 import {
   getCompanyShiftConfig,
   getDefaultAttendanceFilterRange,
@@ -38,7 +38,7 @@ export default async function AdminAttendancePage({ searchParams }: PageProps) {
       .from(companies)
       .where(eq(companies.id, companyId))
       .limit(1),
-    listEmployees({ companyId }),
+    listEmployeeOptions({ companyId }),
   ]);
 
   const shiftConfig = getCompanyShiftConfig(company?.slug ?? "xorora");
@@ -64,7 +64,7 @@ export default async function AdminAttendancePage({ searchParams }: PageProps) {
   };
 
   const activeEmployees = employeesResult.ok
-    ? employeesResult.data.filter((e) => e.isActive).map((employee) => serializeEmployee(employee))
+    ? employeesResult.data.filter((employee) => employee.isActive)
     : [];
 
   const requestedEmployeeId = params.employeeId ?? "";

@@ -1,7 +1,7 @@
 "use server";
 
 import { asc, eq } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, unstable_cache } from "next/cache";
 import { cookies } from "next/headers";
 import { cache } from "react";
 import { db } from "@/db";
@@ -19,16 +19,25 @@ export type CompanyOption = {
   slug: string;
 };
 
+const fetchActiveCompanies = unstable_cache(
+  async (): Promise<CompanyOption[]> => {
+    return db
+      .select({
+        id: companies.id,
+        name: companies.name,
+        slug: companies.slug,
+      })
+      .from(companies)
+      .where(eq(companies.isActive, true))
+      .orderBy(asc(companies.name));
+  },
+  ["active-companies"],
+  { revalidate: 60, tags: ["companies"] },
+);
+
+/** Per-request dedupe + cross-request cache (60s). */
 export const getCompanies = cache(async (): Promise<CompanyOption[]> => {
-  return db
-    .select({
-      id: companies.id,
-      name: companies.name,
-      slug: companies.slug,
-    })
-    .from(companies)
-    .where(eq(companies.isActive, true))
-    .orderBy(asc(companies.name));
+  return fetchActiveCompanies();
 });
 
 export async function getSelectedCompanyId(): Promise<string | null> {

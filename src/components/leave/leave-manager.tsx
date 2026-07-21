@@ -1,11 +1,11 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import { LeaveDetailSheet } from "@/components/leave/leave-detail-sheet";
 import { LeaveFilters, type LeaveFiltersState } from "@/components/leave/leave-filters";
 import { LeaveTable } from "@/components/leave/leave-table";
-import type { SerializedEmployee } from "@/lib/admin/serialize";
+import type { SerializedEmployeeOption } from "@/lib/admin/serialize";
 import { Button } from "@/components/ui/button";
 import { deleteShahbazSickLeave20260707Action } from "@/lib/admin/actions";
 import {
@@ -19,8 +19,13 @@ import type { SerializedLeaveRequest } from "@/lib/leave/serialize";
 import type { LeaveBalance } from "@/lib/leave/types";
 import { downloadResponseBlob, toastAsync } from "@/lib/toast";
 
+const LeaveDetailSheet = dynamic(
+  () => import("@/components/leave/leave-detail-sheet").then((module) => module.LeaveDetailSheet),
+  { loading: () => null },
+);
+
 type LeaveManagerProps = {
-  employees: SerializedEmployee[];
+  employees: SerializedEmployeeOption[];
   requests: SerializedLeaveRequest[];
   filters: LeaveFiltersState;
   companyName: string;

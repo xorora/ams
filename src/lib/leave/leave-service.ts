@@ -1,5 +1,6 @@
 import { formatInTimeZone } from "date-fns-tz";
 import { and, count, desc, eq, gte, lte, type SQL } from "drizzle-orm";
+import { unstable_cache } from "next/cache";
 import { db } from "@/db";
 import { attendanceDays, companies, employees, leaveRequests } from "@/db/schema";
 import { formatProbationEndDate, isCurrentlyOnProbation } from "@/lib/admin/probation";
@@ -292,6 +293,18 @@ export async function countPendingLeaveRequests(companyId?: string | null): Prom
     .where(and(...conditions));
 
   return row?.value ?? 0;
+}
+
+/** Cross-request cache for sidebar badge (invalidated via updateTag on leave actions). */
+export async function countPendingLeaveRequestsCached(
+  companyId?: string | null,
+): Promise<number> {
+  const key = companyId ?? "all";
+  return unstable_cache(
+    () => countPendingLeaveRequests(companyId),
+    ["pending-leave-count", key],
+    { revalidate: 30, tags: ["pending-leave"] },
+  )();
 }
 
 type LeaveRequestForBalance = Pick<LeaveListItem, "leaveType" | "status" | "daysCount">;

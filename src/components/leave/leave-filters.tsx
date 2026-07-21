@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { SerializedEmployee } from "@/lib/admin/serialize";
+import type { SerializedEmployeeOption } from "@/lib/admin/serialize";
 import { ENTITLED_LEAVE_TYPES } from "@/lib/leave/constants";
 import { leaveTypeLabel } from "@/lib/leave/display";
 import type { LeaveRequestStatus, LeaveType } from "@/lib/leave/types";
@@ -32,7 +32,7 @@ const STATUS_ITEMS: Record<string, string> = {
 
 type LeaveFiltersProps = {
   filters: LeaveFiltersState;
-  employees?: SerializedEmployee[];
+  employees?: SerializedEmployeeOption[];
   onChange: (patch: Partial<LeaveFiltersState>) => void;
 };
 

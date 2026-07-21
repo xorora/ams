@@ -1,7 +1,7 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useState } from "react";
-import { LateRelaxationDetailSheet } from "@/components/late-relaxation/late-relaxation-detail-sheet";
 import { LateRelaxationTable } from "@/components/late-relaxation/late-relaxation-table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,14 @@ import {
 import type { SerializedLateRelaxationRequest } from "@/lib/late-relaxation/serialize";
 import { toastAsync } from "@/lib/toast";
 import { cn } from "@/lib/utils";
+
+const LateRelaxationDetailSheet = dynamic(
+  () =>
+    import("@/components/late-relaxation/late-relaxation-detail-sheet").then(
+      (module) => module.LateRelaxationDetailSheet,
+    ),
+  { loading: () => null },
+);
 
 type MyLateRelaxationManagerProps = {
   yearMonth: string;

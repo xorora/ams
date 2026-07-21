@@ -23,7 +23,7 @@ import {
   updateAttendanceAction,
 } from "@/lib/admin/actions";
 import { attendanceListQuery, normalizeAttendanceDateRange } from "@/lib/admin/query-params";
-import type { SerializedAttendance, SerializedEmployee } from "@/lib/admin/serialize";
+import type { SerializedAttendance, SerializedEmployeeOption } from "@/lib/admin/serialize";
 import { toastAsync, toastError } from "@/lib/toast";
 import { Button } from "@/components/ui/button";
 
@@ -33,7 +33,7 @@ const AttendanceSheet = dynamic(
 );
 
 type AttendanceManagerProps = {
-  employees: SerializedEmployee[];
+  employees: SerializedEmployeeOption[];
   items: SerializedAttendance[];
   filters: AttendanceFiltersState;
   page: number;

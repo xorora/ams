@@ -12,8 +12,10 @@ const fontSans = Poppins({
 
 const fontMono = JetBrains_Mono({
   subsets: ["latin"],
+  weight: ["400"],
   variable: "--font-jetbrains-mono",
   display: "swap",
+  preload: false,
 });
 
 export const metadata: Metadata = {

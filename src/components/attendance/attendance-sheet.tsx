@@ -21,7 +21,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import type { AttendanceStatus } from "@/lib/admin/attendance-service";
-import type { SerializedAttendance, SerializedEmployee } from "@/lib/admin/serialize";
+import type { SerializedAttendance, SerializedEmployeeOption } from "@/lib/admin/serialize";
 import { BUSINESS_TIMEZONE } from "@/lib/attendance/constants";
 
 export type { AttendanceStatus };
@@ -79,7 +79,7 @@ type AttendanceSheetProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingId: string | null;
-  employees: SerializedEmployee[];
+  employees: SerializedEmployeeOption[];
   form: AttendanceFormValues;
   onFormChange: React.Dispatch<React.SetStateAction<AttendanceFormValues>>;
   saving: boolean;
