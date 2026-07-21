@@ -57,15 +57,15 @@ export function ApplicationShell({
               }}
             />
           </div>
-          <header className="relative z-10 flex h-12 shrink-0 items-center gap-2 border-b border-white/10 bg-[#010c28]/70 px-4 pt-[max(0px,env(safe-area-inset-top))] backdrop-blur-md">
-            <SidebarTrigger className="-ml-1 size-9" />
+          <header className="relative z-10 flex h-14 shrink-0 items-center gap-2 border-b border-white/10 bg-[#010c28]/80 px-3 pt-[max(0px,env(safe-area-inset-top))] backdrop-blur-md sm:h-12 sm:px-4">
+            <SidebarTrigger className="-ml-0.5 size-10 touch-manipulation sm:size-9" />
             {user.role === "admin" && companies.length > 0 && selectedCompanyId ? (
-              <div className="ml-auto min-w-0 max-w-[55%]">
+              <div className="ml-auto min-w-0 max-w-[min(65vw,14rem)] sm:max-w-[55%]">
                 <CompanySwitcher companies={companies} selectedCompanyId={selectedCompanyId} />
               </div>
             ) : null}
           </header>
-          <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto pb-[max(0px,env(safe-area-inset-bottom))]">
+          <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain pb-[max(0px,env(safe-area-inset-bottom))]">
             {children}
           </div>
         </SidebarInset>

@@ -1,13 +1,15 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  Banknote,
-  CalendarDays,
-  CalendarOff,
-  FileSpreadsheet,
+  BadgePercent,
+  ChartColumn,
+  Clock3,
   Fingerprint,
+  History,
   LayoutDashboard,
-  ShieldCheck,
-  Users,
+  Plane,
+  Receipt,
+  UserCog,
+  UsersRound,
   Wallet,
 } from "lucide-react";
 import type { Session } from "next-auth";
@@ -58,15 +60,15 @@ export function getNavItemsForUser(
       {
         href: "/attendance/history",
         label: "Attendance history",
-        icon: CalendarDays,
+        icon: History,
         exact: true,
       },
-      { href: "/leave", label: "Leave", icon: CalendarOff, exact: true },
-      { href: "/relaxations", label: "Relaxations", icon: ShieldCheck, exact: true },
+      { href: "/leave", label: "Leave", icon: Plane, exact: true },
+      { href: "/relaxations", label: "Relaxations", icon: BadgePercent, exact: true },
     );
 
     if (user.role === "employee") {
-      items.push({ href: "/salary", label: "Salary slips", icon: Banknote, exact: true });
+      items.push({ href: "/salary", label: "Salary slips", icon: Receipt, exact: true });
     }
   }
 
@@ -75,7 +77,7 @@ export function getNavItemsForUser(
       {
         href: "/admin/accounting/salary-slips",
         label: "Salary slips",
-        icon: Banknote,
+        icon: Receipt,
         adminOnly: true,
       },
       {
@@ -89,26 +91,26 @@ export function getNavItemsForUser(
 
   if (user.role === "admin") {
     items.push(
-      { href: "/admin/employees", label: "Employees", icon: Users, adminOnly: true },
+      { href: "/admin/employees", label: "Employees", icon: UsersRound, adminOnly: true },
       {
         href: "/admin/attendance",
         label: "Attendance",
-        icon: CalendarDays,
+        icon: Clock3,
         adminOnly: true,
       },
-      { href: "/admin/leave", label: "Leave requests", icon: CalendarOff, adminOnly: true },
+      { href: "/admin/leave", label: "Leave requests", icon: Plane, adminOnly: true },
       {
         href: "/admin/relaxations",
         label: "Relaxations",
-        icon: ShieldCheck,
+        icon: BadgePercent,
         adminOnly: true,
       },
       { href: "/admin/devices", label: "Devices", icon: Fingerprint, adminOnly: true },
-      { href: "/admin/reports", label: "Reports", icon: FileSpreadsheet, adminOnly: true },
+      { href: "/admin/reports", label: "Reports", icon: ChartColumn, adminOnly: true },
       {
         href: "/admin/accounting/admins",
         label: "Accounting admins",
-        icon: Users,
+        icon: UserCog,
         adminOnly: true,
       },
     );

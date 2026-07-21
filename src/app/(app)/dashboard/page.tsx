@@ -55,15 +55,17 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 p-4 md:p-8">
+    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-5 p-3 sm:gap-6 sm:p-4 md:p-8">
       <Suspense fallback={null}>
         <NewEmployeeCodeToast />
       </Suspense>
-      <div className="space-y-3">
+      <div className="space-y-2.5 sm:space-y-3">
         <p className="font-mono text-[11px] tracking-[0.2em] text-[#f26b21] uppercase">
           Asia/Karachi
         </p>
-        <h1 className="text-3xl font-semibold tracking-tight text-white md:text-4xl">Dashboard</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl md:text-4xl">
+          Dashboard
+        </h1>
         <p className="max-w-lg text-[#a8aec4] text-sm text-pretty">
           {canCheckIn
             ? "Check in, take breaks, and check out for your shift."

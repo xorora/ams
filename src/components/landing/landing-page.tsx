@@ -97,7 +97,7 @@ function HeroOrbitVisual({ className }: { className?: string }) {
     <div aria-hidden className={cn("pointer-events-none absolute inset-0 overflow-hidden", className)}>
       <svg
         viewBox="0 0 800 800"
-        className="absolute -right-[18%] top-1/2 h-[min(92vh,820px)] w-[min(92vh,820px)] -translate-y-1/2 opacity-90"
+        className="absolute -right-[40%] top-[18%] h-[min(70vh,560px)] w-[min(70vh,560px)] opacity-45 sm:-right-[28%] sm:top-1/2 sm:h-[min(85vh,720px)] sm:w-[min(85vh,720px)] sm:-translate-y-1/2 sm:opacity-70 lg:-right-[18%] lg:h-[min(92vh,820px)] lg:w-[min(92vh,820px)] lg:opacity-90"
         fill="none"
       >
         <defs>
@@ -191,9 +191,9 @@ function HeroOrbitVisual({ className }: { className?: string }) {
 
 export function LandingPage({ callbackUrl, errorMessage, companies }: LandingPageProps) {
   return (
-    <div className="relative flex min-h-svh flex-col overflow-hidden bg-[#010c28]">
+    <div className="relative flex min-h-svh flex-col overflow-x-clip bg-[#010c28]">
       <main className="relative flex flex-1 flex-col">
-        <section className="relative isolate min-h-[100svh] overflow-hidden bg-[#010c28] text-[#eceef5]">
+        <section className="relative isolate min-h-[100svh] overflow-x-clip bg-[#010c28] text-[#eceef5]">
           <div aria-hidden className="pointer-events-none absolute inset-0">
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_20%_15%,#464c9f55,transparent_55%)]" />
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_55%_45%_at_88%_70%,#f26b2130,transparent_50%)]" />
@@ -211,64 +211,70 @@ export function LandingPage({ callbackUrl, errorMessage, companies }: LandingPag
             <HeroOrbitVisual />
           </div>
 
-          <div className="relative mx-auto flex min-h-[100svh] w-full max-w-6xl flex-col px-6 py-8 md:py-10">
+          <div className="relative mx-auto flex min-h-[100svh] w-full max-w-6xl flex-col px-4 py-6 sm:px-6 sm:py-8 md:py-10">
             <div
               className={cn(
-                "mb-10 flex items-center justify-between gap-4 md:mb-14",
+                "mb-8 flex items-center justify-between gap-3 sm:mb-10 md:mb-14",
                 "animate-in fade-in duration-700 fill-mode-both",
               )}
             >
-              <div className="flex items-center gap-3 sm:gap-4">
+              <div className="flex min-w-0 items-center gap-2.5 sm:gap-4">
                 <Image
                   src="/xorora-full.png"
                   alt="Xorora"
                   width={320}
                   height={62}
-                  sizes="(max-width: 768px) 160px, 220px"
-                  className="h-7 w-auto object-contain brightness-0 invert sm:h-9"
+                  sizes="(max-width: 640px) 120px, (max-width: 768px) 160px, 220px"
+                  className="h-6 w-auto shrink-0 object-contain brightness-0 invert sm:h-7 md:h-9"
                   priority
                 />
-                <span className="font-semibold text-2xl tracking-tight text-white sm:text-3xl md:text-4xl">
+                <span className="truncate font-semibold text-xl tracking-tight text-white sm:text-2xl md:text-3xl lg:text-4xl">
                   Punch
                 </span>
               </div>
-              <p className="hidden font-mono text-[11px] tracking-[0.18em] text-[#eceef5]/70 uppercase sm:block">
+              <p className="hidden shrink-0 font-mono text-[11px] tracking-[0.18em] text-[#eceef5]/70 uppercase sm:block">
                 Asia/Karachi
               </p>
             </div>
 
-            <div className="grid flex-1 items-center gap-12 pb-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14 lg:pb-16">
-              <div className="relative z-10 flex max-w-xl flex-col gap-6">
+            <div className="grid flex-1 items-center gap-8 pb-8 sm:gap-12 sm:pb-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14 lg:pb-16">
+              <div className="relative z-10 flex max-w-xl flex-col gap-5 sm:gap-6">
                 <div
                   className={cn(
-                    "space-y-5",
+                    "space-y-4 sm:space-y-5",
                     "animate-in fade-in slide-in-from-bottom-3 duration-700 delay-100 fill-mode-both",
                   )}
                 >
-                  <h1 className="text-4xl font-semibold tracking-tight text-balance text-white sm:text-5xl lg:text-[3.35rem] lg:leading-[1.05]">
+                  <h1 className="text-[1.85rem] font-semibold leading-tight tracking-tight text-balance text-white sm:text-4xl sm:leading-tight md:text-5xl lg:text-[3.35rem] lg:leading-[1.05]">
                     Attendance built for
                     <span className="mt-1 block bg-gradient-to-r from-[#f26b21] via-[#f4a574] to-[#eceef5] bg-clip-text text-transparent">
                       real shift work
                     </span>
                   </h1>
-                  <p className="max-w-md text-base leading-relaxed text-[#c8cce0] text-pretty sm:text-lg">
+                  <p className="max-w-md text-[0.95rem] leading-relaxed text-[#c8cce0] text-pretty sm:text-base md:text-lg">
                     Biometric sync and geofenced check-in for day and evening teams — timed in
                     Pakistan Standard Time.
                   </p>
-                  <div className="h-1 w-20 rounded-full bg-gradient-to-r from-[#f26b21] to-transparent" />
+                  <div className="h-1 w-16 rounded-full bg-gradient-to-r from-[#f26b21] to-transparent sm:w-20" />
+                  <a
+                    href="#sign-in"
+                    className="inline-flex h-11 w-full items-center justify-center rounded-lg bg-[#f26b21] px-5 text-sm font-medium text-white transition-colors hover:bg-[#e05f1a] sm:hidden"
+                  >
+                    Sign in
+                  </a>
                 </div>
               </div>
 
               <div
                 id="sign-in"
                 className={cn(
-                  "relative z-10",
+                  "relative z-10 scroll-mt-6",
                   "animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200 fill-mode-both",
                 )}
               >
                 <div
                   aria-hidden
-                  className="absolute -inset-4 rounded-[1.5rem] bg-gradient-to-br from-[#f26b21]/25 via-[#464c9f]/20 to-transparent blur-xl"
+                  className="absolute -inset-2 rounded-[1.5rem] bg-gradient-to-br from-[#f26b21]/25 via-[#464c9f]/20 to-transparent blur-xl sm:-inset-4"
                 />
                 <div className="relative overflow-hidden rounded-2xl border border-white/15 bg-[#f6f7fb] text-[#08080d] shadow-[0_30px_80px_-28px_rgba(0,0,0,0.65)]">
                   <div
@@ -280,7 +286,7 @@ export function LandingPage({ callbackUrl, errorMessage, companies }: LandingPag
                     aria-hidden
                     className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#464c9f] via-[#f26b21] to-[#464c9f]"
                   />
-                  <div className="relative p-6 md:p-8">
+                  <div className="relative p-5 sm:p-6 md:p-8">
                     <div className="mb-5 space-y-1">
                       <h2 className="text-xl font-semibold tracking-tight">Sign in</h2>
                       <p className="text-[#586178] text-sm">
@@ -305,7 +311,7 @@ export function LandingPage({ callbackUrl, errorMessage, companies }: LandingPag
 
                       <GoogleSignInButton
                         callbackUrl={callbackUrl}
-                        className="h-12 w-full border border-[#dcdfea] bg-white text-base font-medium shadow-sm"
+                        className="h-12 w-full touch-manipulation border border-[#dcdfea] bg-white text-base font-medium shadow-sm"
                       />
 
                       <p className="text-center text-[#586178] text-xs leading-relaxed">
@@ -321,7 +327,7 @@ export function LandingPage({ callbackUrl, errorMessage, companies }: LandingPag
         </section>
 
         {/* Features — light editorial band */}
-        <section className="relative overflow-hidden bg-[#eceef5] text-[#08080d]">
+        <section className="relative overflow-x-clip bg-[#eceef5] text-[#08080d]">
           <div aria-hidden className="pointer-events-none absolute inset-0">
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_0%_0%,#464c9f22,transparent_55%)]" />
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_50%_40%_at_100%_100%,#f26b2114,transparent_50%)]" />
@@ -337,29 +343,29 @@ export function LandingPage({ callbackUrl, errorMessage, companies }: LandingPag
             />
           </div>
 
-          <div className="relative mx-auto w-full max-w-6xl px-6 py-20 md:py-28">
-            <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between md:gap-12">
+          <div className="relative mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 sm:py-20 md:py-28">
+            <div className="flex flex-col gap-4 sm:gap-6 md:flex-row md:items-end md:justify-between md:gap-12">
               <div className="max-w-xl">
                 <p className="mb-3 font-mono text-[11px] tracking-[0.2em] text-[#464c9f] uppercase">
                   Capabilities
                 </p>
-                <h2 className="text-3xl font-semibold tracking-tight text-balance md:text-4xl">
+                <h2 className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl md:text-4xl">
                   Everything attendance needs in one place
                 </h2>
               </div>
-              <p className="max-w-sm text-[#586178] text-pretty md:pb-1 md:text-right">
+              <p className="max-w-sm text-[#586178] text-sm text-pretty sm:text-base md:pb-1 md:text-right">
                 From the shop floor to HR — punches, leave, relaxations, and reports.
               </p>
             </div>
 
-            <ul className="mt-16 grid gap-x-10 gap-y-0 sm:grid-cols-2 lg:grid-cols-3">
+            <ul className="mt-10 grid gap-x-8 gap-y-0 sm:mt-16 sm:grid-cols-2 sm:gap-x-10 lg:grid-cols-3">
               {features.map((feature, index) => (
                 <li
                   key={feature.title}
-                  className="group relative flex flex-col gap-4 border-t border-[#c8cce0]/80 py-9"
+                  className="group relative flex flex-col gap-3 border-t border-[#c8cce0]/80 py-7 sm:gap-4 sm:py-9"
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <span className="flex size-10 items-center justify-center text-[#464c9f] transition-colors duration-300 group-hover:text-[#f26b21]">
+                    <span className="flex size-10 items-center justify-center rounded-xl bg-[#464c9f]/10 text-[#464c9f] transition-colors duration-300 group-hover:text-[#f26b21]">
                       <feature.icon className="size-5" strokeWidth={1.75} aria-hidden />
                     </span>
                     <span className="font-mono text-[11px] tracking-widest text-[#9aa3b8]">
@@ -367,7 +373,7 @@ export function LandingPage({ callbackUrl, errorMessage, companies }: LandingPag
                     </span>
                   </div>
                   <div className="space-y-2">
-                    <h3 className="text-lg font-medium tracking-tight">{feature.title}</h3>
+                    <h3 className="text-base font-medium tracking-tight sm:text-lg">{feature.title}</h3>
                     <p className="text-[#586178] text-sm leading-relaxed">{feature.description}</p>
                   </div>
                   <div
@@ -381,7 +387,7 @@ export function LandingPage({ callbackUrl, errorMessage, companies }: LandingPag
         </section>
 
         {/* Steps — navy bookend */}
-        <section className="relative overflow-hidden bg-[#010c28] text-[#eceef5]">
+        <section className="relative overflow-x-clip bg-[#010c28] text-[#eceef5]">
           <div aria-hidden className="pointer-events-none absolute inset-0">
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_50%_0%,#464c9f40,transparent_60%)]" />
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_40%_35%_at_90%_80%,#f26b2120,transparent_45%)]" />
@@ -396,42 +402,44 @@ export function LandingPage({ callbackUrl, errorMessage, companies }: LandingPag
             />
           </div>
 
-          <div className="relative mx-auto w-full max-w-6xl px-6 py-20 md:py-28">
+          <div className="relative mx-auto w-full max-w-6xl px-4 py-14 sm:px-6 sm:py-20 md:py-28">
             <div className="max-w-2xl">
               <p className="mb-3 font-mono text-[11px] tracking-[0.2em] text-[#f26b21] uppercase">
                 Get started
               </p>
-              <h2 className="text-3xl font-semibold tracking-tight text-balance text-white md:text-4xl">
+              <h2 className="text-2xl font-semibold tracking-tight text-balance text-white sm:text-3xl md:text-4xl">
                 Three steps to your first check-in
               </h2>
-              <p className="mt-4 max-w-md text-[#a8aec4] text-pretty">
+              <p className="mt-4 max-w-md text-[#a8aec4] text-sm text-pretty sm:text-base">
                 Sign in, link your employee number if needed, then start tracking.
               </p>
             </div>
 
-            <ol className="relative mt-16 grid gap-12 md:grid-cols-3 md:gap-8">
+            <ol className="relative mt-10 grid gap-10 sm:mt-16 sm:gap-12 md:grid-cols-3 md:gap-8">
               <div
                 aria-hidden
                 className="pointer-events-none absolute top-[1.15rem] right-[16%] left-[16%] hidden h-px bg-gradient-to-r from-[#f26b21]/80 via-[#464c9f]/60 to-[#f26b21]/80 md:block"
               />
               {steps.map((item) => (
-                <li key={item.step} className="relative flex flex-col gap-4">
+                <li key={item.step} className="relative flex flex-col gap-3 sm:gap-4">
                   <span className="relative z-10 flex size-9 items-center justify-center rounded-full border border-[#f26b21]/50 bg-[#010c28] font-mono text-sm font-medium text-[#f26b21]">
                     {item.step}
                   </span>
-                  <h3 className="text-xl font-medium tracking-tight text-white">{item.title}</h3>
+                  <h3 className="text-lg font-medium tracking-tight text-white sm:text-xl">
+                    {item.title}
+                  </h3>
                   <p className="text-[#a8aec4] text-sm leading-relaxed">{item.description}</p>
                 </li>
               ))}
             </ol>
 
-            <div className="mt-16 flex flex-col items-start gap-4 border-t border-white/10 pt-10 sm:flex-row sm:items-center sm:justify-between">
+            <div className="mt-12 flex flex-col items-stretch gap-4 border-t border-white/10 pt-8 sm:mt-16 sm:flex-row sm:items-center sm:justify-between sm:pt-10">
               <p className="max-w-md text-[#a8aec4] text-sm">
                 Ready for your team? Sign in above and link employee codes in minutes.
               </p>
               <a
                 href="#sign-in"
-                className="inline-flex h-11 items-center justify-center rounded-lg bg-[#f26b21] px-5 text-sm font-medium text-white transition-colors hover:bg-[#e05f1a]"
+                className="inline-flex h-11 w-full touch-manipulation items-center justify-center rounded-lg bg-[#f26b21] px-5 text-sm font-medium text-white transition-colors hover:bg-[#e05f1a] sm:w-auto"
               >
                 Back to sign in
               </a>
@@ -442,7 +450,7 @@ export function LandingPage({ callbackUrl, errorMessage, companies }: LandingPag
 
       <footer className="relative border-t border-white/10 bg-[#010c28] py-8">
         <Grain opacity={0.15} />
-        <div className="relative mx-auto flex w-full max-w-6xl flex-col items-start justify-between gap-4 px-6 sm:flex-row sm:items-center">
+        <div className="relative mx-auto flex w-full max-w-6xl flex-col items-start justify-between gap-4 px-4 sm:flex-row sm:items-center sm:px-6">
           <div className="flex items-center gap-2.5">
             <Image
               src="/xorora-full.png"

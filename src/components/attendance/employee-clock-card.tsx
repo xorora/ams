@@ -24,7 +24,7 @@ export function EmployeeClockCard({ pktClock, shiftDate }: EmployeeClockCardProp
         </CardTitle>
       </CardHeader>
       <CardContent className="relative -mt-2">
-        <p className="bg-gradient-to-r from-white via-[#eceef5] to-[#f4a574] bg-clip-text font-mono text-3xl font-semibold tabular-nums text-transparent md:text-4xl">
+        <p className="bg-gradient-to-r from-white via-[#eceef5] to-[#f4a574] bg-clip-text font-mono text-2xl font-semibold tabular-nums text-transparent sm:text-3xl md:text-4xl">
           {pktClock || "—"}
         </p>
         <p className="mt-3 text-[#a8aec4] text-sm">

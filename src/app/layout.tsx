@@ -28,6 +28,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  themeColor: "#010c28",
 };
 
 export default function RootLayout({
@@ -37,8 +38,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${fontSans.variable} ${fontMono.variable} h-full antialiased`}>
-      <body className="min-h-dvh font-sans">
-        {children}
+      <body className="min-h-dvh overflow-x-hidden font-sans">{children}
         <Toaster richColors closeButton />
       </body>
     </html>
