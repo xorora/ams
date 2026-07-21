@@ -25,6 +25,7 @@ export { preferAttendanceDay } from "@/lib/admin/attendance-day-preference";
 
 export type { ReportDateRange } from "./reports-date-range";
 export {
+  currentWeekReportDateRange,
   defaultReportDateRange,
   resolveReportDateRange,
   validateReportDateRangeInput,

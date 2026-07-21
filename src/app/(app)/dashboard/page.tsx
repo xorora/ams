@@ -11,6 +11,12 @@ import { db } from "@/db";
 import { companies } from "@/db/schema";
 import { getEmployee } from "@/lib/admin/employees-service";
 import { isCurrentlyOnProbation } from "@/lib/admin/probation";
+import { currentWeekReportDateRange } from "@/lib/admin/reports-date-range";
+import {
+  type SerializedEmployeeReport,
+  serializeEmployeeReport,
+} from "@/lib/admin/reports-serialize";
+import { getEmployeeReport } from "@/lib/admin/reports-service";
 import {
   getShiftConfigForEmployee,
   getShiftScheduleLabels,
@@ -89,18 +95,23 @@ export default async function DashboardPage() {
   let leaveBalances: LeaveBalance[] = [];
   let unpaidSummary: UnpaidLeaveSummary = { used: 0, pending: 0, total: 0 };
   let employeeProfile: DashboardEmployeeProfile | null = null;
+  let weekAttendance: SerializedEmployeeReport | null = null;
+  let weekRange: { from: string; to: string } | null = null;
 
   if (canCheckIn && employeeId) {
-    const [result, canApply, profile] = await Promise.all([
+    weekRange = currentWeekReportDateRange();
+    const [result, canApply, profile, weekResult] = await Promise.all([
       getTodayStatus(employeeId),
       canEmployeeAccessLeave(session.user),
       loadEmployeeProfile(employeeId),
+      getEmployeeReport(employeeId, weekRange.from, weekRange.to),
     ]);
 
     initialStatus = serializeTodayStatus(result.data);
     employeeProfile = profile;
     probationUnpaidOnly = profile?.onProbation ?? false;
     showLeaveOverview = canApply;
+    weekAttendance = weekResult.ok ? serializeEmployeeReport(weekResult.data) : null;
 
     if (canApply) {
       if (probationUnpaidOnly) {
@@ -149,6 +160,8 @@ export default async function DashboardPage() {
           probationUnpaidOnly={probationUnpaidOnly}
           leaveBalances={leaveBalances}
           unpaidSummary={unpaidSummary}
+          weekAttendance={weekAttendance}
+          weekRange={weekRange}
         />
       ) : (
         <div className="rounded-xl border border-white/15 bg-[#0a1230] p-4 text-sm font-medium leading-relaxed text-[#d7dceb]">

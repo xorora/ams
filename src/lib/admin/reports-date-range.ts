@@ -1,4 +1,5 @@
-import { formatInTimeZone } from "date-fns-tz";
+import { addDays } from "date-fns";
+import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { BUSINESS_TIMEZONE } from "@/lib/attendance/constants";
 
 export type ReportDateRange = {
@@ -13,6 +14,22 @@ export function defaultReportDateRange(): ReportDateRange {
   const to = formatInTimeZone(new Date(), BUSINESS_TIMEZONE, "yyyy-MM-dd");
   const from = `${to.slice(0, 8)}01`;
   return { from, to };
+}
+
+/**
+ * Monday–Sunday week containing today in Asia/Karachi.
+ * Uses ISO day-of-week (1 = Monday … 7 = Sunday).
+ */
+export function currentWeekReportDateRange(now: Date = new Date()): ReportDateRange {
+  const today = formatInTimeZone(now, BUSINESS_TIMEZONE, "yyyy-MM-dd");
+  const isoDow = Number(formatInTimeZone(now, BUSINESS_TIMEZONE, "i"));
+  const todayNoon = fromZonedTime(`${today} 12:00:00`, BUSINESS_TIMEZONE);
+  const monday = addDays(todayNoon, -(isoDow - 1));
+  const sunday = addDays(monday, 6);
+  return {
+    from: formatInTimeZone(monday, BUSINESS_TIMEZONE, "yyyy-MM-dd"),
+    to: formatInTimeZone(sunday, BUSINESS_TIMEZONE, "yyyy-MM-dd"),
+  };
 }
 
 /** Fill missing dates from defaults and swap when from is after to. */

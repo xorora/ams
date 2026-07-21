@@ -4,11 +4,13 @@ import { formatInTimeZone } from "date-fns-tz";
 import { useCallback, useEffect, useState } from "react";
 import { EmployeeAttendanceActions } from "@/components/attendance/employee-attendance-actions";
 import { EmployeeClockCard } from "@/components/attendance/employee-clock-card";
+import { EmployeeDashboardWeekAttendance } from "@/components/attendance/employee-dashboard-week-attendance";
 import { EmployeeEarlyCheckoutAlert } from "@/components/attendance/employee-early-checkout-alert";
 import { EmployeeStatusCard } from "@/components/attendance/employee-status-card";
 import { EmployeeDashboardLeaveOverview } from "@/components/leave/employee-dashboard-leave-overview";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { PKT_CLOCK_12H_FORMAT } from "@/lib/admin/display";
+import type { SerializedEmployeeReport } from "@/lib/admin/reports-serialize";
 import {
   checkInAction,
   checkOutAction,
@@ -63,6 +65,8 @@ type EmployeeDashboardProps = {
   probationUnpaidOnly?: boolean;
   leaveBalances?: LeaveBalance[];
   unpaidSummary?: UnpaidLeaveSummary;
+  weekAttendance?: SerializedEmployeeReport | null;
+  weekRange?: { from: string; to: string } | null;
 };
 
 export function EmployeeDashboard({
@@ -72,6 +76,8 @@ export function EmployeeDashboard({
   probationUnpaidOnly = false,
   leaveBalances = [],
   unpaidSummary = { used: 0, pending: 0, total: 0 },
+  weekAttendance = null,
+  weekRange = null,
 }: EmployeeDashboardProps) {
   const [status, setStatus] = useState<SerializedTodayStatus | null>(initialStatus);
   const [pktClock, setPktClock] = useState("");
@@ -249,6 +255,14 @@ export function EmployeeDashboard({
             }
           />
         )}
+
+      {weekRange ? (
+        <EmployeeDashboardWeekAttendance
+          days={weekAttendance?.days ?? []}
+          range={weekRange}
+          summary={weekAttendance?.summary ?? null}
+        />
+      ) : null}
 
       {showLeaveOverview ? (
         <EmployeeDashboardLeaveOverview
