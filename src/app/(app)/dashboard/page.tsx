@@ -64,6 +64,9 @@ async function loadEmployeeProfile(
     employee.fullName,
   );
   const hours = getShiftScheduleLabels(shiftConfig);
+  const shiftHours = hours.scheduledBreakTime
+    ? `${hours.expectedCheckInTime} – ${hours.expectedCheckOutTime} · break ${hours.scheduledBreakTime}`
+    : `${hours.expectedCheckInTime} – ${hours.expectedCheckOutTime}`;
 
   return {
     fullName: employee.fullName,
@@ -73,7 +76,7 @@ async function loadEmployeeProfile(
     designation: employee.designation,
     companyName: company?.name ?? null,
     shiftLabel: shiftPresetLabel(employee.shiftPreset),
-    shiftHours: `${hours.expectedCheckInTime} – ${hours.expectedCheckOutTime}`,
+    shiftHours,
     isActive: employee.isActive,
     onProbation: isCurrentlyOnProbation(employee),
   };

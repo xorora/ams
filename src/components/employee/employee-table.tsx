@@ -49,10 +49,10 @@ function shiftPresetLabel(preset: string | null | undefined): string {
     return "6pm–3am";
   }
   if (preset === "day") {
-    return "9am–5pm";
+    return "9am–5pm · break 1–2pm (Fri 1–2:30pm)";
   }
   if (preset === "afternoon") {
-    return "3pm–12am";
+    return "3pm–12am · break 7–8pm";
   }
   return "—";
 }

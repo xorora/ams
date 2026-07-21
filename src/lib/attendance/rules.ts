@@ -1,13 +1,18 @@
 import { addDays, subDays } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import {
+  type CompanyShiftConfig,
+  formatScheduledBreakTime,
+  getMaxBreakSeconds,
+  isWithinScheduledBreakWindow,
+} from "./company-shift";
+import {
   BUSINESS_TIMEZONE,
   CHECK_OUT_GRACE_MINUTES,
   EXPECTED_CHECK_OUT_HOUR,
   EXPECTED_CHECK_OUT_MINUTE,
   LATE_CHECK_IN_HOUR,
   LATE_CHECK_IN_MINUTE,
-  MAX_BREAK_SECONDS,
   SHIFT_DATE_NOON_BOUNDARY_HOUR,
 } from "./constants";
 
@@ -144,7 +149,11 @@ export function computeElapsedShiftSeconds(
   return Math.max(0, grossSeconds - totalBreakSeconds);
 }
 
-export function canStartBreak(sessions: BreakSessionInput[], now: Date = new Date()): RuleResult {
+export function canStartBreak(
+  sessions: BreakSessionInput[],
+  now: Date = new Date(),
+  options?: { shiftDate?: string; shiftConfig?: CompanyShiftConfig },
+): RuleResult {
   if (getActiveBreak(sessions)) {
     return {
       ok: false,
@@ -152,22 +161,46 @@ export function canStartBreak(sessions: BreakSessionInput[], now: Date = new Dat
       message: "End your current break before starting another.",
     };
   }
+
+  const { shiftDate, shiftConfig } = options ?? {};
+  const maxBreakSeconds = getMaxBreakSeconds(shiftDate, shiftConfig);
+  const maxBreakMinutes = Math.round(maxBreakSeconds / 60);
   const total = computeTotalBreakSeconds(sessions, now);
-  if (total >= MAX_BREAK_SECONDS) {
+  if (total >= maxBreakSeconds) {
     return {
       ok: false,
       code: "BREAK_CAP_REACHED",
-      message: "You have used the maximum break time for this shift (60 minutes).",
+      message: `You have used the maximum break time for this shift (${maxBreakMinutes} minutes).`,
     };
   }
+
+  if (shiftDate && shiftConfig?.scheduledBreak) {
+    if (!isWithinScheduledBreakWindow(now, shiftDate, shiftConfig)) {
+      const windowLabel = formatScheduledBreakTime(shiftConfig, shiftDate);
+      return {
+        ok: false,
+        code: "BREAK_OUTSIDE_WINDOW",
+        message: windowLabel
+          ? `Break is only allowed from ${windowLabel}.`
+          : "Break is only allowed during the scheduled break window.",
+      };
+    }
+  }
+
   return { ok: true };
 }
 
-export function canEndBreak(sessions: BreakSessionInput[], now: Date = new Date()): RuleResult {
+export function canEndBreak(
+  sessions: BreakSessionInput[],
+  now: Date = new Date(),
+  options?: { shiftDate?: string; shiftConfig?: CompanyShiftConfig },
+): RuleResult {
   const active = getActiveBreak(sessions);
   if (!active) {
     return { ok: false, code: "NO_ACTIVE_BREAK", message: "No active break to end." };
   }
+  const maxBreakSeconds = getMaxBreakSeconds(options?.shiftDate, options?.shiftConfig);
+  const maxBreakMinutes = Math.round(maxBreakSeconds / 60);
   const completed = sessions
     .filter((s) => s.endedAt != null)
     .reduce((sum, s) => sum + breakDurationSeconds(s, now), 0);
@@ -175,11 +208,11 @@ export function canEndBreak(sessions: BreakSessionInput[], now: Date = new Date(
     0,
     Math.floor((now.getTime() - active.startedAt.getTime()) / 1000),
   );
-  if (completed + activeSeconds > MAX_BREAK_SECONDS) {
+  if (completed + activeSeconds > maxBreakSeconds) {
     return {
       ok: false,
       code: "BREAK_CAP_EXCEEDED",
-      message: "Ending this break would exceed the 60-minute limit for the shift.",
+      message: `Ending this break would exceed the ${maxBreakMinutes}-minute limit for the shift.`,
     };
   }
   return { ok: true };

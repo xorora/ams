@@ -7,6 +7,7 @@ import {
   EXPECTED_CHECK_IN_HOUR,
   EXPECTED_CHECK_OUT_HOUR,
   EXPECTED_CHECK_OUT_MINUTE,
+  MAX_BREAK_SECONDS,
   SHIFT_DATE_NOON_BOUNDARY_HOUR,
 } from "./constants";
 
@@ -28,6 +29,19 @@ const CLOSED_WEEKDAYS_CREST_LED = [0] as const;
 
 export type CompanySlug = "xorora" | "crest-led";
 
+/** Fixed meal-break window on the shift calendar day (PKT). */
+export type ScheduledBreakWindow = {
+  startHour: number;
+  startMinute: number;
+  endHour: number;
+  endMinute: number;
+};
+
+export type ScheduledBreakConfig = ScheduledBreakWindow & {
+  /** 0 = Sunday … 6 = Saturday; replaces the default window on that weekday. */
+  weekdayOverrides?: Partial<Record<number, ScheduledBreakWindow>>;
+};
+
 export type CompanyShiftConfig = {
   expectedCheckInHour: number;
   expectedCheckInMinute: number;
@@ -44,9 +58,14 @@ export type CompanyShiftConfig = {
   shiftDateBoundaryHour: number;
   /** Weekdays when the office is closed (no check-in; cron marks weekend off). */
   closedWeekdays: readonly number[];
+  /**
+   * When set, break may only be started inside this window.
+   * Cap equals the window length for that weekday (e.g. Fri Crest = 90 min).
+   */
+  scheduledBreak: ScheduledBreakConfig | null;
 };
 
-/** Xorora default from 2026-07-21: 3:00 PM – 12:00 AM PKT (+15 min grace). */
+/** Xorora default from 2026-07-21: 3:00 PM – 12:00 AM PKT (+15 min grace). Break 7–8 PM. */
 export const XORORA_AFTERNOON_SHIFT: CompanyShiftConfig = {
   expectedCheckInHour: EXPECTED_CHECK_IN_HOUR,
   expectedCheckInMinute: 0,
@@ -57,6 +76,7 @@ export const XORORA_AFTERNOON_SHIFT: CompanyShiftConfig = {
   checkOutNextDay: true,
   shiftDateBoundaryHour: SHIFT_DATE_NOON_BOUNDARY_HOUR,
   closedWeekdays: CLOSED_WEEKDAYS_XORORA,
+  scheduledBreak: { startHour: 19, startMinute: 0, endHour: 20, endMinute: 0 },
 };
 
 /**
@@ -65,7 +85,7 @@ export const XORORA_AFTERNOON_SHIFT: CompanyShiftConfig = {
  */
 export const XORORA_AFTERNOON_SHIFT_EFFECTIVE_DATE = "2026-07-21";
 
-/** Xorora evening override: 6:00 PM – 3:00 AM PKT (+15 min grace). */
+/** Xorora evening override: 6:00 PM – 3:00 AM PKT (+15 min grace). Break 10–11 PM. */
 export const XORORA_EVENING_SHIFT: CompanyShiftConfig = {
   expectedCheckInHour: 18,
   expectedCheckInMinute: 0,
@@ -76,6 +96,7 @@ export const XORORA_EVENING_SHIFT: CompanyShiftConfig = {
   checkOutNextDay: true,
   shiftDateBoundaryHour: SHIFT_DATE_NOON_BOUNDARY_HOUR,
   closedWeekdays: CLOSED_WEEKDAYS_XORORA,
+  scheduledBreak: { startHour: 22, startMinute: 0, endHour: 23, endMinute: 0 },
 };
 
 /**
@@ -110,6 +131,16 @@ export const COMPANY_SHIFT_BY_SLUG: Record<CompanySlug, CompanyShiftConfig> = {
     checkOutNextDay: false,
     shiftDateBoundaryHour: 0,
     closedWeekdays: CLOSED_WEEKDAYS_CREST_LED,
+    // Mon–Sat (ex Fri): 1–2 PM. Friday: 1:00–2:30 PM. Sunday closed.
+    scheduledBreak: {
+      startHour: 13,
+      startMinute: 0,
+      endHour: 14,
+      endMinute: 0,
+      weekdayOverrides: {
+        5: { startHour: 13, startMinute: 0, endHour: 14, endMinute: 30 },
+      },
+    },
   },
 };
 
@@ -124,6 +155,7 @@ export const CREST_LED_EVENING_SHIFT: CompanyShiftConfig = {
   checkOutNextDay: true,
   shiftDateBoundaryHour: SHIFT_DATE_NOON_BOUNDARY_HOUR,
   closedWeekdays: CLOSED_WEEKDAYS_CREST_LED,
+  scheduledBreak: null,
 };
 
 export const CREST_LED_DAY_SHIFT = COMPANY_SHIFT_BY_SLUG["crest-led"];
@@ -133,6 +165,8 @@ export type ShiftScheduleLabels = {
   expectedCheckOutTime: string;
   lateCheckInDeadline: string;
   lateCheckOutDeadline: string;
+  /** e.g. "7:00 PM – 8:00 PM PKT", or null when breaks are not windowed. */
+  scheduledBreakTime: string | null;
 };
 
 function formatHourMinutePkt(hour: number, minute = 0): string {
@@ -141,7 +175,10 @@ function formatHourMinutePkt(hour: number, minute = 0): string {
   return `${formatInTimeZone(date, BUSINESS_TIMEZONE, "h:mm a")} PKT`;
 }
 
-export function getShiftScheduleLabels(config: CompanyShiftConfig): ShiftScheduleLabels {
+export function getShiftScheduleLabels(
+  config: CompanyShiftConfig,
+  shiftDate?: string | null,
+): ShiftScheduleLabels {
   const lateCheckInTotalMinutes =
     config.expectedCheckInHour * 60 + config.expectedCheckInMinute + config.checkInGraceMinutes;
   const lateCheckOutTotalMinutes =
@@ -165,7 +202,111 @@ export function getShiftScheduleLabels(config: CompanyShiftConfig): ShiftSchedul
       Math.floor(lateCheckOutTotalMinutes / 60) % 24,
       lateCheckOutTotalMinutes % 60,
     ),
+    scheduledBreakTime: formatScheduledBreakTime(config, shiftDate),
   };
+}
+
+function formatBreakRange(window: ScheduledBreakWindow): string {
+  const start = formatHourMinutePkt(window.startHour, window.startMinute);
+  const end = formatHourMinutePkt(window.endHour, window.endMinute);
+  const startWithoutZone = start.replace(/ PKT$/, "");
+  return `${startWithoutZone} – ${end}`;
+}
+
+export function resolveScheduledBreakWindow(
+  shiftDate: string,
+  config: CompanyShiftConfig,
+): ScheduledBreakWindow | null {
+  const breakConfig = config.scheduledBreak;
+  if (!breakConfig) {
+    return null;
+  }
+  const override = breakConfig.weekdayOverrides?.[shiftDateDayOfWeek(shiftDate)];
+  if (override) {
+    return override;
+  }
+  return {
+    startHour: breakConfig.startHour,
+    startMinute: breakConfig.startMinute,
+    endHour: breakConfig.endHour,
+    endMinute: breakConfig.endMinute,
+  };
+}
+
+export function formatScheduledBreakTime(
+  config: CompanyShiftConfig,
+  shiftDate?: string | null,
+): string | null {
+  const breakConfig = config.scheduledBreak;
+  if (!breakConfig) {
+    return null;
+  }
+
+  if (shiftDate) {
+    const window = resolveScheduledBreakWindow(shiftDate, config);
+    return window ? formatBreakRange(window) : null;
+  }
+
+  const base = formatBreakRange(breakConfig);
+  const friday = breakConfig.weekdayOverrides?.[5];
+  if (friday) {
+    const friEnd = formatHourMinutePkt(friday.endHour, friday.endMinute);
+    return `${base} (Fri until ${friEnd})`;
+  }
+  return base;
+}
+
+/** Inclusive start / exclusive end bounds for the scheduled break on a shift date. */
+export function getScheduledBreakBounds(
+  shiftDate: string,
+  config: CompanyShiftConfig,
+): { start: Date; end: Date } | null {
+  const breakWindow = resolveScheduledBreakWindow(shiftDate, config);
+  if (!breakWindow) {
+    return null;
+  }
+  return {
+    start: zonedTimeOnShiftDate(shiftDate, {
+      hour: breakWindow.startHour,
+      minute: breakWindow.startMinute,
+      second: 0,
+    }),
+    end: zonedTimeOnShiftDate(shiftDate, {
+      hour: breakWindow.endHour,
+      minute: breakWindow.endMinute,
+      second: 0,
+    }),
+  };
+}
+
+export function isWithinScheduledBreakWindow(
+  at: Date,
+  shiftDate: string,
+  config: CompanyShiftConfig,
+): boolean {
+  const bounds = getScheduledBreakBounds(shiftDate, config);
+  if (!bounds) {
+    return true;
+  }
+  const t = at.getTime();
+  return t >= bounds.start.getTime() && t < bounds.end.getTime();
+}
+
+/** Max break seconds for the shift date (window length, or default 60 min). */
+export function getMaxBreakSeconds(
+  shiftDate: string | null | undefined,
+  config: CompanyShiftConfig | null | undefined,
+): number {
+  if (!shiftDate || !config?.scheduledBreak) {
+    return MAX_BREAK_SECONDS;
+  }
+  const window = resolveScheduledBreakWindow(shiftDate, config);
+  if (!window) {
+    return MAX_BREAK_SECONDS;
+  }
+  const startMinutes = window.startHour * 60 + window.startMinute;
+  const endMinutes = window.endHour * 60 + window.endMinute;
+  return Math.max(0, (endMinutes - startMinutes) * 60);
 }
 
 export function getCompanyShiftConfig(slug: string): CompanyShiftConfig {

@@ -300,7 +300,20 @@ export function EmployeeDashboard({
               </span>{" "}
               ({status.shiftSchedule.checkOutGraceMinutes} min grace after{" "}
               {status.shiftSchedule.expectedCheckOutTime}). Missing check-out after grace marks the
-              shift absent. You get{" "}
+              shift absent.
+              {status.shiftSchedule.scheduledBreakTime ? (
+                <>
+                  {" "}
+                  Break is{" "}
+                  <span className="font-semibold text-white">
+                    {status.shiftSchedule.scheduledBreakTime}
+                  </span>
+                  .
+                </>
+              ) : (
+                <> You get up to 60 minutes of break time per shift.</>
+              )}{" "}
+              You get{" "}
               <span className="font-semibold text-white">{MONTHLY_LATE_ALLOWANCE}</span> free late
               check-ins per month; each additional late costs{" "}
               <span className="font-semibold text-white">

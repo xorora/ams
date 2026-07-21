@@ -393,7 +393,7 @@ export async function startBreak(
 
   const now = new Date();
   const resolvedEmployeeId = await resolveEmployeeId(employeeId, now);
-  const { day, sessions } = await resolveShiftAttendance(resolvedEmployeeId, now);
+  const { day, sessions, shiftConfig } = await resolveShiftAttendance(resolvedEmployeeId, now);
 
   if (!day?.checkInAt && day?.status !== "present") {
     return failure(400, "NOT_CHECKED_IN", "Check in before starting a break.");
@@ -403,7 +403,10 @@ export async function startBreak(
     return failure(409, "SHIFT_COMPLETE", "You have already checked out for this shift.");
   }
 
-  const rule = canStartBreak(sessions, now);
+  const rule = canStartBreak(sessions, now, {
+    shiftDate: day.shiftDate,
+    shiftConfig,
+  });
   if (!rule.ok) {
     return failure(400, rule.code, rule.message);
   }
@@ -428,7 +431,7 @@ export async function endBreak(
 
   const now = new Date();
   const resolvedEmployeeId = await resolveEmployeeId(employeeId, now);
-  const { day, sessions } = await resolveShiftAttendance(resolvedEmployeeId, now);
+  const { day, sessions, shiftConfig } = await resolveShiftAttendance(resolvedEmployeeId, now);
 
   if (!day?.checkInAt && day?.status !== "present") {
     return failure(400, "NOT_CHECKED_IN", "Check in before ending a break.");
@@ -438,7 +441,10 @@ export async function endBreak(
     return failure(409, "SHIFT_COMPLETE", "You have already checked out for this shift.");
   }
 
-  const rule = canEndBreak(sessions, now);
+  const rule = canEndBreak(sessions, now, {
+    shiftDate: day.shiftDate,
+    shiftConfig,
+  });
   if (!rule.ok) {
     return failure(400, rule.code, rule.message);
   }

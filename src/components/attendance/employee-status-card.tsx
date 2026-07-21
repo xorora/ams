@@ -8,7 +8,6 @@ import {
   MONTHLY_LATE_ALLOWANCE,
 } from "@/lib/attendance/late-fines-utils";
 import { getLiveBreakSeconds, getLiveElapsedShiftSeconds } from "@/lib/attendance/live-shift-time";
-import { MAX_BREAK_SECONDS } from "@/lib/attendance/constants";
 import type { SerializedTodayStatus } from "@/lib/attendance/serialize";
 import type { WorkState } from "@/lib/attendance/status";
 import { cn } from "@/lib/utils";
@@ -69,8 +68,9 @@ export function EmployeeStatusCard({ status }: EmployeeStatusCardProps) {
     : STATE_LABELS[status.state];
   const badgeLabel = showingOfficeClosed ? "office closed" : status.state.replaceAll("_", " ");
 
-  const breakRemaining = Math.max(0, MAX_BREAK_SECONDS - liveBreakSeconds);
-  const breakPct = Math.min(100, Math.round((liveBreakSeconds / MAX_BREAK_SECONDS) * 100));
+  const maxBreakSeconds = status.maxBreakSeconds || 3600;
+  const breakRemaining = Math.max(0, maxBreakSeconds - liveBreakSeconds);
+  const breakPct = Math.min(100, Math.round((liveBreakSeconds / maxBreakSeconds) * 100));
 
   return (
     <section className="relative overflow-hidden rounded-xl border border-white/15 bg-[#0a1230]">

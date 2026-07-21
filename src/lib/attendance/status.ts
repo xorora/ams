@@ -4,6 +4,7 @@ import {
   type CompanyShiftConfig,
   getClosedShiftDateReason,
   getExpectedCheckOutAt,
+  getMaxBreakSeconds,
   getShiftDateForCompany,
   getShiftScheduleLabels,
   isClosedShiftDate,
@@ -11,7 +12,7 @@ import {
   isLateCheckInForCompany,
   isPastMissedCheckOutDeadlineForCompany,
 } from "./company-shift";
-import { BUSINESS_TIMEZONE, MAX_BREAK_SECONDS } from "./constants";
+import { BUSINESS_TIMEZONE } from "./constants";
 import { buildMonthlyLateWarnings, type MonthlyLateSummary } from "./late-fines";
 import {
   type BreakSessionInput,
@@ -46,6 +47,7 @@ export type TodayStatusPayload = {
     lateCheckOutDeadline: string;
     checkInGraceMinutes: number;
     checkOutGraceMinutes: number;
+    scheduledBreakTime: string | null;
   };
   state: WorkState;
   isWeekendOff: boolean;
@@ -54,6 +56,7 @@ export type TodayStatusPayload = {
   breakSessions: BreakSessionInput[];
   totalBreakSeconds: number;
   breakRemainingSeconds: number;
+  maxBreakSeconds: number;
   elapsedShiftSeconds: number | null;
   statusAt: string;
   activeBreakStartedAt: string | null;
@@ -110,8 +113,9 @@ export function buildTodayStatus(
   shiftDateOverride?: string,
   companySlug?: string,
 ): TodayStatusPayload {
-  const shiftScheduleLabels = getShiftScheduleLabels(shiftConfig);
   const calendarShiftDate = getShiftDateForCompany(now, shiftConfig);
+  const breakShiftDate = day?.shiftDate ?? calendarShiftDate;
+  const shiftScheduleLabels = getShiftScheduleLabels(shiftConfig, breakShiftDate);
   const hasOpenShift = hasActiveShift(day);
   const isWeekendOff = hasOpenShift
     ? false
@@ -119,7 +123,9 @@ export function buildTodayStatus(
   const activeBreak = getActiveBreak(breakSessions);
   const state = deriveWorkState(day, activeBreak);
   const totalBreakSeconds = computeTotalBreakSeconds(breakSessions, now);
-  const breakRemainingSeconds = Math.max(0, MAX_BREAK_SECONDS - totalBreakSeconds);
+  const maxBreakSeconds = getMaxBreakSeconds(breakShiftDate, shiftConfig);
+  const maxBreakMinutes = Math.round(maxBreakSeconds / 60);
+  const breakRemainingSeconds = Math.max(0, maxBreakSeconds - totalBreakSeconds);
   const elapsedShiftSeconds = computeElapsedShiftSeconds(
     day?.checkInAt,
     day?.checkOutAt,
@@ -173,17 +179,32 @@ export function buildTodayStatus(
     );
   }
   if (breakRemainingSeconds <= 0 && state !== "checked_out") {
-    warnings.push("You have used the full 60-minute break allowance for this shift.");
+    warnings.push(
+      `You have used the full ${maxBreakMinutes}-minute break allowance for this shift.`,
+    );
   } else if (breakRemainingSeconds > 0 && breakRemainingSeconds <= 300 && state !== "checked_out") {
     warnings.push(
       `About ${Math.ceil(breakRemainingSeconds / 60)} minutes of break time remaining.`,
     );
+  } else if (
+    shiftScheduleLabels.scheduledBreakTime &&
+    hasOpenShift &&
+    state === "checked_in" &&
+    breakRemainingSeconds > 0
+  ) {
+    warnings.push(`Scheduled break window: ${shiftScheduleLabels.scheduledBreakTime}.`);
   }
 
   warnings.push(...buildMonthlyLateWarnings(monthlyLate, day?.isLate ?? false));
 
-  const startBreakResult = canStartBreak(breakSessions, now);
-  const endBreakResult = canEndBreak(breakSessions, now);
+  const startBreakResult = canStartBreak(breakSessions, now, {
+    shiftDate: breakShiftDate,
+    shiftConfig,
+  });
+  const endBreakResult = canEndBreak(breakSessions, now, {
+    shiftDate: breakShiftDate,
+    shiftConfig,
+  });
 
   return {
     pktNow: formatInTimeZone(now, BUSINESS_TIMEZONE, PKT_DATETIME_12H_FORMAT),
@@ -200,6 +221,7 @@ export function buildTodayStatus(
     breakSessions,
     totalBreakSeconds,
     breakRemainingSeconds,
+    maxBreakSeconds,
     elapsedShiftSeconds,
     statusAt: now.toISOString(),
     activeBreakStartedAt: activeBreak ? activeBreak.startedAt.toISOString() : null,

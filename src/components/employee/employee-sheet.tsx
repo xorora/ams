@@ -255,8 +255,9 @@ export function EmployeeSheet({
                 <Label htmlFor="shift-preset">Preset</Label>
                 <Select
                   items={{
-                    afternoon: "Afternoon — 3:00 PM to 12:00 AM (+15 min grace)",
-                    evening: "Evening — 6:00 PM to 3:00 AM (+15 min grace)",
+                    afternoon:
+                      "Afternoon — 3:00 PM to 12:00 AM (break 7:00–8:00 PM)",
+                    evening: "Evening — 6:00 PM to 3:00 AM (break 10:00–11:00 PM)",
                   }}
                   value={form.shiftPreset === "evening" ? "evening" : "afternoon"}
                   onValueChange={(value) =>
@@ -271,10 +272,10 @@ export function EmployeeSheet({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="afternoon">
-                      Afternoon — 3:00 PM to 12:00 AM (+15 min grace)
+                      Afternoon — 3:00 PM to 12:00 AM (break 7:00–8:00 PM)
                     </SelectItem>
                     <SelectItem value="evening">
-                      Evening — 6:00 PM to 3:00 AM (+15 min grace)
+                      Evening — 6:00 PM to 3:00 AM (break 10:00–11:00 PM)
                     </SelectItem>
                   </SelectContent>
                 </Select>
@@ -291,7 +292,7 @@ export function EmployeeSheet({
                 <Label htmlFor="shift-preset">Preset</Label>
                 <Select
                   items={{
-                    day: "Day — 9:00 AM to 5:00 PM (+15 min grace)",
+                    day: "Day — 9:00 AM to 5:00 PM (break 1–2 PM, Fri 1–2:30 PM)",
                     evening: "Evening — 6:00 PM to 3:00 AM (+15 min grace)",
                   }}
                   value={form.shiftPreset === "evening" ? "evening" : "day"}
@@ -306,7 +307,9 @@ export function EmployeeSheet({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="day">Day — 9:00 AM to 5:00 PM (+15 min grace)</SelectItem>
+                    <SelectItem value="day">
+                      Day — 9:00 AM to 5:00 PM (break 1–2 PM, Fri 1–2:30 PM)
+                    </SelectItem>
                     <SelectItem value="evening">
                       Evening — 6:00 PM to 3:00 AM (+15 min grace)
                     </SelectItem>

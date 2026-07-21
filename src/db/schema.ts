@@ -68,7 +68,7 @@ export const employees = pgTable("employees", {
   probationPeriodMonths: integer("probation_period_months").notNull().default(3),
   /**
    * Per-employee shift override.
-   * Xorora: `afternoon` (3pm–12am) or `evening` (6pm–3am).
+   * Xorora: `afternoon` (3pm–12am, break 7–8pm) or `evening` (6pm–3am, break 10–11pm).
    * Crest LED: `day` (9am–5pm) or `evening` (6pm–3am).
    * Null uses the company default.
    */
