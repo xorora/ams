@@ -16,6 +16,7 @@ type ApplicationShellProps = {
   companies?: CompanyOption[];
   selectedCompanyId?: string | null;
   leaveRequestsIndicator?: ReactNode;
+  lateRelaxationsIndicator?: ReactNode;
   children: React.ReactNode;
 };
 
@@ -25,6 +26,7 @@ export function ApplicationShell({
   companies = [],
   selectedCompanyId = null,
   leaveRequestsIndicator = null,
+  lateRelaxationsIndicator = null,
   children,
 }: ApplicationShellProps) {
   const pathname = usePathname();
@@ -41,6 +43,7 @@ export function ApplicationShell({
           user={user}
           hasLinkedEmployee={hasLinkedEmployee}
           leaveRequestsIndicator={leaveRequestsIndicator}
+          lateRelaxationsIndicator={lateRelaxationsIndicator}
         />
         <SidebarInset className="flex h-dvh min-h-0 flex-col overflow-hidden">
           <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4 pt-[max(0px,env(safe-area-inset-top))]">

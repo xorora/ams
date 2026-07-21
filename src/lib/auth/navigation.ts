@@ -6,6 +6,7 @@ import {
   FileSpreadsheet,
   Fingerprint,
   LayoutDashboard,
+  ShieldCheck,
   Users,
   Wallet,
 } from "lucide-react";
@@ -61,6 +62,7 @@ export function getNavItemsForUser(
         exact: true,
       },
       { href: "/leave", label: "Leave", icon: CalendarOff, exact: true },
+      { href: "/relaxations", label: "Relaxations", icon: ShieldCheck, exact: true },
     );
 
     if (user.role === "employee") {
@@ -95,6 +97,12 @@ export function getNavItemsForUser(
         adminOnly: true,
       },
       { href: "/admin/leave", label: "Leave requests", icon: CalendarOff, adminOnly: true },
+      {
+        href: "/admin/relaxations",
+        label: "Late relaxations",
+        icon: ShieldCheck,
+        adminOnly: true,
+      },
       { href: "/admin/devices", label: "Devices", icon: Fingerprint, adminOnly: true },
       { href: "/admin/reports", label: "Reports", icon: FileSpreadsheet, adminOnly: true },
       {

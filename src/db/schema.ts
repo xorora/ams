@@ -29,6 +29,12 @@ export const leaveRequestStatusEnum = pgEnum("leave_request_status", [
   "rejected",
   "cancelled",
 ]);
+export const lateRelaxationStatusEnum = pgEnum("late_relaxation_status", [
+  "pending",
+  "approved",
+  "rejected",
+  "cancelled",
+]);
 export const machinePunchSourceEnum = pgEnum("machine_punch_source", ["ebio", "zkteco", "wdms"]);
 
 /** Xorora-only: afternoon = 3pm–12am, evening = 6pm–3am. Ignored for other companies. */
@@ -145,6 +151,30 @@ export const leaveRequests = pgTable(
     index("leave_requests_employee_id_idx").on(table.employeeId),
     index("leave_requests_status_idx").on(table.status),
     index("leave_requests_start_date_idx").on(table.startDate),
+  ],
+);
+
+export const lateRelaxationRequests = pgTable(
+  "late_relaxation_requests",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    employeeId: uuid("employee_id")
+      .notNull()
+      .references(() => employees.id),
+    yearMonth: text("year_month").notNull(),
+    reason: text("reason").notNull(),
+    lateCountAtRequest: integer("late_count_at_request").notNull(),
+    status: lateRelaxationStatusEnum("status").notNull().default("pending"),
+    reviewedByUserId: uuid("reviewed_by_user_id").references(() => users.id),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewNotes: text("review_notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("late_relaxation_requests_employee_id_idx").on(table.employeeId),
+    index("late_relaxation_requests_status_idx").on(table.status),
+    index("late_relaxation_requests_year_month_idx").on(table.yearMonth),
   ],
 );
 

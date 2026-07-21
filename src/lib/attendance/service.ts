@@ -288,6 +288,9 @@ export async function checkIn(
   const priorMonthlyLates = isLate
     ? await countMonthlyLatesBeforeCheckIn(resolvedEmployeeId, shiftDate)
     : 0;
+  const monthSummary = isLate
+    ? await getEmployeeMonthlyLateSummary(resolvedEmployeeId, shiftDate)
+    : null;
 
   if (day) {
     await db
@@ -316,7 +319,9 @@ export async function checkIn(
   }
 
   const status = await getTodayStatus(employeeId);
-  const message = buildLateCheckInMessage(priorMonthlyLates, isLate);
+  const message = buildLateCheckInMessage(priorMonthlyLates, isLate, {
+    finesWaived: monthSummary?.finesWaived,
+  });
 
   return { ok: true, data: { message, status: status.data } };
 }

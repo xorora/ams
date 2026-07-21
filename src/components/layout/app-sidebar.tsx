@@ -18,12 +18,14 @@ type AppSidebarProps = {
   user: Session["user"];
   hasLinkedEmployee?: boolean;
   leaveRequestsIndicator?: ReactNode;
+  lateRelaxationsIndicator?: ReactNode;
 };
 
 export function AppSidebar({
   user,
   hasLinkedEmployee = false,
   leaveRequestsIndicator = null,
+  lateRelaxationsIndicator = null,
 }: AppSidebarProps) {
   const navItems = getNavItemsForUser(user, { hasLinkedEmployee });
   const roleLabel =
@@ -36,7 +38,11 @@ export function AppSidebar({
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarNav items={navItems} leaveRequestsIndicator={leaveRequestsIndicator} />
+        <SidebarNav
+          items={navItems}
+          leaveRequestsIndicator={leaveRequestsIndicator}
+          lateRelaxationsIndicator={lateRelaxationsIndicator}
+        />
       </SidebarContent>
 
       <SidebarFooter className="border-t">

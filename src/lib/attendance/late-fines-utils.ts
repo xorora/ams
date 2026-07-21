@@ -13,6 +13,7 @@ export type MonthlyLateSummary = {
   fineableLates: number;
   totalFinePkr: number;
   todayFinePkr: number;
+  finesWaived: boolean;
 };
 
 export function getCalendarMonth(shiftDate: string): string {
@@ -31,14 +32,21 @@ export function getCalendarMonthDateRange(month: string): { from: string; to: st
 
 export function summarizeMonthlyLates(
   lateCount: number,
+  options: { waived?: boolean } = {},
 ): Pick<MonthlyLateSummary, "freeLatesRemaining" | "fineableLates" | "totalFinePkr"> {
   const freeLatesRemaining = Math.max(0, MONTHLY_LATE_ALLOWANCE - lateCount);
+  if (options.waived) {
+    return { freeLatesRemaining, fineableLates: 0, totalFinePkr: 0 };
+  }
   const fineableLates = Math.max(0, lateCount - MONTHLY_LATE_ALLOWANCE);
   const totalFinePkr = fineableLates * LATE_FINE_AMOUNT_PKR;
   return { freeLatesRemaining, fineableLates, totalFinePkr };
 }
 
-export function lateFineForOccurrence(occurrence: number): number {
+export function lateFineForOccurrence(occurrence: number, waived = false): number {
+  if (waived) {
+    return 0;
+  }
   return occurrence > MONTHLY_LATE_ALLOWANCE ? LATE_FINE_AMOUNT_PKR : 0;
 }
 
@@ -48,7 +56,10 @@ export function formatLateFinePkr(amount: number): string {
 
 type LateDay = { shiftDate: string; isLate: boolean };
 
-export function assignLateFinesByShiftDate<T extends LateDay>(days: T[]): Map<string, number> {
+export function assignLateFinesByShiftDate<T extends LateDay>(
+  days: T[],
+  waivedMonths?: ReadonlySet<string>,
+): Map<string, number> {
   const fines = new Map<string, number>();
   const byMonth = new Map<string, T[]>();
 
@@ -62,17 +73,21 @@ export function assignLateFinesByShiftDate<T extends LateDay>(days: T[]): Map<st
     byMonth.set(month, monthDays);
   }
 
-  for (const monthDays of byMonth.values()) {
+  for (const [month, monthDays] of byMonth.entries()) {
+    const waived = waivedMonths?.has(month) ?? false;
     const sorted = [...monthDays].sort((a, b) => a.shiftDate.localeCompare(b.shiftDate));
     sorted.forEach((day, index) => {
-      fines.set(day.shiftDate, lateFineForOccurrence(index + 1));
+      fines.set(day.shiftDate, lateFineForOccurrence(index + 1, waived));
     });
   }
 
   return fines;
 }
 
-export function computeLateFineTotals(days: LateDay[]): {
+export function computeLateFineTotals(
+  days: LateDay[],
+  waivedMonths?: ReadonlySet<string>,
+): {
   fineableLates: number;
   totalFinePkr: number;
 } {
@@ -90,8 +105,10 @@ export function computeLateFineTotals(days: LateDay[]): {
     byMonth.set(month, monthDays);
   }
 
-  for (const monthDays of byMonth.values()) {
-    const summary = summarizeMonthlyLates(monthDays.length);
+  for (const [month, monthDays] of byMonth.entries()) {
+    const summary = summarizeMonthlyLates(monthDays.length, {
+      waived: waivedMonths?.has(month) ?? false,
+    });
     fineableLates += summary.fineableLates;
     totalFinePkr += summary.totalFinePkr;
   }
@@ -104,6 +121,18 @@ export function buildMonthlyLateWarnings(
   isLateToday: boolean,
 ): string[] {
   const warnings: string[] = [];
+
+  if (summary.finesWaived) {
+    warnings.push(
+      `Late fines for ${summary.month} are waived by an approved relaxation. Late marks still appear on your attendance.`,
+    );
+    if (summary.lateCount > 0) {
+      warnings.push(
+        `${summary.lateCount} late check-in${summary.lateCount === 1 ? "" : "s"} this month.`,
+      );
+    }
+    return warnings;
+  }
 
   if (summary.lateCount === 0) {
     warnings.push(
@@ -137,15 +166,23 @@ export function buildMonthlyLateWarnings(
   return warnings;
 }
 
-export function buildLateCheckInMessage(priorMonthlyLates: number, isLate: boolean): string {
+export function buildLateCheckInMessage(
+  priorMonthlyLates: number,
+  isLate: boolean,
+  options: { finesWaived?: boolean } = {},
+): string {
   if (!isLate) {
     return "Checked in successfully.";
   }
 
   const occurrence = priorMonthlyLates + 1;
-  const fine = lateFineForOccurrence(occurrence);
   const base = `Checked in. You are marked late (from ${formatLateCheckInDeadline()}).`;
 
+  if (options.finesWaived) {
+    return `${base} This is late #${occurrence} this month — fines are waived by an approved relaxation.`;
+  }
+
+  const fine = lateFineForOccurrence(occurrence);
   if (fine > 0) {
     return `${base} This is late #${occurrence} this month — a ${formatLateFinePkr(fine)} fine applies.`;
   }

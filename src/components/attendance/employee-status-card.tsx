@@ -111,12 +111,19 @@ export function EmployeeStatusCard({ status }: EmployeeStatusCardProps) {
             {status.monthlyLate.lateCount} late this month · {status.monthlyLate.freeLatesRemaining}
             &nbsp; of {MONTHLY_LATE_ALLOWANCE} free remaining
           </p>
+          {status.monthlyLate.finesWaived ? (
+            <p className="mt-1 text-sm text-emerald-800">
+              Late fines for this month are waived by an approved relaxation.
+            </p>
+          ) : null}
           {status.monthlyLate.totalFinePkr > 0 && (
             <p className="mt-1 text-amber-800 text-sm">
               Fines so far: {formatLateFinePkr(status.monthlyLate.totalFinePkr)}
             </p>
           )}
-          {status.monthlyLate.freeLatesRemaining === 0 && status.monthlyLate.totalFinePkr === 0 && (
+          {!status.monthlyLate.finesWaived &&
+            status.monthlyLate.freeLatesRemaining === 0 &&
+            status.monthlyLate.totalFinePkr === 0 && (
             <p className="mt-1 text-amber-800 text-sm">
               Next late check-in will incur a {formatLateFinePkr(LATE_FINE_AMOUNT_PKR)} fine.
             </p>

@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { Suspense } from "react";
 import type { Session } from "next-auth";
 import { ApplicationShell } from "@/components/layout/application-shell";
+import { PendingLateRelaxationIndicator } from "@/components/layout/pending-late-relaxation-indicator";
 import { PendingLeaveIndicator } from "@/components/layout/pending-leave-indicator";
 import { getCompanies } from "@/lib/admin/selected-company";
 import {
@@ -40,6 +41,13 @@ export default async function AppLayout({
         isAdmin ? (
           <Suspense fallback={null}>
             <PendingLeaveIndicator companyId={selectedCompanyId} />
+          </Suspense>
+        ) : null
+      }
+      lateRelaxationsIndicator={
+        isAdmin ? (
+          <Suspense fallback={null}>
+            <PendingLateRelaxationIndicator companyId={selectedCompanyId} />
           </Suspense>
         ) : null
       }

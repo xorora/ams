@@ -18,9 +18,14 @@ import { isNavItemActive } from "@/lib/auth/navigation";
 type SidebarNavProps = {
   items: NavItem[];
   leaveRequestsIndicator?: ReactNode;
+  lateRelaxationsIndicator?: ReactNode;
 };
 
-export function SidebarNav({ items, leaveRequestsIndicator = null }: SidebarNavProps) {
+export function SidebarNav({
+  items,
+  leaveRequestsIndicator = null,
+  lateRelaxationsIndicator = null,
+}: SidebarNavProps) {
   const pathname = usePathname();
   const employeeItems = items.filter((item) => !item.adminOnly);
   const adminItems = items.filter((item) => item.adminOnly);
@@ -46,7 +51,13 @@ export function SidebarNav({ items, leaveRequestsIndicator = null }: SidebarNavP
                   key={item.href}
                   item={item}
                   pathname={pathname}
-                  indicator={item.href === "/admin/leave" ? leaveRequestsIndicator : null}
+                  indicator={
+                    item.href === "/admin/leave"
+                      ? leaveRequestsIndicator
+                      : item.href === "/admin/relaxations"
+                        ? lateRelaxationsIndicator
+                        : null
+                  }
                 />
               ))}
             </SidebarMenu>

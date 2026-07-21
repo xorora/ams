@@ -9,6 +9,10 @@ import {
 } from "@/lib/admin/employee-identity";
 import { effectiveAttendanceStatus } from "@/lib/attendance/effective-status";
 import { assignLateFinesByShiftDate, computeLateFineTotals } from "@/lib/attendance/late-fines-utils";
+import {
+  getApprovedLateRelaxationMonthsByEmployee,
+  unionApprovedLateRelaxationMonths,
+} from "@/lib/attendance/late-fines";
 import { getCompanyShiftConfig } from "@/lib/attendance/company-shift";
 import { getRelatedEmployeeIdsForAttendance } from "@/lib/attendance/employee-attendance-identity";
 import { countWorkingDaysForCompany } from "@/lib/leave/working-days";
@@ -270,8 +274,9 @@ export async function getEmployeeReport(
     companyId,
   });
   const rows = collapseAttendanceToCanonical(rawRows, canonicalByEmployeeId, employeesById);
-  const lateFinesByShiftDate = assignLateFinesByShiftDate(rows);
-  const lateFineTotals = computeLateFineTotals(rows);
+  const waivedMonths = await unionApprovedLateRelaxationMonths(memberIds);
+  const lateFinesByShiftDate = assignLateFinesByShiftDate(rows, waivedMonths);
+  const lateFineTotals = computeLateFineTotals(rows, waivedMonths);
   const summary = {
     ...emptyTotals(),
     shiftDaysInRange: countShiftDaysInRange(
@@ -348,6 +353,10 @@ export async function getSummaryReport(
   const employeesById = new Map(allCompanyEmployees.map((record) => [record.id, record]));
   const rows = collapseAttendanceToCanonical(rawRows, canonicalByEmployeeId, employeesById);
 
+  const waivedByEmployee = await getApprovedLateRelaxationMonthsByEmployee(
+    allCompanyEmployees.map((employee) => employee.id),
+  );
+
   const totals = emptyTotals();
   const byEmployee = new Map<string, ReportTotals>();
   const employeeLateRows = new Map<string, AttendanceListItem[]>();
@@ -366,19 +375,35 @@ export async function getSummaryReport(
     employeeLateRows.set(row.employeeId, lateRows);
   }
 
-  const rangeLateFineTotals = computeLateFineTotals(rows);
-  totals.fineableLates = rangeLateFineTotals.fineableLates;
-  totals.lateFinePkr = rangeLateFineTotals.totalFinePkr;
+  let rangeFineableLates = 0;
+  let rangeLateFinePkr = 0;
 
   for (const [employeeId, employeeRows] of employeeLateRows) {
     const employeeTotals = byEmployee.get(employeeId);
     if (!employeeTotals) {
       continue;
     }
-    const employeeFineTotals = computeLateFineTotals(employeeRows);
+    const cluster = clusters.find((item) => item.canonical.id === employeeId);
+    const memberIds = cluster?.members.map((member) => member.id) ?? [employeeId];
+    const waivedMonths = new Set<string>();
+    for (const memberId of memberIds) {
+      const months = waivedByEmployee.get(memberId);
+      if (!months) {
+        continue;
+      }
+      for (const month of months) {
+        waivedMonths.add(month);
+      }
+    }
+    const employeeFineTotals = computeLateFineTotals(employeeRows, waivedMonths);
     employeeTotals.fineableLates = employeeFineTotals.fineableLates;
     employeeTotals.lateFinePkr = employeeFineTotals.totalFinePkr;
+    rangeFineableLates += employeeFineTotals.fineableLates;
+    rangeLateFinePkr += employeeFineTotals.totalFinePkr;
   }
+
+  totals.fineableLates = rangeFineableLates;
+  totals.lateFinePkr = rangeLateFinePkr;
 
   const activeClusters = clusters.filter((cluster) => cluster.canonical.isActive);
   const employeeRows: SummaryEmployeeRow[] = activeClusters.map((cluster) => ({
