@@ -8,6 +8,7 @@ import {
   getEmployeeMonthlyLateSummary,
   MONTHLY_LATE_ALLOWANCE,
 } from "@/lib/attendance/late-fines";
+import { withLateRelaxationSchema } from "./ensure-schema";
 import type { LateRelaxationStatus, SubmitLateRelaxationInput } from "./types";
 
 export type LateRelaxationListItem = {
@@ -80,12 +81,14 @@ function buildListConditions(filters: ListLateRelaxationFilters): SQL[] {
 async function loadItem(
   id: string,
 ): Promise<ServiceFailure | ServiceSuccess<LateRelaxationListItem>> {
-  const [row] = await db
-    .select({ request: lateRelaxationRequests, employee: employees })
-    .from(lateRelaxationRequests)
-    .innerJoin(employees, eq(lateRelaxationRequests.employeeId, employees.id))
-    .where(eq(lateRelaxationRequests.id, id))
-    .limit(1);
+  const [row] = await withLateRelaxationSchema(() =>
+    db
+      .select({ request: lateRelaxationRequests, employee: employees })
+      .from(lateRelaxationRequests)
+      .innerJoin(employees, eq(lateRelaxationRequests.employeeId, employees.id))
+      .where(eq(lateRelaxationRequests.id, id))
+      .limit(1),
+  );
 
   if (!row) {
     return adminFailure(404, "NOT_FOUND", "Late relaxation request not found.");
@@ -104,12 +107,14 @@ export async function listLateRelaxationRequests(
   const conditions = buildListConditions(filters);
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-  const rows = await db
-    .select({ request: lateRelaxationRequests, employee: employees })
-    .from(lateRelaxationRequests)
-    .innerJoin(employees, eq(lateRelaxationRequests.employeeId, employees.id))
-    .where(whereClause)
-    .orderBy(desc(lateRelaxationRequests.createdAt));
+  const rows = await withLateRelaxationSchema(() =>
+    db
+      .select({ request: lateRelaxationRequests, employee: employees })
+      .from(lateRelaxationRequests)
+      .innerJoin(employees, eq(lateRelaxationRequests.employeeId, employees.id))
+      .where(whereClause)
+      .orderBy(desc(lateRelaxationRequests.createdAt)),
+  );
 
   return {
     ok: true,
@@ -125,11 +130,13 @@ export async function countPendingLateRelaxationRequests(
     conditions.push(eq(employees.companyId, companyId));
   }
 
-  const [row] = await db
-    .select({ value: count() })
-    .from(lateRelaxationRequests)
-    .innerJoin(employees, eq(lateRelaxationRequests.employeeId, employees.id))
-    .where(and(...conditions));
+  const [row] = await withLateRelaxationSchema(() =>
+    db
+      .select({ value: count() })
+      .from(lateRelaxationRequests)
+      .innerJoin(employees, eq(lateRelaxationRequests.employeeId, employees.id))
+      .where(and(...conditions)),
+  );
 
   return row?.value ?? 0;
 }
@@ -171,17 +178,19 @@ export async function submitLateRelaxationRequest(
     );
   }
 
-  const [blocking] = await db
-    .select({ id: lateRelaxationRequests.id, status: lateRelaxationRequests.status })
-    .from(lateRelaxationRequests)
-    .where(
-      and(
-        eq(lateRelaxationRequests.employeeId, employeeId),
-        eq(lateRelaxationRequests.yearMonth, yearMonth),
-        inArray(lateRelaxationRequests.status, ["pending", "approved"]),
-      ),
-    )
-    .limit(1);
+  const [blocking] = await withLateRelaxationSchema(() =>
+    db
+      .select({ id: lateRelaxationRequests.id, status: lateRelaxationRequests.status })
+      .from(lateRelaxationRequests)
+      .where(
+        and(
+          eq(lateRelaxationRequests.employeeId, employeeId),
+          eq(lateRelaxationRequests.yearMonth, yearMonth),
+          inArray(lateRelaxationRequests.status, ["pending", "approved"]),
+        ),
+      )
+      .limit(1),
+  );
 
   if (blocking) {
     return adminFailure(
@@ -194,18 +203,20 @@ export async function submitLateRelaxationRequest(
   }
 
   const now = new Date();
-  const [created] = await db
-    .insert(lateRelaxationRequests)
-    .values({
-      employeeId,
-      yearMonth,
-      reason,
-      lateCountAtRequest: summary.lateCount,
-      status: "pending",
-      createdAt: now,
-      updatedAt: now,
-    })
-    .returning();
+  const [created] = await withLateRelaxationSchema(() =>
+    db
+      .insert(lateRelaxationRequests)
+      .values({
+        employeeId,
+        yearMonth,
+        reason,
+        lateCountAtRequest: summary.lateCount,
+        status: "pending",
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning(),
+  );
 
   return { ok: true, data: mapRow(created, employee) };
 }

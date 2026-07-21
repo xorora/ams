@@ -21,18 +21,22 @@ export async function getApprovedLateRelaxationMonthsByEmployee(
     return result;
   }
 
-  const rows = await db
-    .select({
-      employeeId: lateRelaxationRequests.employeeId,
-      yearMonth: lateRelaxationRequests.yearMonth,
-    })
-    .from(lateRelaxationRequests)
-    .where(
-      and(
-        inArray(lateRelaxationRequests.employeeId, employeeIds),
-        eq(lateRelaxationRequests.status, "approved"),
+  const { withLateRelaxationSchema } = await import("@/lib/late-relaxation/ensure-schema");
+
+  const rows = await withLateRelaxationSchema(() =>
+    db
+      .select({
+        employeeId: lateRelaxationRequests.employeeId,
+        yearMonth: lateRelaxationRequests.yearMonth,
+      })
+      .from(lateRelaxationRequests)
+      .where(
+        and(
+          inArray(lateRelaxationRequests.employeeId, employeeIds),
+          eq(lateRelaxationRequests.status, "approved"),
+        ),
       ),
-    );
+  );
 
   for (const row of rows) {
     const months = result.get(row.employeeId) ?? new Set<string>();
@@ -60,17 +64,21 @@ export async function isLateFineWaivedForMonth(
   employeeId: string,
   yearMonth: string,
 ): Promise<boolean> {
-  const [row] = await db
-    .select({ id: lateRelaxationRequests.id })
-    .from(lateRelaxationRequests)
-    .where(
-      and(
-        eq(lateRelaxationRequests.employeeId, employeeId),
-        eq(lateRelaxationRequests.yearMonth, yearMonth),
-        eq(lateRelaxationRequests.status, "approved"),
-      ),
-    )
-    .limit(1);
+  const { withLateRelaxationSchema } = await import("@/lib/late-relaxation/ensure-schema");
+
+  const [row] = await withLateRelaxationSchema(() =>
+    db
+      .select({ id: lateRelaxationRequests.id })
+      .from(lateRelaxationRequests)
+      .where(
+        and(
+          eq(lateRelaxationRequests.employeeId, employeeId),
+          eq(lateRelaxationRequests.yearMonth, yearMonth),
+          eq(lateRelaxationRequests.status, "approved"),
+        ),
+      )
+      .limit(1),
+  );
 
   return Boolean(row);
 }
