@@ -30,6 +30,7 @@ import {
   computeTotalBreakSeconds,
   getActiveBreak,
 } from "./rules";
+import { reconcileScheduledBreakForEmployee } from "./scheduled-break-auto";
 import {
   type AttendanceDaySnapshot,
   buildTodayStatus,
@@ -203,8 +204,10 @@ export async function getTodayStatus(
   employeeId: string,
 ): Promise<ServiceSuccess<TodayStatusPayload>> {
   const now = new Date();
-  // Read-only: do not reconcile punches on dashboard/status loads.
-  // Reconciliation runs on check-in/out and ZKTime sync/cron paths.
+  // Auto-start/end scheduled meal breaks when the clock hits the window.
+  // Punch reconciliation still runs only on check-in/out and ZKTime sync/cron paths.
+  await reconcileScheduledBreakForEmployee(employeeId, now);
+
   const { day, sessions, shiftConfig: resolvedShiftConfig, companySlug: resolvedCompanySlug, shiftDate: resolvedShiftDate } =
     await resolveShiftAttendance(employeeId, now);
   const monthlyLate = await getEmployeeMonthlyLateSummary(employeeId, resolvedShiftDate, {

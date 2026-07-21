@@ -111,14 +111,26 @@ export function EmployeeDashboard({
     return () => window.clearInterval(id);
   }, []);
 
-  // Soft sync while on break — live timers already tick client-side; poll less often.
+  // Soft sync for live break timers / scheduled auto-start-end.
   useEffect(() => {
-    if (status?.state !== "on_break" || !status.activeBreakStartedAt) {
+    if (!status) {
       return;
     }
+
+    const hasScheduledBreak = Boolean(status.shiftSchedule.scheduledBreakTime);
+    const needsFrequentPoll =
+      (status.state === "checked_in" && hasScheduledBreak) ||
+      (status.state === "on_break" && hasScheduledBreak);
+    const needsSoftBreakPoll = status.state === "on_break" && status.activeBreakStartedAt;
+
+    if (!needsFrequentPoll && !needsSoftBreakPoll) {
+      return;
+    }
+
+    const intervalMs = needsFrequentPoll ? 20_000 : 60_000;
     const id = window.setInterval(() => {
       void refresh().catch(() => undefined);
-    }, 60_000);
+    }, intervalMs);
     return () => window.clearInterval(id);
   }, [status, refresh]);
 
@@ -304,11 +316,11 @@ export function EmployeeDashboard({
               {status.shiftSchedule.scheduledBreakTime ? (
                 <>
                   {" "}
-                  Break is{" "}
+                  Break starts automatically at{" "}
                   <span className="font-semibold text-white">
                     {status.shiftSchedule.scheduledBreakTime}
-                  </span>
-                  .
+                  </span>{" "}
+                  and ends when the window closes.
                 </>
               ) : (
                 <> You get up to 60 minutes of break time per shift.</>

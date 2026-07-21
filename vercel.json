@@ -5,6 +5,10 @@
       "schedule": "0 23 * * *"
     },
     {
+      "path": "/api/cron/scheduled-breaks",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/sync/attendance",
       "schedule": "0 16 * * *"
     },
