@@ -274,17 +274,21 @@ export function LandingPage({ callbackUrl, errorMessage, companies }: LandingPag
               >
                 <div
                   aria-hidden
-                  className="absolute -inset-2 rounded-[1.5rem] bg-[#464c9f]/20 blur-2xl sm:-inset-3"
+                  className="absolute -inset-2 rounded-[1.5rem] bg-[#464c9f]/25 blur-2xl sm:-inset-3"
                 />
-                <div className="relative overflow-hidden rounded-2xl border border-[#464c9f]/35 bg-[#f6f7fb] text-[#08080d] shadow-[0_28px_70px_-24px_rgba(1,12,40,0.8)] ring-1 ring-[#f26b21]/20">
+                <div className="relative overflow-hidden rounded-2xl border border-white/20 bg-[#f6f7fb] text-[#08080d] shadow-[0_28px_70px_-24px_rgba(1,12,40,0.8)]">
                   <div
                     aria-hidden
-                    className="pointer-events-none absolute inset-0 opacity-[0.12] mix-blend-multiply"
+                    className="pointer-events-none absolute inset-0 opacity-[0.1] mix-blend-multiply"
                     style={{ backgroundImage: GRAIN_DATA_URI }}
                   />
                   <div
                     aria-hidden
-                    className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-[#f26b21]"
+                    className="pointer-events-none absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-[#464c9f] via-[#f26b21] to-[#464c9f]"
+                  />
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-[#464c9f]/10 to-transparent"
                   />
                   <div className="relative p-5 sm:p-6 md:p-8">
                     <div className="mb-5 space-y-1">
