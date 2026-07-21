@@ -75,8 +75,8 @@ type WeekAttendanceChartProps = {
 function WeekAttendanceChart({ points, ariaLabel }: WeekAttendanceChartProps) {
   const width = 560;
   const height = 152;
-  const padX = 28;
-  const padTop = 18;
+  const padX = 24;
+  const padTop = 16;
   const padBottom = 28;
   const plotW = width - padX * 2;
   const plotH = height - padTop - padBottom;
@@ -107,24 +107,6 @@ function WeekAttendanceChart({ points, ariaLabel }: WeekAttendanceChartProps) {
         strokeWidth={1}
         strokeDasharray="4 6"
       />
-      <text
-        x={8}
-        y={midY - amp + 4}
-        className="fill-[#9aa3b8]"
-        fontSize={9}
-        fontFamily="ui-monospace, monospace"
-      >
-        On time
-      </text>
-      <text
-        x={8}
-        y={midY + amp + 3}
-        className="fill-[#9aa3b8]"
-        fontSize={9}
-        fontFamily="ui-monospace, monospace"
-      >
-        Late
-      </text>
 
       {/* Segments colored by destination point */}
       {coords.slice(1).map((point, index) => {
@@ -160,7 +142,7 @@ function WeekAttendanceChart({ points, ariaLabel }: WeekAttendanceChartProps) {
             x={point.x}
             y={height - 8}
             textAnchor="middle"
-            className="fill-[#c8cce0]"
+            fill="#c8cce0"
             fontSize={11}
             fontFamily="ui-sans-serif, system-ui, sans-serif"
           >
@@ -232,7 +214,7 @@ export function EmployeeDashboardWeekAttendance({
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <span className="size-2 rounded-full bg-[#f87171]" aria-hidden />
-                Late (down)
+                Late
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <span className="size-2 rounded-full bg-[#6b70b6]" aria-hidden />
