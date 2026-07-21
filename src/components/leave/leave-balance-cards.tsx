@@ -17,18 +17,22 @@ export function LeaveBalanceCards({ balances }: LeaveBalanceCardsProps) {
         const unitLabel = config.workingDaysOnly ? "working days" : "days";
 
         return (
-          <Card key={balance.leaveType} size="sm">
+          <Card
+            key={balance.leaveType}
+            size="sm"
+            className="border-white/10 bg-[#0a1230]/90 ring-white/10"
+          >
             <CardHeader>
-              <CardTitle className="text-muted-foreground text-xs uppercase tracking-wide">
+              <CardTitle className="font-mono text-[11px] text-[#a8aec4] uppercase tracking-[0.14em]">
                 {leaveTypeLabel(balance.leaveType)}
               </CardTitle>
             </CardHeader>
             <CardContent className="-mt-2 space-y-2">
-              <p className="text-2xl font-semibold tabular-nums">{balance.remaining}</p>
-              <p className="text-muted-foreground text-xs">
+              <p className="text-2xl font-semibold tabular-nums text-white">{balance.remaining}</p>
+              <p className="text-[#a8aec4] text-xs">
                 {balance.remaining} of {balance.entitled} {unitLabel} remaining
               </p>
-              <div className="text-muted-foreground space-y-0.5 text-xs">
+              <div className="space-y-0.5 text-[#7d859e] text-xs">
                 <p>
                   Used: {balance.used} · Entitled: {balance.entitled}
                 </p>

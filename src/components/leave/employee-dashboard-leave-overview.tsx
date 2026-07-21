@@ -18,16 +18,19 @@ export function EmployeeDashboardLeaveOverview({
     <section className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h2 className="font-medium">
+          <h2 className="font-medium text-white">
             {probationUnpaidOnly ? "Emergency leave" : "Leave balance"}
           </h2>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-[#a8aec4] text-sm">
             {probationUnpaidOnly
               ? "Emergency unpaid leave taken during probation."
               : "Your remaining leave for the current year."}
           </p>
         </div>
-        <Link href="/leave" className="text-primary shrink-0 text-sm font-medium hover:underline">
+        <Link
+          href="/leave"
+          className="shrink-0 text-sm font-medium text-[#f26b21] hover:text-[#f4a574] hover:underline"
+        >
           View leave
         </Link>
       </div>

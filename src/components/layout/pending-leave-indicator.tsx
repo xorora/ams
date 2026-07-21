@@ -1,4 +1,4 @@
-import { countPendingLeaveRequests } from "@/lib/leave/leave-service";
+import { countPendingLeaveRequestsCached } from "@/lib/leave/leave-service";
 
 /** Server-only: streams into the sidebar leave-request indicator. */
 export async function PendingLeaveIndicator({
@@ -6,7 +6,7 @@ export async function PendingLeaveIndicator({
 }: {
   companyId: string | null;
 }) {
-  const count = await countPendingLeaveRequests(companyId);
+  const count = await countPendingLeaveRequestsCached(companyId);
   if (count <= 0) {
     return null;
   }

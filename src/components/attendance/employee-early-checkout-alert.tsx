@@ -17,7 +17,7 @@ export function EmployeeEarlyCheckoutAlert({
   onCancel,
 }: EmployeeEarlyCheckoutAlertProps) {
   return (
-    <Alert className="border-amber-300 bg-amber-50 text-amber-950">
+    <Alert className="border-amber-400/40 bg-amber-400/10 text-amber-100">
       <AlertTitle>Early check-out</AlertTitle>
       <AlertDescription>
         You are checking out before {expectedCheckOutTime}. This will be recorded as early leave.
@@ -26,7 +26,12 @@ export function EmployeeEarlyCheckoutAlert({
         <Button variant="destructive" disabled={acting} onClick={onConfirm}>
           Confirm check-out
         </Button>
-        <Button variant="outline" disabled={acting} onClick={onCancel}>
+        <Button
+          variant="outline"
+          className="border-white/20 bg-transparent text-[#eceef5] hover:bg-white/5"
+          disabled={acting}
+          onClick={onCancel}
+        >
           Cancel
         </Button>
       </div>

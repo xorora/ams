@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { after } from "next/server";
 import { Suspense } from "react";
 import type { Session } from "next-auth";
 import { ApplicationShell } from "@/components/layout/application-shell";
@@ -25,8 +26,10 @@ export default async function AppLayout({
   const isAdmin = session?.user?.role === "admin";
 
   if (isAdmin) {
-    // Idempotent seed: Crest evening staff (e.g. Mumtaz) + late recalc when applied.
-    await ensureCrestEveningShiftEmployees();
+    // Non-blocking seed — must not delay every admin navigation.
+    after(() => {
+      void ensureCrestEveningShiftEmployees();
+    });
   }
 
   const [companies, cookieStore] = isAdmin

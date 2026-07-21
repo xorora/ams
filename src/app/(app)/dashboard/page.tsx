@@ -43,6 +43,7 @@ export default async function DashboardPage() {
     showLeaveOverview = canApply;
 
     if (canApply) {
+      // Parallel leave payload — avoids a second sequential round-trip.
       if (probationUnpaidOnly) {
         const unpaidResult = await getUnpaidLeaveSummary(employeeId);
         unpaidSummary = unpaidResult.ok ? unpaidResult.data : unpaidSummary;
@@ -58,15 +59,19 @@ export default async function DashboardPage() {
       <Suspense fallback={null}>
         <NewEmployeeCodeToast />
       </Suspense>
-      <div>
-        <h1 className="text-2xl font-semibold">Dashboard</h1>
-        <p className="mt-1 text-muted-foreground text-sm">
+      <div className="space-y-3">
+        <p className="font-mono text-[11px] tracking-[0.2em] text-[#f26b21] uppercase">
+          Asia/Karachi
+        </p>
+        <h1 className="text-3xl font-semibold tracking-tight text-white md:text-4xl">Dashboard</h1>
+        <p className="max-w-lg text-[#a8aec4] text-sm text-pretty">
           {canCheckIn
             ? "Check in, take breaks, and check out for your shift."
             : session.user.role === "admin"
               ? "Add an employee record with your corporate email under Admin → Employees to enable check-in here."
               : "Your account is not linked to an employee record yet."}
         </p>
+        <div className="h-1 w-14 rounded-full bg-gradient-to-r from-[#f26b21] to-transparent" />
       </div>
 
       {canCheckIn ? (
@@ -79,7 +84,7 @@ export default async function DashboardPage() {
           unpaidSummary={unpaidSummary}
         />
       ) : (
-        <div className="rounded-xl border bg-muted/40 p-5 text-sm">
+        <div className="rounded-xl border border-white/10 bg-[#0a1230]/80 p-5 text-sm text-[#c8cce0]">
           {session.user.role === "admin" ? (
             <p>
               Use the admin section in the sidebar for team attendance. To check in for yourself,

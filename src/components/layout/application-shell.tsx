@@ -38,15 +38,26 @@ export function ApplicationShell({
 
   return (
     <TooltipProvider>
-      <SidebarProvider className="h-dvh overflow-hidden">
+      <SidebarProvider className="dark h-dvh overflow-hidden bg-[#010c28] text-[#eceef5]">
         <AppSidebar
           user={user}
           hasLinkedEmployee={hasLinkedEmployee}
           leaveRequestsIndicator={leaveRequestsIndicator}
           lateRelaxationsIndicator={lateRelaxationsIndicator}
         />
-        <SidebarInset className="flex h-dvh min-h-0 flex-col overflow-hidden">
-          <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4 pt-[max(0px,env(safe-area-inset-top))]">
+        <SidebarInset className="relative flex h-dvh min-h-0 flex-col overflow-hidden bg-[#010c28]">
+          <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_45%_at_15%_-5%,#464c9f40,transparent_55%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_45%_35%_at_95%_15%,#f26b2118,transparent_50%)]" />
+            <div
+              className="absolute inset-0 opacity-[0.14] mix-blend-soft-light"
+              style={{
+                backgroundImage:
+                  "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E\")",
+              }}
+            />
+          </div>
+          <header className="relative z-10 flex h-12 shrink-0 items-center gap-2 border-b border-white/10 bg-[#010c28]/70 px-4 pt-[max(0px,env(safe-area-inset-top))] backdrop-blur-md">
             <SidebarTrigger className="-ml-1 size-9" />
             {user.role === "admin" && companies.length > 0 && selectedCompanyId ? (
               <div className="ml-auto min-w-0 max-w-[55%]">
@@ -54,7 +65,7 @@ export function ApplicationShell({
               </div>
             ) : null}
           </header>
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-[max(0px,env(safe-area-inset-bottom))]">
+          <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto pb-[max(0px,env(safe-area-inset-bottom))]">
             {children}
           </div>
         </SidebarInset>

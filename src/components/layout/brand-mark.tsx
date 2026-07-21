@@ -23,7 +23,7 @@ export function BrandMark({
         width={160}
         height={31}
         sizes="160px"
-        className="h-4 w-auto shrink-0 object-contain group-data-[collapsible=icon]:hidden"
+        className="h-4 w-auto shrink-0 object-contain brightness-0 invert group-data-[collapsible=icon]:hidden"
         priority
       />
       {/* X mark only: shown when the sidebar is collapsed to icons — lazy, not LCP. */}
@@ -33,10 +33,15 @@ export function BrandMark({
         width={24}
         height={18}
         sizes="24px"
-        className="hidden size-6 shrink-0 object-contain group-data-[collapsible=icon]:block"
+        className="hidden size-6 shrink-0 object-contain brightness-0 invert group-data-[collapsible=icon]:block"
       />
       <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-        <p className={cn("truncate font-semibold leading-none tracking-tight", textClassName)}>
+        <p
+          className={cn(
+            "truncate font-semibold leading-none tracking-tight text-white",
+            textClassName,
+          )}
+        >
           Punch
         </p>
         {showSubtitle ? <p className="text-muted-foreground text-xs">{subtitle}</p> : null}

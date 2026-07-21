@@ -144,19 +144,19 @@
 }
 
 .dark {
-  /* Xorora brand — Deep Navy atmosphere. */
+  /* Xorora brand — Deep Navy atmosphere (matches landing). */
   --background: #010c28; /* Deep Navy 900 */
   --foreground: #eceef5; /* Slate 100 */
   --card: #0a1230; /* Navy 700 */
   --card-foreground: #eceef5;
   --popover: #0a1230;
   --popover-foreground: #eceef5;
-  --primary: #6b70b6; /* Indigo 400 (lifts on dark) */
+  --primary: #f26b21; /* Tangerine CTAs on navy */
   --primary-foreground: #ffffff;
   --secondary: #14204a;
   --secondary-foreground: #eceef5;
-  --muted: #0a1230;
-  --muted-foreground: #9ca2ba; /* Slate 400 */
+  --muted: #0d1535;
+  --muted-foreground: #a8aec4;
   --accent: #14204a;
   --accent-foreground: #ffffff;
   --destructive: #d2453e;
@@ -170,9 +170,9 @@
   --chart-4: #9398cf;
   --chart-5: #464c9f;
   --radius: 0.75rem;
-  --sidebar: #05070f;
-  --sidebar-foreground: #c2c7d8;
-  --sidebar-primary: #6b70b6;
+  --sidebar: #050d22;
+  --sidebar-foreground: #c8cce0;
+  --sidebar-primary: #f26b21;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #14204a;
   --sidebar-accent-foreground: #ffffff;

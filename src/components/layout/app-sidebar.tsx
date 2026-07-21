@@ -32,8 +32,8 @@ export function AppSidebar({
     user.role === "admin" ? "Admin" : user.role === "accounting_admin" ? "Accounting" : "Employee";
 
   return (
-    <Sidebar collapsible="icon">
-      <SidebarHeader className="h-12 flex-row items-center justify-center border-sidebar-border border-b px-2 py-0 pr-12 md:pr-2">
+    <Sidebar collapsible="icon" className="border-white/10">
+      <SidebarHeader className="h-12 flex-row items-center justify-center border-b border-white/10 px-2 py-0 pr-12 md:pr-2">
         <BrandMark />
       </SidebarHeader>
 
@@ -45,10 +45,10 @@ export function AppSidebar({
         />
       </SidebarContent>
 
-      <SidebarFooter className="border-t">
+      <SidebarFooter className="border-t border-white/10">
         <div className="space-y-2 px-1 py-1 group-data-[collapsible=icon]:hidden">
           <div className="text-xs">
-            <p className="truncate font-medium">{user.name ?? user.email}</p>
+            <p className="truncate font-medium text-white/90">{user.name ?? user.email}</p>
             <p className="truncate text-muted-foreground">{user.email}</p>
             <p className="mt-0.5 text-muted-foreground">{roleLabel}</p>
           </div>

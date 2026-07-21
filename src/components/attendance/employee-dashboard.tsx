@@ -1,8 +1,7 @@
 "use client";
 
 import { formatInTimeZone } from "date-fns-tz";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { EmployeeAttendanceActions } from "@/components/attendance/employee-attendance-actions";
 import { EmployeeClockCard } from "@/components/attendance/employee-clock-card";
 import { EmployeeEarlyCheckoutAlert } from "@/components/attendance/employee-early-checkout-alert";
@@ -74,8 +73,6 @@ export function EmployeeDashboard({
   leaveBalances = [],
   unpaidSummary = { used: 0, pending: 0, total: 0 },
 }: EmployeeDashboardProps) {
-  const router = useRouter();
-  const [, startTransition] = useTransition();
   const [status, setStatus] = useState<SerializedTodayStatus | null>(initialStatus);
   const [pktClock, setPktClock] = useState("");
   const [acting, setActing] = useState(false);
@@ -108,13 +105,14 @@ export function EmployeeDashboard({
     return () => window.clearInterval(id);
   }, []);
 
+  // Soft sync while on break — live timers already tick client-side; poll less often.
   useEffect(() => {
     if (status?.state !== "on_break" || !status.activeBreakStartedAt) {
       return;
     }
     const id = window.setInterval(() => {
       void refresh().catch(() => undefined);
-    }, 30_000);
+    }, 60_000);
     return () => window.clearInterval(id);
   }, [status, refresh]);
 
@@ -145,10 +143,10 @@ export function EmployeeDashboard({
         }
         throw new Error(result.error);
       }
+      // Status comes back from the action — skip full RSC refresh for snappier UX.
       setStatus(result.data.status);
       setShowEarlyConfirm(false);
       toast.success(result.data.message, { id: toastId });
-      startTransition(() => router.refresh());
       return true;
     } catch (e) {
       const text =
@@ -189,7 +187,7 @@ export function EmployeeDashboard({
       ) : null}
 
       {status.warnings.length > 0 && (
-        <Alert className="border-amber-200 bg-amber-50 text-amber-950">
+        <Alert className="border-amber-400/40 bg-amber-400/10 text-amber-100">
           <AlertTitle>Notice</AlertTitle>
           <AlertDescription>
             <ul className="list-disc pl-4">
@@ -216,7 +214,7 @@ export function EmployeeDashboard({
       )}
 
       {status.isWeekendOff && !status.employeeInactive && (
-        <Alert>
+        <Alert className="border-white/15 bg-[#0a1230]/80 text-[#eceef5]">
           <AlertTitle>Office closed</AlertTitle>
           <AlertDescription>
             {status.warnings.find((warning) => warning.includes("office is closed")) ??
@@ -263,7 +261,7 @@ export function EmployeeDashboard({
           status.actions.canCheckOut ||
           status.actions.canStartBreak ||
           status.actions.canEndBreak) && (
-          <p className="text-muted-foreground text-xs">
+          <p className="text-[#7d859e] text-xs leading-relaxed">
             Actions require your location and you must be within the office geofence. Expected
             shift: check-in by {status.shiftSchedule.lateCheckInDeadline} (
             {status.shiftSchedule.checkInGraceMinutes} min grace), check-out by&nbsp;
