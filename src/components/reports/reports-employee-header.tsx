@@ -21,7 +21,7 @@ export function ReportsEmployeeHeader({ report }: ReportsEmployeeHeaderProps) {
           <p className="text-muted-foreground text-sm">{meta.join(" · ")}</p>
         ) : null}
         {!report.employee.isActive ? (
-          <p className="text-amber-700 text-sm">Inactive employee</p>
+          <p className="text-sm font-medium text-amber-200">Inactive employee</p>
         ) : null}
       </div>
       <p className="text-muted-foreground text-sm">

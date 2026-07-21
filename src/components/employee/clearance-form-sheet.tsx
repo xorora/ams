@@ -12,6 +12,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
 import type { SerializedEmployee } from "@/lib/admin/serialize";
 import {
   CLEARANCE_DEPARTMENTS,
@@ -72,46 +73,48 @@ export function ClearanceFormSheet({
 
         {employee ? (
           <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4">
-            <div className="grid gap-3 rounded-lg border bg-muted/30 p-4 sm:grid-cols-2">
+            <div className="grid gap-3 rounded-xl border border-white/12 bg-[#050d22]/70 p-4 sm:grid-cols-2">
               <div>
-                <p className="text-muted-foreground text-xs">Employee code</p>
-                <p className="font-mono text-sm">{employee.employeeCode}</p>
+                <p className="text-xs font-medium text-[#c8cce0]">Employee code</p>
+                <p className="font-mono text-sm font-semibold text-white">{employee.employeeCode}</p>
               </div>
               <div>
-                <p className="text-muted-foreground text-xs">Name</p>
-                <p className="text-sm">{employee.fullName}</p>
+                <p className="text-xs font-medium text-[#c8cce0]">Name</p>
+                <p className="text-sm font-semibold text-white">{employee.fullName}</p>
               </div>
               <div>
-                <p className="text-muted-foreground text-xs">Department</p>
-                <p className="text-sm">{employee.department ?? "—"}</p>
+                <p className="text-xs font-medium text-[#c8cce0]">Department</p>
+                <p className="text-sm font-medium text-[#eceef5]">{employee.department ?? "—"}</p>
               </div>
               <div>
-                <p className="text-muted-foreground text-xs">Designation</p>
-                <p className="text-sm">{employee.designation ?? "—"}</p>
+                <p className="text-xs font-medium text-[#c8cce0]">Designation</p>
+                <p className="text-sm font-medium text-[#eceef5]">{employee.designation ?? "—"}</p>
               </div>
             </div>
 
-            <Separator />
+            <Separator className="bg-white/10" />
 
-            <div className="space-y-5">
+            <div className="space-y-4">
               {CLEARANCE_DEPARTMENTS.map((department, index) => {
                 const entry = form.departmentEntries[index] ?? { remarks: "", signature: "" };
 
                 return (
-                  <div key={department} className="space-y-3 rounded-lg border p-4">
-                    <p className="font-medium text-sm">
+                  <div
+                    key={department}
+                    className="space-y-3 rounded-xl border border-white/12 bg-[#050d22]/60 p-4"
+                  >
+                    <p className="font-semibold text-sm text-white">
                       {index + 1}. {department}
                     </p>
                     <div className="space-y-2">
                       <Label htmlFor={`clearance-remarks-${index}`}>Remarks</Label>
-                      <textarea
+                      <Textarea
                         id={`clearance-remarks-${index}`}
                         value={entry.remarks}
                         onChange={(event) =>
                           updateDepartmentEntry(index, { remarks: event.target.value })
                         }
                         rows={2}
-                        className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex min-h-[72px] w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                         placeholder="Department remarks"
                       />
                     </div>
@@ -131,14 +134,14 @@ export function ClearanceFormSheet({
               })}
             </div>
 
-            <p className="text-muted-foreground text-xs">
+            <p className="text-sm text-[#d7dceb]">
               Office Manager, General Manager, and Executive Director signature lines are left blank
               on the PDF for signing after printing.
             </p>
           </div>
         ) : null}
 
-        <SheetFooter className="border-t px-4 py-4 sm:flex-row sm:justify-end">
+        <SheetFooter className="px-4 py-4 sm:flex-row sm:justify-end">
           <Button type="button" variant="outline" onClick={onCancel} disabled={generating}>
             Cancel
           </Button>

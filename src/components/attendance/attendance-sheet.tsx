@@ -4,6 +4,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { DateTimePicker } from "@/components/ui/datetime-picker";
+import { FormField } from "@/components/ui/form-section";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -20,6 +21,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
 import type { AttendanceStatus } from "@/lib/admin/attendance-service";
 import type { SerializedAttendance, SerializedEmployeeOption } from "@/lib/admin/serialize";
 import { BUSINESS_TIMEZONE } from "@/lib/attendance/constants";
@@ -110,9 +112,9 @@ export function AttendanceSheet({
           </SheetDescription>
         </SheetHeader>
         <form onSubmit={onSubmit} className="flex flex-1 flex-col gap-4 overflow-y-auto px-4">
-          <div className="grid gap-3">
+          <div className="grid gap-4 rounded-xl border border-white/12 bg-[#050d22]/60 p-4">
             {!editingId && (
-              <div className="flex flex-col gap-1.5">
+              <FormField>
                 <Label>Employee</Label>
                 <Select
                   value={form.employeeId || null}
@@ -132,18 +134,18 @@ export function AttendanceSheet({
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
+              </FormField>
             )}
             {!editingId && (
-              <div className="flex flex-col gap-1.5">
+              <FormField>
                 <Label>Shift date</Label>
                 <DatePicker
                   value={form.shiftDate}
                   onChange={(shiftDate) => onFormChange((f) => ({ ...f, shiftDate }))}
                 />
-              </div>
+              </FormField>
             )}
-            <div className="flex flex-col gap-1.5">
+            <FormField>
               <Label>Status</Label>
               <Select
                 value={form.status}
@@ -160,33 +162,33 @@ export function AttendanceSheet({
                   <SelectItem value="leave">Leave</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-            <div className="flex flex-col gap-1.5">
+            </FormField>
+            <FormField>
               <Label>Check-in (PKT)</Label>
               <DateTimePicker
                 value={form.checkInAt}
                 onChange={(checkInAt) => onFormChange((f) => ({ ...f, checkInAt }))}
                 placeholder="Pick check-in"
               />
-            </div>
-            <div className="flex flex-col gap-1.5">
+            </FormField>
+            <FormField>
               <Label>Check-out (PKT)</Label>
               <DateTimePicker
                 value={form.checkOutAt}
                 onChange={(checkOutAt) => onFormChange((f) => ({ ...f, checkOutAt }))}
                 placeholder="Pick check-out"
               />
-            </div>
-            <div className="flex flex-col gap-1.5">
+            </FormField>
+            <FormField>
               <Label htmlFor="attendance-notes">Notes</Label>
-              <textarea
+              <Textarea
                 id="attendance-notes"
                 value={form.notes}
                 onChange={(e) => onFormChange((f) => ({ ...f, notes: e.target.value }))}
-                rows={2}
-                className="rounded-lg border bg-background px-3 py-2 text-sm"
+                rows={3}
+                placeholder="Optional notes for this shift"
               />
-            </div>
+            </FormField>
           </div>
           <SheetFooter className="flex-row px-0 pb-0">
             <Button type="submit" disabled={saving}>

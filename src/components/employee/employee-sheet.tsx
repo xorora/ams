@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
+import { FormField, FormSection } from "@/components/ui/form-section";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -133,7 +134,7 @@ function ProbationSummary({ form }: { form: EmployeeFormValues }) {
   });
 
   return (
-    <p className="text-muted-foreground text-sm">
+    <p className="text-sm text-[#d7dceb]">
       {onProbation
         ? `${spent} of ${total} days completed. Ends ${endDate}.`
         : `Probation period ended on ${endDate}.`}
@@ -180,146 +181,151 @@ export function EmployeeSheet({
           </SheetDescription>
         </SheetHeader>
         <form onSubmit={onSubmit} className="flex flex-1 flex-col gap-4 overflow-y-auto px-4">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="employee-code">Employee code</Label>
-            <Input
-              id="employee-code"
-              required
-              value={form.employeeCode}
-              onChange={(e) => onFormChange((f) => ({ ...f, employeeCode: e.target.value }))}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="full-name">Full name</Label>
-            <Input
-              id="full-name"
-              required
-              value={form.fullName}
-              onChange={(e) => onFormChange((f) => ({ ...f, fullName: e.target.value }))}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              required
-              type="email"
-              value={form.email}
-              onChange={(e) => onFormChange((f) => ({ ...f, email: e.target.value }))}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="employee-password">
-              {editingId ? "Password (optional)" : "Password (optional)"}
-            </Label>
-            <Input
-              id="employee-password"
-              type="password"
-              autoComplete="new-password"
-              minLength={8}
-              placeholder={editingId ? "Leave blank to keep current password" : "Min. 8 characters"}
-              value={form.password}
-              onChange={(e) => onFormChange((f) => ({ ...f, password: e.target.value }))}
-            />
-            <p className="text-muted-foreground text-xs">
-              Used for email sign-in. Employees can also set a password when they first link their
-              account.
-            </p>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="designation">Designation</Label>
-            <Input
-              id="designation"
-              value={form.designation}
-              onChange={(e) => onFormChange((f) => ({ ...f, designation: e.target.value }))}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="department">Department</Label>
-            <Input
-              id="department"
-              value={form.department}
-              onChange={(e) => onFormChange((f) => ({ ...f, department: e.target.value }))}
-            />
-          </div>
+          <FormSection title="Profile" description="Identity and sign-in details for this employee.">
+            <FormField>
+              <Label htmlFor="employee-code">Employee code</Label>
+              <Input
+                id="employee-code"
+                required
+                value={form.employeeCode}
+                onChange={(e) => onFormChange((f) => ({ ...f, employeeCode: e.target.value }))}
+              />
+            </FormField>
+            <FormField>
+              <Label htmlFor="full-name">Full name</Label>
+              <Input
+                id="full-name"
+                required
+                value={form.fullName}
+                onChange={(e) => onFormChange((f) => ({ ...f, fullName: e.target.value }))}
+              />
+            </FormField>
+            <FormField>
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                required
+                type="email"
+                value={form.email}
+                onChange={(e) => onFormChange((f) => ({ ...f, email: e.target.value }))}
+              />
+            </FormField>
+            <FormField>
+              <Label htmlFor="employee-password">
+                {editingId ? "Password (optional)" : "Password (optional)"}
+              </Label>
+              <Input
+                id="employee-password"
+                type="password"
+                autoComplete="new-password"
+                minLength={8}
+                placeholder={editingId ? "Leave blank to keep current password" : "Min. 8 characters"}
+                value={form.password}
+                onChange={(e) => onFormChange((f) => ({ ...f, password: e.target.value }))}
+              />
+              <p className="text-xs text-[#d7dceb]">
+                Used for email sign-in. Employees can also set a password when they first link their
+                account.
+              </p>
+            </FormField>
+            <FormField>
+              <Label htmlFor="designation">Designation</Label>
+              <Input
+                id="designation"
+                value={form.designation}
+                onChange={(e) => onFormChange((f) => ({ ...f, designation: e.target.value }))}
+              />
+            </FormField>
+            <FormField>
+              <Label htmlFor="department">Department</Label>
+              <Input
+                id="department"
+                value={form.department}
+                onChange={(e) => onFormChange((f) => ({ ...f, department: e.target.value }))}
+              />
+            </FormField>
+          </FormSection>
 
           {shiftPresetCompany === "xorora" ? (
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="shift-preset">Shift timing</Label>
-              <Select
-                items={{
-                  afternoon: "Afternoon — 3:00 PM to 12:00 AM (+15 min grace)",
-                  evening: "Evening — 6:00 PM to 3:00 AM (+15 min grace)",
-                }}
-                value={form.shiftPreset === "evening" ? "evening" : "afternoon"}
-                onValueChange={(value) =>
-                  onFormChange((f) => ({
-                    ...f,
-                    shiftPreset: value === "evening" ? "evening" : "afternoon",
-                  }))
-                }
-              >
-                <SelectTrigger id="shift-preset" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="afternoon">
-                    Afternoon — 3:00 PM to 12:00 AM (+15 min grace)
-                  </SelectItem>
-                  <SelectItem value="evening">
-                    Evening — 6:00 PM to 3:00 AM (+15 min grace)
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-muted-foreground text-xs">
-                Late starts one minute after the grace deadline.
-              </p>
-            </div>
+            <FormSection
+              title="Shift timing"
+              description="Late starts one minute after the grace deadline."
+            >
+              <FormField>
+                <Label htmlFor="shift-preset">Preset</Label>
+                <Select
+                  items={{
+                    afternoon: "Afternoon — 3:00 PM to 12:00 AM (+15 min grace)",
+                    evening: "Evening — 6:00 PM to 3:00 AM (+15 min grace)",
+                  }}
+                  value={form.shiftPreset === "evening" ? "evening" : "afternoon"}
+                  onValueChange={(value) =>
+                    onFormChange((f) => ({
+                      ...f,
+                      shiftPreset: value === "evening" ? "evening" : "afternoon",
+                    }))
+                  }
+                >
+                  <SelectTrigger id="shift-preset" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="afternoon">
+                      Afternoon — 3:00 PM to 12:00 AM (+15 min grace)
+                    </SelectItem>
+                    <SelectItem value="evening">
+                      Evening — 6:00 PM to 3:00 AM (+15 min grace)
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormField>
+            </FormSection>
           ) : null}
 
           {shiftPresetCompany === "crest-led" ? (
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="shift-preset">Shift timing</Label>
-              <Select
-                items={{
-                  day: "Day — 9:00 AM to 5:00 PM (+15 min grace)",
-                  evening: "Evening — 6:00 PM to 3:00 AM (+15 min grace)",
-                }}
-                value={form.shiftPreset === "evening" ? "evening" : "day"}
-                onValueChange={(value) =>
-                  onFormChange((f) => ({
-                    ...f,
-                    shiftPreset: value === "evening" ? "evening" : "day",
-                  }))
-                }
-              >
-                <SelectTrigger id="shift-preset" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="day">Day — 9:00 AM to 5:00 PM (+15 min grace)</SelectItem>
-                  <SelectItem value="evening">
-                    Evening — 6:00 PM to 3:00 AM (+15 min grace)
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-muted-foreground text-xs">
-                Late starts one minute after the grace deadline.
-              </p>
-            </div>
+            <FormSection
+              title="Shift timing"
+              description="Late starts one minute after the grace deadline."
+            >
+              <FormField>
+                <Label htmlFor="shift-preset">Preset</Label>
+                <Select
+                  items={{
+                    day: "Day — 9:00 AM to 5:00 PM (+15 min grace)",
+                    evening: "Evening — 6:00 PM to 3:00 AM (+15 min grace)",
+                  }}
+                  value={form.shiftPreset === "evening" ? "evening" : "day"}
+                  onValueChange={(value) =>
+                    onFormChange((f) => ({
+                      ...f,
+                      shiftPreset: value === "evening" ? "evening" : "day",
+                    }))
+                  }
+                >
+                  <SelectTrigger id="shift-preset" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="day">Day — 9:00 AM to 5:00 PM (+15 min grace)</SelectItem>
+                    <SelectItem value="evening">
+                      Evening — 6:00 PM to 3:00 AM (+15 min grace)
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormField>
+            </FormSection>
           ) : null}
 
-          <Separator />
+          <Separator className="bg-white/10" />
 
-          <div className="flex flex-col gap-3">
-            <div>
-              <p className="font-medium text-sm">Probationary period</p>
-              <p className="text-muted-foreground text-sm">
-                {editingId
-                  ? "Adjust probation settings for this employee. Mark legacy employees as completed if they finished probation before joining the system."
-                  : `Off by default when you add an employee. Mark existing staff as completed, or enable probation for new hires.`}
-              </p>
-            </div>
+          <FormSection
+            title="Probationary period"
+            description={
+              editingId
+                ? "Adjust probation settings for this employee. Mark legacy employees as completed if they finished probation before joining the system."
+                : "Off by default when you add an employee. Mark existing staff as completed, or enable probation for new hires."
+            }
+          >
 
             <div className="flex items-center gap-2">
               <Checkbox
@@ -362,15 +368,15 @@ export function EmployeeSheet({
 
             {form.probationEnabled && !form.probationCompleted && (
               <>
-                <div className="flex flex-col gap-1.5">
+                <FormField>
                   <Label htmlFor="probation-start">Start date</Label>
                   <DatePicker
                     id="probation-start"
                     value={form.probationStartDate}
                     onChange={(value) => onFormChange((f) => ({ ...f, probationStartDate: value }))}
                   />
-                </div>
-                <div className="flex flex-col gap-1.5">
+                </FormField>
+                <FormField>
                   <Label htmlFor="probation-period">Period (months)</Label>
                   <Input
                     id="probation-period"
@@ -383,13 +389,13 @@ export function EmployeeSheet({
                       onFormChange((f) => ({ ...f, probationPeriodMonths: e.target.value }))
                     }
                   />
-                </div>
+                </FormField>
                 <ProbationSummary form={form} />
               </>
             )}
 
             {form.probationCompleted && (
-              <p className="text-muted-foreground text-sm">
+              <p className="text-sm text-[#d7dceb]">
                 This employee is recorded as having completed probation.
               </p>
             )}
@@ -420,7 +426,7 @@ export function EmployeeSheet({
                 ) : null}
               </div>
             )}
-          </div>
+          </FormSection>
 
           <SheetFooter className="flex-row px-0">
             <Button type="submit" disabled={saving || probationActionPending}>

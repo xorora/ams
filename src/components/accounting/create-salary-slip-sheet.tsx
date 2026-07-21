@@ -125,12 +125,12 @@ export function CreateSalarySlipSheet({
         </SheetHeader>
 
         {employees.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
+          <p className="px-4 text-sm text-[#d7dceb]">
             Configure employee compensation profiles before creating salary slips.
           </p>
         ) : (
           <div className="space-y-4 px-4 pb-4">
-            <div className="grid gap-4">
+            <div className="grid gap-4 rounded-xl border border-white/12 bg-[#050d22]/70 p-4">
               <div className="space-y-1.5">
                 <Label>Employee</Label>
                 <Select
@@ -156,7 +156,7 @@ export function CreateSalarySlipSheet({
                 <input
                   id="create-slip-month"
                   type="month"
-                  className="flex h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm"
+                  className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/40"
                   value={yearMonth}
                   onChange={(event) => setYearMonth(event.target.value)}
                 />

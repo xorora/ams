@@ -84,8 +84,8 @@ export function AttendanceTable({
         header: "Flags",
         cell: ({ row }) => (
           <span className="text-xs">
-            {row.original.isLate && <span className="mr-1 text-amber-700">Late</span>}
-            {row.original.isEarlyLeave && <span className="mr-1 text-amber-700">Early</span>}
+            {row.original.isLate && <span className="mr-1 text-amber-200">Late</span>}
+            {row.original.isEarlyLeave && <span className="mr-1 text-amber-200">Early</span>}
             {row.original.isMissedCheckout && !row.original.checkOutAt && (
               <span className="text-muted-foreground">No checkout</span>
             )}

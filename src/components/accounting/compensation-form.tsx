@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { FormField, FormSection } from "@/components/ui/form-section";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { UpsertCompensationInput } from "@/lib/accounting/compensation-service";
@@ -79,58 +80,60 @@ export function CompensationForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-6">
-      <div className="rounded-lg border border-border bg-muted/20 p-4 text-sm">
-        <p className="font-medium">{employeeName}</p>
-        <p className="text-muted-foreground">Code: {employeeCode}</p>
+      <div className="rounded-xl border border-white/12 bg-[#050d22]/70 p-4 text-sm">
+        <p className="font-semibold text-white">{employeeName}</p>
+        <p className="mt-1 text-[#d7dceb]">Code: {employeeCode}</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5 sm:col-span-2">
-          <Label htmlFor="gross-salary">Gross salary (PKR)</Label>
-          <Input
-            id="gross-salary"
-            inputMode="numeric"
-            required
-            value={form.grossSalaryPkr}
-            onChange={(event) => updateField("grossSalaryPkr", event.target.value)}
-          />
+      <FormSection title="Compensation" description="Gross pay, bank details, and fixed monthly amounts.">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField className="sm:col-span-2">
+            <Label htmlFor="gross-salary">Gross salary (PKR)</Label>
+            <Input
+              id="gross-salary"
+              inputMode="numeric"
+              required
+              value={form.grossSalaryPkr}
+              onChange={(event) => updateField("grossSalaryPkr", event.target.value)}
+            />
+          </FormField>
+          <FormField>
+            <Label htmlFor="bank-name">Bank name</Label>
+            <Input
+              id="bank-name"
+              value={form.bankName}
+              onChange={(event) => updateField("bankName", event.target.value)}
+              placeholder="e.g. HBL"
+            />
+          </FormField>
+          <FormField>
+            <Label htmlFor="bank-account">Bank account number</Label>
+            <Input
+              id="bank-account"
+              value={form.bankAccountNumber}
+              onChange={(event) => updateField("bankAccountNumber", event.target.value)}
+            />
+          </FormField>
+          <FormField>
+            <Label htmlFor="security-deduction">Fixed security deduction (PKR)</Label>
+            <Input
+              id="security-deduction"
+              inputMode="numeric"
+              value={form.fixedSecurityDeductionPkr}
+              onChange={(event) => updateField("fixedSecurityDeductionPkr", event.target.value)}
+            />
+          </FormField>
+          <FormField>
+            <Label htmlFor="fixed-other-pay">Fixed other pay (PKR)</Label>
+            <Input
+              id="fixed-other-pay"
+              inputMode="numeric"
+              value={form.fixedOtherPayPkr}
+              onChange={(event) => updateField("fixedOtherPayPkr", event.target.value)}
+            />
+          </FormField>
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="bank-name">Bank name</Label>
-          <Input
-            id="bank-name"
-            value={form.bankName}
-            onChange={(event) => updateField("bankName", event.target.value)}
-            placeholder="e.g. HBL"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="bank-account">Bank account number</Label>
-          <Input
-            id="bank-account"
-            value={form.bankAccountNumber}
-            onChange={(event) => updateField("bankAccountNumber", event.target.value)}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="security-deduction">Fixed security deduction (PKR)</Label>
-          <Input
-            id="security-deduction"
-            inputMode="numeric"
-            value={form.fixedSecurityDeductionPkr}
-            onChange={(event) => updateField("fixedSecurityDeductionPkr", event.target.value)}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="fixed-other-pay">Fixed other pay (PKR)</Label>
-          <Input
-            id="fixed-other-pay"
-            inputMode="numeric"
-            value={form.fixedOtherPayPkr}
-            onChange={(event) => updateField("fixedOtherPayPkr", event.target.value)}
-          />
-        </div>
-      </div>
+      </FormSection>
 
       <div className="flex flex-wrap gap-2">
         <Button type="submit" disabled={saving}>

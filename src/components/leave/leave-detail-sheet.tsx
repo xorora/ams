@@ -40,26 +40,26 @@ export function LeaveDetailSheet({
 
         {request ? (
           <div className="flex-1 space-y-4 overflow-y-auto px-1 pb-4">
-            <div className="space-y-2 rounded-lg border bg-muted/30 p-4">
+            <div className="space-y-2 rounded-xl border border-white/12 bg-[#050d22]/70 p-4">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-muted-foreground text-sm">Status</span>
+                <span className="text-sm font-medium text-[#c8cce0]">Status</span>
                 <Badge variant={leaveStatusBadgeVariant(request.status)}>
                   {leaveStatusLabel(request.status)}
                 </Badge>
               </div>
               {request.reviewNotes ? (
-                <p className="text-sm">
-                  <span className="text-muted-foreground">Review notes: </span>
+                <p className="text-sm text-[#eceef5]">
+                  <span className="font-medium text-[#c8cce0]">Review notes: </span>
                   {request.reviewNotes}
                 </p>
               ) : null}
             </div>
 
             {showBalanceCards && balances.length > 0 ? (
-              <div className="space-y-2">
+              <div className="space-y-2 rounded-xl border border-white/12 bg-[#050d22]/60 p-4">
                 <div>
-                  <h3 className="font-medium text-sm">Leave balance</h3>
-                  <p className="text-muted-foreground text-xs">
+                  <h3 className="font-semibold text-sm text-white">Leave balance</h3>
+                  <p className="text-sm text-[#d7dceb]">
                     {request.employeeName} · remaining / entitled for the request year
                   </p>
                 </div>

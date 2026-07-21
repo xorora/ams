@@ -12,6 +12,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
 import { formatPktIso } from "@/lib/admin/display";
 import {
   formatLateFinePkr,
@@ -105,23 +106,23 @@ export function LateRelaxationDetailSheet({
 
         <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
           {showEmployee ? (
-            <div className="flex items-center gap-3 rounded-xl border bg-muted/40 p-4">
+            <div className="flex items-center gap-3 rounded-xl border border-white/12 bg-[#050d22]/70 p-4">
               <div
                 aria-hidden
-                className="flex size-11 shrink-0 items-center justify-center rounded-full bg-foreground text-background font-semibold text-sm"
+                className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[#f26b21]/20 font-semibold text-sm text-[#ffb27a]"
               >
                 {employeeInitials(request.employeeName)}
               </div>
               <div className="min-w-0">
-                <p className="truncate font-semibold leading-tight">{request.employeeName}</p>
-                <p className="mt-0.5 truncate text-muted-foreground text-sm">
+                <p className="truncate font-semibold leading-tight text-white">
+                  {request.employeeName}
+                </p>
+                <p className="mt-0.5 truncate text-sm text-[#d7dceb]">
                   <span className="font-mono text-xs">{request.employeeCode}</span>
                   {request.employeeDepartment ? ` · ${request.employeeDepartment}` : null}
                 </p>
                 {request.employeeEmail ? (
-                  <p className="mt-0.5 truncate text-muted-foreground text-xs">
-                    {request.employeeEmail}
-                  </p>
+                  <p className="mt-0.5 truncate text-xs text-[#c8cce0]">{request.employeeEmail}</p>
                 ) : null}
               </div>
             </div>
@@ -147,10 +148,10 @@ export function LateRelaxationDetailSheet({
 
           {isPending && hasAdminActions ? (
             <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
-              <p className="font-medium text-amber-950 dark:text-amber-100">
+              <p className="font-medium text-amber-100">
                 Approving waives late fines for {monthLabel}
               </p>
-              <p className="mt-1 text-amber-950/80 text-xs dark:text-amber-100/80">
+              <p className="mt-1 text-xs text-amber-100/80">
                 Late marks stay on attendance. Only the fine amounts for this calendar month are
                 zeroed.
               </p>
@@ -158,29 +159,29 @@ export function LateRelaxationDetailSheet({
           ) : null}
 
           <section className="space-y-2">
-            <h3 className="font-medium text-sm">Reason</h3>
-            <div className="rounded-xl border bg-background px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap">
+            <h3 className="font-semibold text-sm text-white">Reason</h3>
+            <div className="rounded-xl border border-white/12 bg-[#050d22]/70 px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap text-[#eceef5]">
               {request.reason}
             </div>
           </section>
 
           <section className="grid gap-3 text-sm sm:grid-cols-2">
             <div>
-              <p className="text-muted-foreground text-xs">Submitted</p>
-              <p className="mt-0.5">{formatPktIso(request.createdAt)}</p>
+              <p className="text-xs text-[#c8cce0]">Submitted</p>
+              <p className="mt-0.5 text-[#eceef5]">{formatPktIso(request.createdAt)}</p>
             </div>
             {request.reviewedAt ? (
               <div>
-                <p className="text-muted-foreground text-xs">Reviewed</p>
-                <p className="mt-0.5">{formatPktIso(request.reviewedAt)}</p>
+                <p className="text-xs text-[#c8cce0]">Reviewed</p>
+                <p className="mt-0.5 text-[#eceef5]">{formatPktIso(request.reviewedAt)}</p>
               </div>
             ) : null}
           </section>
 
           {request.reviewNotes ? (
             <section className="space-y-2">
-              <h3 className="font-medium text-sm">Review notes</h3>
-              <div className="rounded-xl border bg-muted/30 px-4 py-3 text-sm whitespace-pre-wrap">
+              <h3 className="font-semibold text-sm text-white">Review notes</h3>
+              <div className="rounded-xl border border-white/12 bg-[#050d22]/70 px-4 py-3 text-sm whitespace-pre-wrap text-[#eceef5]">
                 {request.reviewNotes}
               </div>
             </section>
@@ -189,21 +190,20 @@ export function LateRelaxationDetailSheet({
           {isPending && rejectMode && onReject ? (
             <section className="space-y-2">
               <Label htmlFor="relaxation-reject-notes">Rejection notes (optional)</Label>
-              <textarea
+              <Textarea
                 id="relaxation-reject-notes"
                 value={rejectNotes}
                 onChange={(event) => setRejectNotes(event.target.value)}
                 placeholder="Share why this request is being rejected…"
                 rows={3}
                 disabled={actionPending}
-                className="min-h-20 w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
               />
             </section>
           ) : null}
         </div>
 
         {isPending && (hasAdminActions || hasEmployeeCancel) ? (
-          <SheetFooter className="shrink-0 flex-col gap-2 border-t px-6 py-4 sm:flex-col">
+          <SheetFooter className="shrink-0 flex-col gap-2 px-6 py-4 sm:flex-col">
             {onCancel ? (
               <Button
                 type="button"
@@ -302,17 +302,17 @@ function FactCard({
   emphasize?: boolean;
 }) {
   return (
-    <div className="rounded-xl border bg-muted/30 px-3.5 py-3">
-      <p className="text-muted-foreground text-xs">{label}</p>
+    <div className="rounded-xl border border-white/12 bg-[#050d22]/70 px-3.5 py-3">
+      <p className="text-xs font-medium text-[#c8cce0]">{label}</p>
       <p
         className={cn(
-          "mt-1 font-semibold tabular-nums tracking-tight",
-          emphasize && "text-foreground",
+          "mt-1 font-semibold tabular-nums tracking-tight text-white",
+          emphasize && "text-[#ffb27a]",
         )}
       >
         {value}
       </p>
-      {hint ? <p className="mt-0.5 text-muted-foreground text-[11px]">{hint}</p> : null}
+      {hint ? <p className="mt-0.5 text-[11px] text-[#d7dceb]">{hint}</p> : null}
     </div>
   );
 }

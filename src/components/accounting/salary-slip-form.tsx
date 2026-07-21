@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { FormField, FormSection } from "@/components/ui/form-section";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { previewSalarySlipAction } from "@/lib/accounting/actions";
@@ -113,76 +114,80 @@ export function SalarySlipForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="income-tax">Income tax (PKR)</Label>
-          <Input
-            id="income-tax"
-            inputMode="numeric"
-            value={form.incomeTaxPkr}
-            onChange={(event) => updateField("incomeTaxPkr", event.target.value)}
-          />
+      <FormSection title="Adjustments" description="Taxes, deductions, and other pay for this month.">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField>
+            <Label htmlFor="income-tax">Income tax (PKR)</Label>
+            <Input
+              id="income-tax"
+              inputMode="numeric"
+              value={form.incomeTaxPkr}
+              onChange={(event) => updateField("incomeTaxPkr", event.target.value)}
+            />
+          </FormField>
+          <FormField>
+            <Label htmlFor="additional-deduction">Additional deduction (PKR)</Label>
+            <Input
+              id="additional-deduction"
+              inputMode="numeric"
+              value={form.additionalDeductionPkr}
+              onChange={(event) => updateField("additionalDeductionPkr", event.target.value)}
+            />
+          </FormField>
+          <FormField className="sm:col-span-2">
+            <Label htmlFor="deduction-details">Deduction details</Label>
+            <Input
+              id="deduction-details"
+              value={form.deductionDetails}
+              onChange={(event) => updateField("deductionDetails", event.target.value)}
+              placeholder="Optional notes for deductions"
+            />
+          </FormField>
+          <FormField>
+            <Label htmlFor="other-pay">Other pay this month (PKR)</Label>
+            <Input
+              id="other-pay"
+              inputMode="numeric"
+              value={form.otherPayPkr}
+              onChange={(event) => updateField("otherPayPkr", event.target.value)}
+            />
+          </FormField>
+          <FormField>
+            <Label htmlFor="increment">Increment (PKR)</Label>
+            <Input
+              id="increment"
+              inputMode="numeric"
+              value={form.incrementPkr}
+              onChange={(event) => updateField("incrementPkr", event.target.value)}
+            />
+          </FormField>
+          <FormField className="sm:col-span-2">
+            <Label htmlFor="other-payable-details">Other payable details</Label>
+            <Input
+              id="other-payable-details"
+              value={form.otherPayableDetails}
+              onChange={(event) => updateField("otherPayableDetails", event.target.value)}
+              placeholder="Optional notes for other pay"
+            />
+          </FormField>
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="additional-deduction">Additional deduction (PKR)</Label>
-          <Input
-            id="additional-deduction"
-            inputMode="numeric"
-            value={form.additionalDeductionPkr}
-            onChange={(event) => updateField("additionalDeductionPkr", event.target.value)}
-          />
-        </div>
-        <div className="space-y-1.5 sm:col-span-2">
-          <Label htmlFor="deduction-details">Deduction details</Label>
-          <Input
-            id="deduction-details"
-            value={form.deductionDetails}
-            onChange={(event) => updateField("deductionDetails", event.target.value)}
-            placeholder="Optional notes for deductions"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="other-pay">Other pay this month (PKR)</Label>
-          <Input
-            id="other-pay"
-            inputMode="numeric"
-            value={form.otherPayPkr}
-            onChange={(event) => updateField("otherPayPkr", event.target.value)}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="increment">Increment (PKR)</Label>
-          <Input
-            id="increment"
-            inputMode="numeric"
-            value={form.incrementPkr}
-            onChange={(event) => updateField("incrementPkr", event.target.value)}
-          />
-        </div>
-        <div className="space-y-1.5 sm:col-span-2">
-          <Label htmlFor="other-payable-details">Other payable details</Label>
-          <Input
-            id="other-payable-details"
-            value={form.otherPayableDetails}
-            onChange={(event) => updateField("otherPayableDetails", event.target.value)}
-            placeholder="Optional notes for other pay"
-          />
-        </div>
-      </div>
+      </FormSection>
 
       {preview ? (
-        <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm">
-          <p className="mb-3 font-medium">Calculated preview</p>
-          <div className="grid gap-2 sm:grid-cols-2">
+        <div className="rounded-xl border border-white/12 bg-[#050d22]/70 p-4 text-sm text-[#eceef5]">
+          <p className="mb-3 font-semibold text-white">Calculated preview</p>
+          <div className="grid gap-2 text-[#d7dceb] sm:grid-cols-2">
             <p>
               Earned / deduct days: {preview.earnedDays} / {preview.deductDays}
             </p>
             <p>Cal salary: {formatSalaryPkr(preview.calculatedSalaryPkr)}</p>
             <p>Total deductions: {formatSalaryPkr(preview.totalDeductionPkr)}</p>
-            <p className="font-semibold">Net salary: {formatSalaryPkr(preview.netSalaryPkr)}</p>
+            <p className="font-semibold text-white">
+              Net salary: {formatSalaryPkr(preview.netSalaryPkr)}
+            </p>
           </div>
           {previewLoading ? (
-            <p className="mt-2 text-muted-foreground text-xs">Updating preview…</p>
+            <p className="mt-2 text-xs text-[#c8cce0]">Updating preview…</p>
           ) : null}
         </div>
       ) : null}

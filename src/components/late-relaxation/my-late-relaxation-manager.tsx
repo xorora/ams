@@ -8,6 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   formatLateFinePkr,
   MONTHLY_LATE_ALLOWANCE,
@@ -132,7 +133,7 @@ export function MyLateRelaxationManager({
   return (
     <div className={cn("flex flex-col gap-6 md:min-h-0 md:flex-1 md:overflow-hidden", className)}>
       <div className="shrink-0 space-y-4">
-        <div className="space-y-2 rounded-lg border p-4">
+        <div className="space-y-2 rounded-xl border border-white/12 bg-[#050d22]/70 p-4">
           <div className="space-y-1.5">
             <Label htmlFor="relaxation-month-date">Month to apply for</Label>
             <DatePicker
@@ -145,32 +146,35 @@ export function MyLateRelaxationManager({
               disabledDays={{ after: new Date() }}
               className="max-w-xs"
             />
-            <p className="text-muted-foreground text-xs">
+            <p className="text-sm text-[#d7dceb]">
               Choose any date in the month you want covered. Relaxation waives late fines for the
               whole calendar month.
             </p>
           </div>
         </div>
 
-        <div className={cn("rounded-lg border px-4 py-3", isPending && "opacity-60")}>
-          <p className="font-medium text-sm">{monthLabel} late summary</p>
-          <p className="mt-1 text-muted-foreground text-sm">
+        <div
+          className={cn(
+            "rounded-xl border border-white/12 bg-[#050d22]/70 px-4 py-3",
+            isPending && "opacity-60",
+          )}
+        >
+          <p className="font-semibold text-sm text-white">{monthLabel} late summary</p>
+          <p className="mt-1 text-sm text-[#d7dceb]">
             {summary.lateCount} late check-in{summary.lateCount === 1 ? "" : "s"} ·{" "}
             {summary.freeLatesRemaining} free remaining of {MONTHLY_LATE_ALLOWANCE}
           </p>
           {summary.finesWaived ? (
-            <p className="mt-1 text-sm text-emerald-800">
+            <p className="mt-1 text-sm font-medium text-emerald-200">
               Late fines for this month are waived.
             </p>
           ) : summary.totalFinePkr > 0 ? (
-            <p className="mt-1 text-amber-800 text-sm">
+            <p className="mt-1 text-sm font-medium text-amber-100">
               Pending fines: {formatLateFinePkr(summary.totalFinePkr)} ({summary.fineableLates}{" "}
               fined late{summary.fineableLates === 1 ? "" : "s"})
             </p>
           ) : (
-            <p className="mt-1 text-muted-foreground text-sm">
-              No late fines yet this month.
-            </p>
+            <p className="mt-1 text-sm text-[#d7dceb]">No late fines yet this month.</p>
           )}
         </div>
 
@@ -183,24 +187,26 @@ export function MyLateRelaxationManager({
             </AlertDescription>
           </Alert>
         ) : canSubmit ? (
-          <form className="space-y-3 rounded-lg border p-4" onSubmit={handleSubmit}>
+          <form
+            className="space-y-3 rounded-xl border border-white/12 bg-[#050d22]/70 p-4"
+            onSubmit={handleSubmit}
+          >
             <div>
-              <h2 className="font-medium">Request late fine relaxation</h2>
-              <p className="mt-1 text-muted-foreground text-sm">
+              <h2 className="font-semibold text-white">Request late fine relaxation</h2>
+              <p className="mt-1 text-sm text-[#d7dceb]">
                 You have more than {MONTHLY_LATE_ALLOWANCE} lates in {monthLabel}. If HR approves,
                 all late fines for that month will be waived.
               </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="relaxation-reason">Reason</Label>
-              <textarea
+              <Textarea
                 id="relaxation-reason"
                 required
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
                 placeholder="Explain why you are requesting a late fine waiver…"
                 rows={4}
-                className="min-h-24 w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               />
             </div>
             <Button type="submit" disabled={saving || isPending || !reason.trim()}>
