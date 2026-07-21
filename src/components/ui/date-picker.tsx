@@ -33,6 +33,10 @@ type DatePickerProps = {
   disabled?: boolean;
   className?: string;
   "aria-invalid"?: boolean;
+  /** Disables calendar days matching this matcher (react-day-picker). */
+  disabledDays?: React.ComponentProps<typeof Calendar>["disabled"];
+  /** How the selected value is shown on the trigger button. */
+  displayFormat?: string;
 };
 
 export function DatePicker({
@@ -43,6 +47,8 @@ export function DatePicker({
   disabled,
   className,
   "aria-invalid": ariaInvalid,
+  disabledDays,
+  displayFormat = "MMM d, yyyy",
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false);
   const selected = parseShiftDate(value);
@@ -66,13 +72,14 @@ export function DatePicker({
         }
       >
         <CalendarIcon className="size-4 shrink-0 text-muted-foreground" />
-        {selected ? format(selected, "MMM d, yyyy") : placeholder}
+        {selected ? format(selected, displayFormat) : placeholder}
       </PopoverTrigger>
       <PopoverContent align="start" className="w-auto p-0">
         <Calendar
           mode="single"
           selected={selected}
           defaultMonth={selected}
+          disabled={disabledDays}
           onSelect={(date) => {
             if (!date) {
               return;

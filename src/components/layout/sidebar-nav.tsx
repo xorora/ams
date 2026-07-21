@@ -97,12 +97,18 @@ function NavMenuItem({
           />
         }
       >
-        <span className="relative inline-flex">
-          <Icon />
-          {indicator}
-        </span>
+        <Icon />
         <span>{item.label}</span>
       </SidebarMenuButton>
+      {/*
+        Absolute on the menu item (not inside the overflow-hidden button) so the red dot
+        is not clipped. Renders nothing when the streamed indicator resolves to null.
+      */}
+      {indicator != null ? (
+        <span className="pointer-events-none absolute top-1.5 right-1.5 flex items-center justify-center group-data-[collapsible=icon]:top-1 group-data-[collapsible=icon]:right-1">
+          {indicator}
+        </span>
+      ) : null}
     </SidebarMenuItem>
   );
 }

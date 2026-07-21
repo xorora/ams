@@ -102,6 +102,18 @@ export function getCurrentYearMonth(): string {
   return formatInTimeZone(new Date(), BUSINESS_TIMEZONE, "yyyy-MM");
 }
 
+/** Normalize `YYYY-MM` or `YYYY-MM-DD` to a calendar month key. */
+export function normalizeYearMonth(value: string | null | undefined): string | null {
+  const trimmed = value?.trim() ?? "";
+  if (YEAR_MONTH_PATTERN.test(trimmed)) {
+    return trimmed;
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed.slice(0, 7);
+  }
+  return null;
+}
+
 export async function listLateRelaxationRequests(
   filters: ListLateRelaxationFilters = {},
 ): Promise<ServiceSuccess<LateRelaxationListItem[]>> {
@@ -166,6 +178,11 @@ export async function submitLateRelaxationRequest(
   }
   if (!reason) {
     return adminFailure(400, "REASON_REQUIRED", "A reason is required.");
+  }
+
+  const currentMonth = getCurrentYearMonth();
+  if (yearMonth > currentMonth) {
+    return adminFailure(400, "FUTURE_MONTH", "You cannot request relaxation for a future month.");
   }
 
   const [employee] = await db

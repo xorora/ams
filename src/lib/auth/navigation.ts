@@ -99,7 +99,7 @@ export function getNavItemsForUser(
       { href: "/admin/leave", label: "Leave requests", icon: CalendarOff, adminOnly: true },
       {
         href: "/admin/relaxations",
-        label: "Late relaxations",
+        label: "Relaxations",
         icon: ShieldCheck,
         adminOnly: true,
       },

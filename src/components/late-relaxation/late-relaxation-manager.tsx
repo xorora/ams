@@ -123,16 +123,20 @@ export function LateRelaxationManager({
     }
   }
 
-  async function handleReject(id: string) {
-    const notes = window.prompt("Optional rejection notes:");
-    if (notes === null) {
-      return;
+  async function handleReject(id: string, notes?: string | null) {
+    let reviewNotes = notes;
+    if (reviewNotes === undefined) {
+      const prompted = window.prompt("Optional rejection notes:");
+      if (prompted === null) {
+        return;
+      }
+      reviewNotes = prompted || null;
     }
 
     setActionPending(true);
     try {
       await toastAsync(
-        rejectLateRelaxationRequestAction(id, notes || null).then((result) => {
+        rejectLateRelaxationRequestAction(id, reviewNotes).then((result) => {
           if (!result.ok) {
             throw new Error(result.error);
           }

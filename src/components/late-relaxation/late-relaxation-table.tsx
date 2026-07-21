@@ -76,9 +76,14 @@ export function LateRelaxationTable({
         accessorKey: "status",
         header: "Status",
         cell: ({ row }) => (
-          <Badge variant={lateRelaxationStatusBadgeVariant(row.original.status)}>
-            {lateRelaxationStatusLabel(row.original.status)}
-          </Badge>
+          <span className="inline-flex items-center gap-1.5">
+            {row.original.status === "pending" ? (
+              <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-destructive" />
+            ) : null}
+            <Badge variant={lateRelaxationStatusBadgeVariant(row.original.status)}>
+              {lateRelaxationStatusLabel(row.original.status)}
+            </Badge>
+          </span>
         ),
       },
       {

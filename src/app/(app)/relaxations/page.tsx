@@ -4,10 +4,15 @@ import { requireEmployeeSession } from "@/lib/auth/require-session";
 import {
   getCurrentYearMonth,
   listLateRelaxationRequests,
+  normalizeYearMonth,
 } from "@/lib/late-relaxation/late-relaxation-service";
 import { serializeLateRelaxationRequest } from "@/lib/late-relaxation/serialize";
 
-export default async function RelaxationsPage() {
+type PageProps = {
+  searchParams: Promise<{ month?: string }>;
+};
+
+export default async function RelaxationsPage({ searchParams }: PageProps) {
   const session = await requireEmployeeSession();
   const employeeId = session.user.employeeId;
 
@@ -15,7 +20,12 @@ export default async function RelaxationsPage() {
     return null;
   }
 
-  const yearMonth = getCurrentYearMonth();
+  const params = await searchParams;
+  const currentMonth = getCurrentYearMonth();
+  const requestedMonth = normalizeYearMonth(params.month);
+  const yearMonth =
+    requestedMonth && requestedMonth <= currentMonth ? requestedMonth : currentMonth;
+
   const [summary, requestsResult] = await Promise.all([
     getEmployeeMonthlyLateSummary(employeeId, `${yearMonth}-01`),
     listLateRelaxationRequests({ employeeId }),
@@ -26,13 +36,14 @@ export default async function RelaxationsPage() {
       <div className="shrink-0">
         <h1 className="text-2xl font-semibold">Late relaxations</h1>
         <p className="mt-1 text-muted-foreground text-sm">
-          After more than 3 late check-ins in a month, request a fine waiver. If approved, no late
-          fine is charged for that month.
+          After more than 3 late check-ins in a month, request a fine waiver. Pick the month you
+          want covered — if approved, no late fine is charged for that month.
         </p>
       </div>
 
       <MyLateRelaxationManager
         yearMonth={yearMonth}
+        currentYearMonth={currentMonth}
         summary={summary}
         requests={requestsResult.data.map(serializeLateRelaxationRequest)}
         className="md:min-h-0 md:flex-1"
