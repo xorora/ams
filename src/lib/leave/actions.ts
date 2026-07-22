@@ -96,7 +96,7 @@ export async function getLeaveBalancesAction(
   year?: number,
 ): Promise<ActionResult<LeaveBalance[]>> {
   await requireAdminSession();
-  const result = await getLeaveBalances(employeeId, year);
+  const result = await getLeaveBalances(employeeId, year, { allowInactive: true });
   if (!result.ok) {
     return actionFailure(result);
   }

@@ -44,12 +44,21 @@ const ClearanceFormSheet = dynamic(
   { loading: () => null },
 );
 
+const EmployeeLeaveQuotaSheet = dynamic(
+  () =>
+    import("@/components/employee/employee-leave-quota-sheet").then(
+      (module) => module.EmployeeLeaveQuotaSheet,
+    ),
+  { loading: () => null },
+);
+
 type EmployeesManagerProps = {
   employees: SerializedEmployee[];
   search: string;
   includeInactive: boolean;
   /** When set, show and save per-employee shift timing for that company. */
   shiftPresetCompany?: ShiftPresetCompany | null;
+  leaveYear: number;
 };
 
 export function EmployeesManager({
@@ -57,6 +66,7 @@ export function EmployeesManager({
   search,
   includeInactive,
   shiftPresetCompany = null,
+  leaveYear,
 }: EmployeesManagerProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -74,6 +84,8 @@ export function EmployeesManager({
     employeeToClearanceForm(),
   );
   const [clearanceGenerating, setClearanceGenerating] = useState(false);
+  const [leaveQuotaOpen, setLeaveQuotaOpen] = useState(false);
+  const [leaveQuotaEmployee, setLeaveQuotaEmployee] = useState<SerializedEmployee | null>(null);
 
   useEffect(() => {
     setSearchInput(search);
@@ -117,6 +129,16 @@ export function EmployeesManager({
     setClearanceOpen(false);
     setClearanceEmployee(null);
     setClearanceForm(employeeToClearanceForm());
+  }
+
+  function openLeaveQuota(employee: SerializedEmployee) {
+    setLeaveQuotaEmployee(employee);
+    setLeaveQuotaOpen(true);
+  }
+
+  function closeLeaveQuota() {
+    setLeaveQuotaOpen(false);
+    setLeaveQuotaEmployee(null);
   }
 
   async function generateClearancePdf(disposition: "inline" | "attachment") {
@@ -481,6 +503,18 @@ export function EmployeesManager({
           onDownload={() => void generateClearancePdf("attachment")}
           onCancel={closeClearanceForm}
         />
+
+        <EmployeeLeaveQuotaSheet
+          open={leaveQuotaOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              closeLeaveQuota();
+            }
+          }}
+          employee={leaveQuotaEmployee}
+          balances={leaveQuotaEmployee?.leaveBalances ?? []}
+          year={leaveYear}
+        />
       </div>
 
       <EmployeeTable
@@ -489,6 +523,7 @@ export function EmployeesManager({
         loading={isPending}
         onEdit={openEdit}
         onClearanceForm={openClearanceForm}
+        onViewLeaveQuota={openLeaveQuota}
         onDeactivate={handleDeactivate}
         onReactivate={handleReactivate}
         onStartProbation={handleStartProbation}

@@ -149,12 +149,13 @@ function mapLeaveRow(
 
 async function getEmployeeForLeave(
   employeeId: string,
+  options?: { allowInactive?: boolean },
 ): Promise<ServiceFailure | ServiceSuccess<typeof employees.$inferSelect>> {
   const [employee] = await db.select().from(employees).where(eq(employees.id, employeeId)).limit(1);
   if (!employee) {
     return adminFailure(404, "EMPLOYEE_NOT_FOUND", "Employee not found.");
   }
-  if (!employee.isActive) {
+  if (!employee.isActive && !options?.allowInactive) {
     return adminFailure(403, "EMPLOYEE_INACTIVE", "Your employee account is inactive.");
   }
   return { ok: true, data: employee };
@@ -211,7 +212,7 @@ export async function getLeaveRequestForPdf(
   }
 
   const leaveYear = Number.parseInt(row.startDate.slice(0, 4), 10);
-  const balancesResult = await getLeaveBalances(row.employeeId, leaveYear);
+  const balancesResult = await getLeaveBalances(row.employeeId, leaveYear, { allowInactive: true });
   if (!balancesResult.ok) {
     return balancesResult;
   }
@@ -390,8 +391,9 @@ export function computeLeaveBalances(requests: LeaveRequestForBalance[]): LeaveB
 export async function getLeaveBalances(
   employeeId: string,
   year = getCurrentYear(),
+  options?: { allowInactive?: boolean },
 ): Promise<ServiceFailure | ServiceSuccess<LeaveBalance[]>> {
-  const employeeResult = await getEmployeeForLeave(employeeId);
+  const employeeResult = await getEmployeeForLeave(employeeId, options);
   if (!employeeResult.ok) {
     return employeeResult;
   }
@@ -403,9 +405,13 @@ export async function getLeaveBalances(
 export async function listCompanyLeaveBalances(
   companyId: string,
   year = getCurrentYear(),
+  options?: { includeInactive?: boolean },
 ): Promise<ServiceSuccess<EmployeeLeaveBalanceSummary[]>> {
   const yearStart = `${year}-01-01`;
   const yearEnd = `${year}-12-31`;
+  const employeeFilter = options?.includeInactive
+    ? eq(employees.companyId, companyId)
+    : and(eq(employees.companyId, companyId), eq(employees.isActive, true));
 
   const [employeeRows, requestRows] = await Promise.all([
     db
@@ -415,7 +421,7 @@ export async function listCompanyLeaveBalances(
         fullName: employees.fullName,
       })
       .from(employees)
-      .where(and(eq(employees.companyId, companyId), eq(employees.isActive, true)))
+      .where(employeeFilter)
       .orderBy(employees.fullName),
     db
       .select({

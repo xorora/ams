@@ -1,11 +1,13 @@
 import type { AttendanceListItem } from "./attendance-service";
 import type { EmployeeOption, EmployeeRecord } from "./employees-service";
+import type { LeaveBalance } from "@/lib/leave/types";
 
 export type SerializedEmployee = Omit<EmployeeRecord, "createdAt" | "updatedAt"> & {
   createdAt: string;
   updatedAt: string;
   pendingLateFinePkr: number;
   pendingFineableLates: number;
+  leaveBalances: LeaveBalance[];
 };
 
 /** Dropdown / filter option — avoids shipping full employee records to the client. */
@@ -27,6 +29,7 @@ export function serializeEmployee(
     pendingLateFinePkr: 0,
     pendingFineableLates: 0,
   },
+  leaveBalances: LeaveBalance[] = [],
 ): SerializedEmployee {
   return {
     ...employee,
@@ -34,6 +37,7 @@ export function serializeEmployee(
     updatedAt: employee.updatedAt.toISOString(),
     pendingLateFinePkr: pendingFines.pendingLateFinePkr,
     pendingFineableLates: pendingFines.pendingFineableLates,
+    leaveBalances,
   };
 }
 

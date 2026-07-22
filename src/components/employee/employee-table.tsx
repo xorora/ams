@@ -25,6 +25,7 @@ type EmployeeTableProps = {
   loading: boolean;
   onEdit: (employee: SerializedEmployee) => void;
   onClearanceForm?: (employee: SerializedEmployee) => void;
+  onViewLeaveQuota?: (employee: SerializedEmployee) => void;
   onDeactivate: (id: string, name: string) => void;
   onReactivate: (id: string) => void;
   onStartProbation?: (id: string, name: string) => void;
@@ -33,6 +34,17 @@ type EmployeeTableProps = {
   resetDeps?: readonly unknown[];
   className?: string;
 };
+
+function remainingForType(employee: SerializedEmployee, leaveType: "annual" | "casual" | "sick") {
+  return employee.leaveBalances.find((balance) => balance.leaveType === leaveType)?.remaining;
+}
+
+function LeaveRemainingCell({ value }: { value: number | undefined }) {
+  if (value == null) {
+    return <span className="text-muted-foreground">—</span>;
+  }
+  return <span className="tabular-nums">{value}</span>;
+}
 
 function probationBadgeVariant(employee: SerializedEmployee): "default" | "secondary" | "outline" {
   if (isCurrentlyOnProbation(employee)) {
@@ -62,6 +74,7 @@ export function EmployeeTable({
   loading,
   onEdit,
   onClearanceForm,
+  onViewLeaveQuota,
   onDeactivate,
   onReactivate,
   onStartProbation,
@@ -108,6 +121,27 @@ export function EmployeeTable({
             } satisfies ColumnDef<SerializedEmployee>,
           ]
         : []),
+      {
+        id: "annualLeave",
+        accessorFn: (row) => remainingForType(row, "annual") ?? -1,
+        header: "Annual left",
+        meta: { align: "right" },
+        cell: ({ row }) => <LeaveRemainingCell value={remainingForType(row.original, "annual")} />,
+      },
+      {
+        id: "casualLeave",
+        accessorFn: (row) => remainingForType(row, "casual") ?? -1,
+        header: "Casual left",
+        meta: { align: "right" },
+        cell: ({ row }) => <LeaveRemainingCell value={remainingForType(row.original, "casual")} />,
+      },
+      {
+        id: "sickLeave",
+        accessorFn: (row) => remainingForType(row, "sick") ?? -1,
+        header: "Sick left",
+        meta: { align: "right" },
+        cell: ({ row }) => <LeaveRemainingCell value={remainingForType(row.original, "sick")} />,
+      },
       {
         id: "status",
         accessorFn: (row) => (row.isActive ? "Active" : "Inactive"),
@@ -174,6 +208,11 @@ export function EmployeeTable({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => onEdit(employee)}>Edit</DropdownMenuItem>
+                {onViewLeaveQuota ? (
+                  <DropdownMenuItem onClick={() => onViewLeaveQuota(employee)}>
+                    View leave quota
+                  </DropdownMenuItem>
+                ) : null}
                 {onClearanceForm ? (
                   <DropdownMenuItem onClick={() => onClearanceForm(employee)}>
                     Clearance form
@@ -215,7 +254,16 @@ export function EmployeeTable({
         },
       },
     ],
-    [onClearanceForm, onDeactivate, onEdit, onEndProbation, onReactivate, onStartProbation, showShiftPreset],
+    [
+      onClearanceForm,
+      onDeactivate,
+      onEdit,
+      onEndProbation,
+      onReactivate,
+      onStartProbation,
+      onViewLeaveQuota,
+      showShiftPreset,
+    ],
   );
 
   return (
