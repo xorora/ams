@@ -77,10 +77,10 @@ export function SalarySlipDocument({ slip, maskBank = true, className }: SalaryS
         <div className="relative flex flex-wrap items-end justify-between gap-4">
           <div>
             <Image
-              src="/xorora-full.png"
+              src="/xorora-logo-white.png"
               alt="Xorora"
-              width={140}
-              height={32}
+              width={160}
+              height={36}
               className="h-8 w-auto"
             />
             <p className="mt-2 text-xs text-[#a8b0c8]">{slip.companyName}</p>

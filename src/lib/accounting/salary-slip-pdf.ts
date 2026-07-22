@@ -262,7 +262,7 @@ function drawHeader(
   doc.opacity(1);
 
   if (logo) {
-    doc.image(logo, PAGE_MARGIN, 18, { height: 28 });
+    doc.image(logo, PAGE_MARGIN, 16, { height: 32 });
   } else {
     doc
       .font("Helvetica-Bold")
@@ -422,7 +422,7 @@ export function salarySlipPdfFilename(data: SalarySlipPdfData): string {
 }
 
 export async function buildSalarySlipPdf(data: SalarySlipPdfData): Promise<Buffer> {
-  const logo = loadPublicAsset("xorora-full.png");
+  const logo = loadPublicAsset("xorora-logo-white.png");
   const mark = loadPublicAsset("xorora-mark.png");
 
   return new Promise((resolve, reject) => {
