@@ -197,6 +197,67 @@ export async function clearSalaryDataForYearMonth(yearMonth: string): Promise<{
   };
 }
 
+/** Move sheet imports/rows and salary slips from one month to another (all companies). */
+export async function reassignSalaryDataYearMonth(
+  fromYearMonth: string,
+  toYearMonth: string,
+): Promise<{ moved: boolean; rows: number; imports: number; slips: number }> {
+  await ensureSalarySheetTables();
+  if (
+    !validateYearMonth(fromYearMonth) ||
+    !validateYearMonth(toYearMonth) ||
+    fromYearMonth === toYearMonth
+  ) {
+    return { moved: false, rows: 0, imports: 0, slips: 0 };
+  }
+
+  const [hasRows] = await db
+    .select({ id: salarySheetRows.id })
+    .from(salarySheetRows)
+    .where(eq(salarySheetRows.yearMonth, fromYearMonth))
+    .limit(1);
+  const [hasImports] = await db
+    .select({ id: salarySheetImports.id })
+    .from(salarySheetImports)
+    .where(eq(salarySheetImports.yearMonth, fromYearMonth))
+    .limit(1);
+  const [hasSlips] = await db
+    .select({ id: salarySlips.id })
+    .from(salarySlips)
+    .where(eq(salarySlips.yearMonth, fromYearMonth))
+    .limit(1);
+
+  if (!hasRows && !hasImports && !hasSlips) {
+    return { moved: false, rows: 0, imports: 0, slips: 0 };
+  }
+
+  // Avoid unique (company, yearMonth, employee) conflicts on the target month.
+  await clearSalaryDataForYearMonth(toYearMonth);
+
+  const movedRows = await db
+    .update(salarySheetRows)
+    .set({ yearMonth: toYearMonth, updatedAt: new Date() })
+    .where(eq(salarySheetRows.yearMonth, fromYearMonth))
+    .returning({ id: salarySheetRows.id });
+  const movedImports = await db
+    .update(salarySheetImports)
+    .set({ yearMonth: toYearMonth })
+    .where(eq(salarySheetImports.yearMonth, fromYearMonth))
+    .returning({ id: salarySheetImports.id });
+  const movedSlips = await db
+    .update(salarySlips)
+    .set({ yearMonth: toYearMonth, updatedAt: new Date() })
+    .where(eq(salarySlips.yearMonth, fromYearMonth))
+    .returning({ id: salarySlips.id });
+
+  return {
+    moved: true,
+    rows: movedRows.length,
+    imports: movedImports.length,
+    slips: movedSlips.length,
+  };
+}
+
 export async function importSalarySheetFromExcel(input: {
   companyId: string;
   yearMonth: string;

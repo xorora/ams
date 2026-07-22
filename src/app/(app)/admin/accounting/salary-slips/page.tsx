@@ -1,6 +1,7 @@
 import { SalarySlipsManager } from "@/components/accounting/salary-slips-manager";
+import { maybeReassignJuly2026SalaryToJuneOnce } from "@/lib/accounting/actions";
 import { listCompensationProfiles } from "@/lib/accounting/compensation-service";
-import { getCurrentYearMonth } from "@/lib/accounting/format";
+import { resolvePayrollYearMonth } from "@/lib/accounting/format";
 import { listSalarySlips } from "@/lib/accounting/salary-slip-service";
 import {
   serializeCompensationListItem,
@@ -21,7 +22,9 @@ export default async function AdminSalarySlipsPage({ searchParams }: PageProps) 
   const companyId = await requireAccountingCompanyId(session);
   const params = await searchParams;
 
-  const yearMonth = params.yearMonth ?? getCurrentYearMonth();
+  await maybeReassignJuly2026SalaryToJuneOnce();
+
+  const yearMonth = resolvePayrollYearMonth(params.yearMonth);
   const employeeId = params.employeeId || undefined;
 
   const [slipsResult, employeesResult, companies] = await Promise.all([

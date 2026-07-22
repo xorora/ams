@@ -31,6 +31,21 @@ export function getCurrentYearMonth(): string {
   return formatInTimeZone(new Date(), BUSINESS_TIMEZONE, "yyyy-MM");
 }
 
+/**
+ * Default month for Compensation / Salary slips until the next payroll cycle.
+ * Current uploaded sheet is June 2026.
+ */
+export const ACTIVE_PAYROLL_YEAR_MONTH = "2026-06";
+
+/** Prefer an explicit query month; otherwise the active payroll month. */
+export function resolvePayrollYearMonth(raw: string | undefined): string {
+  const value = raw?.trim() ?? "";
+  if (value && /^\d{4}-(0[1-9]|1[0-2])$/.test(value)) {
+    return value;
+  }
+  return ACTIVE_PAYROLL_YEAR_MONTH;
+}
+
 /** Recent months ending at current PKT month (inclusive), newest first. */
 export function listRecentYearMonths(count = 18): string[] {
   const current = getCurrentYearMonth();

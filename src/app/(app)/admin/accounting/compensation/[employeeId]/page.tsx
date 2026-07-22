@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { salarySlips } from "@/db/schema";
 import { getEmployeeInCompany } from "@/lib/accounting/company-access";
 import { getCompensation } from "@/lib/accounting/compensation-service";
-import { getCurrentYearMonth } from "@/lib/accounting/format";
+import { resolvePayrollYearMonth } from "@/lib/accounting/format";
 import { serializeCompensation } from "@/lib/accounting/serialize";
 import {
   requireAccountingCompanyId,
@@ -17,20 +17,12 @@ type PageProps = {
   searchParams: Promise<{ yearMonth?: string }>;
 };
 
-function resolveYearMonth(raw: string | undefined): string {
-  const value = raw?.trim() ?? "";
-  if (value && /^\d{4}-(0[1-9]|1[0-2])$/.test(value)) {
-    return value;
-  }
-  return getCurrentYearMonth();
-}
-
 export default async function AdminCompensationDetailPage({ params, searchParams }: PageProps) {
   const session = await requireAccountingOrAdminSession();
   const companyId = await requireAccountingCompanyId(session);
   const { employeeId } = await params;
   const query = await searchParams;
-  const yearMonth = resolveYearMonth(query.yearMonth);
+  const yearMonth = resolvePayrollYearMonth(query.yearMonth);
 
   const employeeResult = await getEmployeeInCompany(employeeId, companyId);
   if (!employeeResult.ok) {

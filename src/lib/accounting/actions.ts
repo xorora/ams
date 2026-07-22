@@ -27,8 +27,8 @@ import {
 } from "./compensation-service";
 import {
   type SalarySheetImportResult,
-  clearSalaryDataForYearMonth,
   importSalarySheetFromExcel,
+  reassignSalaryDataYearMonth,
 } from "./salary-sheet-import-service";
 import { getSyncStateValue, setSyncStateValue } from "@/lib/zktime/sync-state";
 import {
@@ -168,16 +168,16 @@ export async function uploadSalarySheetAction(
   return actionSuccess(result.data);
 }
 
-const CLEAR_JULY_2026_SALARY_KEY = "clear_salary_data_2026_07_v1";
+const REASSIGN_JULY_TO_JUNE_2026_KEY = "reassign_salary_2026_07_to_2026_06_v1";
 
-/** One-shot: remove July 2026 sheet uploads and salary slips (requested before fresh upload). */
-export async function maybeClearJuly2026SalaryDataOnce(): Promise<void> {
-  const done = await getSyncStateValue(CLEAR_JULY_2026_SALARY_KEY);
+/** One-shot: payroll sheet was uploaded as July but belongs to June 2026. */
+export async function maybeReassignJuly2026SalaryToJuneOnce(): Promise<void> {
+  const done = await getSyncStateValue(REASSIGN_JULY_TO_JUNE_2026_KEY);
   if (done) {
     return;
   }
-  await clearSalaryDataForYearMonth("2026-07");
-  await setSyncStateValue(CLEAR_JULY_2026_SALARY_KEY, new Date().toISOString());
+  await reassignSalaryDataYearMonth("2026-07", "2026-06");
+  await setSyncStateValue(REASSIGN_JULY_TO_JUNE_2026_KEY, new Date().toISOString());
 }
 
 export type SalarySlipPreviewInput = {
