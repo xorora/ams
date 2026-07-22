@@ -27,8 +27,10 @@ import {
 } from "./compensation-service";
 import {
   type SalarySheetImportResult,
+  clearSalaryDataForYearMonth,
   importSalarySheetFromExcel,
 } from "./salary-sheet-import-service";
+import { getSyncStateValue, setSyncStateValue } from "@/lib/zktime/sync-state";
 import {
   type CreateSalarySlipInput,
   createSalarySlip,
@@ -164,6 +166,18 @@ export async function uploadSalarySheetAction(
 
   revalidateAccountingPaths();
   return actionSuccess(result.data);
+}
+
+const CLEAR_JULY_2026_SALARY_KEY = "clear_salary_data_2026_07_v1";
+
+/** One-shot: remove July 2026 sheet uploads and salary slips (requested before fresh upload). */
+export async function maybeClearJuly2026SalaryDataOnce(): Promise<void> {
+  const done = await getSyncStateValue(CLEAR_JULY_2026_SALARY_KEY);
+  if (done) {
+    return;
+  }
+  await clearSalaryDataForYearMonth("2026-07");
+  await setSyncStateValue(CLEAR_JULY_2026_SALARY_KEY, new Date().toISOString());
 }
 
 export type SalarySlipPreviewInput = {

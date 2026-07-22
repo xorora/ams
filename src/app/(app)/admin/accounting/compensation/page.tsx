@@ -1,4 +1,5 @@
 import { CompensationManager } from "@/components/accounting/compensation-manager";
+import { maybeClearJuly2026SalaryDataOnce } from "@/lib/accounting/actions";
 import { listCompensation, hasSalarySheetImport } from "@/lib/accounting/compensation-service";
 import { getCurrentYearMonth } from "@/lib/accounting/format";
 import { serializeCompensationListItem } from "@/lib/accounting/serialize";
@@ -26,6 +27,8 @@ export default async function AdminCompensationPage({ searchParams }: PageProps)
   const params = await searchParams;
   const search = params.search ?? "";
   const yearMonth = resolveYearMonth(params.yearMonth);
+
+  await maybeClearJuly2026SalaryDataOnce();
 
   const [result, companiesList, sheetImported] = await Promise.all([
     listCompensation({

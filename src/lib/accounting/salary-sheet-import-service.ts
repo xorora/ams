@@ -5,6 +5,7 @@ import {
   employees,
   salarySheetImports,
   salarySheetRows,
+  salarySlips,
 } from "@/db/schema";
 import { adminFailure, type ServiceFailure, type ServiceSuccess } from "@/lib/admin/types";
 import { validateYearMonth } from "./calculations";
@@ -163,6 +164,37 @@ export async function hasSalarySheetImport(
     )
     .limit(1);
   return Boolean(row);
+}
+
+/** Delete uploaded sheet rows/imports and salary slips for a month (all companies). */
+export async function clearSalaryDataForYearMonth(yearMonth: string): Promise<{
+  rowsDeleted: number;
+  importsDeleted: number;
+  slipsDeleted: number;
+}> {
+  await ensureSalarySheetTables();
+  if (!validateYearMonth(yearMonth)) {
+    return { rowsDeleted: 0, importsDeleted: 0, slipsDeleted: 0 };
+  }
+
+  const deletedRows = await db
+    .delete(salarySheetRows)
+    .where(eq(salarySheetRows.yearMonth, yearMonth))
+    .returning({ id: salarySheetRows.id });
+  const deletedImports = await db
+    .delete(salarySheetImports)
+    .where(eq(salarySheetImports.yearMonth, yearMonth))
+    .returning({ id: salarySheetImports.id });
+  const deletedSlips = await db
+    .delete(salarySlips)
+    .where(eq(salarySlips.yearMonth, yearMonth))
+    .returning({ id: salarySlips.id });
+
+  return {
+    rowsDeleted: deletedRows.length,
+    importsDeleted: deletedImports.length,
+    slipsDeleted: deletedSlips.length,
+  };
 }
 
 export async function importSalarySheetFromExcel(input: {
