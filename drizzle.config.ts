@@ -47,19 +47,21 @@ function loadEnvFiles(filenames: string[]) {
   }
 
   for (const [key, value] of Object.entries(merged)) {
-    if (process.env[key] === undefined) {
+    if (!process.env[key]?.trim()) {
       process.env[key] = value;
     }
   }
 }
 
-loadEnvFiles([".env", ".env.local"]);
+loadEnvFiles([".env", ".env.local", ".env.vercel.production"]);
+
+const databaseUrl = process.env.DATABASE_URL?.trim() ?? "";
 
 export default defineConfig({
   schema: "./src/db/schema.ts",
   out: "./drizzle",
   dialect: "postgresql",
   dbCredentials: {
-    url: process.env.DATABASE_URL ?? "",
+    url: databaseUrl,
   },
 });

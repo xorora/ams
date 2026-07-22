@@ -1,0 +1,2 @@
+ALTER TABLE "employee_compensation" ADD COLUMN "basic_salary_pkr" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "employee_compensation" ADD COLUMN "conveyance_allowance_pkr" integer DEFAULT 0 NOT NULL;

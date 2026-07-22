@@ -3,7 +3,7 @@
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { users } from "@/db/schema";
+import { companies, users } from "@/db/schema";
 import { type ActionResult, actionFailure, actionSuccess } from "@/lib/actions/result";
 import {
   getAccountingCompanyId,
@@ -25,6 +25,10 @@ import {
   type UpsertCompensationInput,
   upsertCompensation,
 } from "./compensation-service";
+import {
+  type ImportXororaCnplResult,
+  importXororaCnplCompensation,
+} from "./import-xorora-cnpl-compensation";
 import {
   type CreateSalarySlipInput,
   createSalarySlip,
@@ -80,6 +84,42 @@ export async function upsertCompensationAction(
   revalidateAccountingPaths();
   revalidatePath(`/admin/accounting/compensation/${employeeId}`);
   return actionSuccess();
+}
+
+export async function importXororaCnplCompensationAction(): Promise<
+  ActionResult<ImportXororaCnplResult>
+> {
+  await requireAdminSession();
+  const scope = await requireAccountingCompanyScope();
+  if (scope.error) {
+    return scope.error;
+  }
+
+  const [selected] = await db
+    .select({ slug: companies.slug })
+    .from(companies)
+    .where(eq(companies.id, scope.companyId))
+    .limit(1);
+
+  if (!selected || selected.slug !== "xorora") {
+    return actionFailure({
+      ok: false,
+      message: "CNPL compensation import is only available for the Xorora company.",
+      code: "WRONG_COMPANY",
+    });
+  }
+
+  try {
+    const result = await importXororaCnplCompensation();
+    revalidateAccountingPaths();
+    return actionSuccess(result);
+  } catch (error) {
+    return actionFailure({
+      ok: false,
+      message: error instanceof Error ? error.message : "Import failed.",
+      code: "IMPORT_FAILED",
+    });
+  }
 }
 
 export type SalarySlipPreviewInput = {

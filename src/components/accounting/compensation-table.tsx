@@ -16,6 +16,13 @@ type CompensationTableProps = {
   className?: string;
 };
 
+function AmountCell({ value }: { value: number | null }) {
+  if (value == null) {
+    return <Badge variant="outline">Not set</Badge>;
+  }
+  return <span className="tabular-nums">{formatSalaryPkr(value)}</span>;
+}
+
 export function CompensationTable({
   items,
   loading = false,
@@ -42,13 +49,34 @@ export function CompensationTable({
       {
         id: "grossSalaryPkr",
         accessorFn: (row) => row.grossSalaryPkr ?? 0,
-        header: "Gross salary",
+        header: "Gross Monthly Salary",
+        meta: { align: "right" },
+        cell: ({ row }) => <AmountCell value={row.original.grossSalaryPkr} />,
+      },
+      {
+        id: "basicSalaryPkr",
+        accessorFn: (row) => row.basicSalaryPkr ?? 0,
+        header: "Basic Salary",
         meta: { align: "right" },
         cell: ({ row }) =>
           row.original.grossSalaryPkr != null ? (
-            <span className="tabular-nums">{formatSalaryPkr(row.original.grossSalaryPkr)}</span>
+            <span className="tabular-nums">{formatSalaryPkr(row.original.basicSalaryPkr ?? 0)}</span>
           ) : (
-            <Badge variant="outline">Not set</Badge>
+            <span className="text-muted-foreground">—</span>
+          ),
+      },
+      {
+        id: "conveyanceAllowancePkr",
+        accessorFn: (row) => row.conveyanceAllowancePkr ?? 0,
+        header: "Conveyance/Fuel/Food Allowance",
+        meta: { align: "right" },
+        cell: ({ row }) =>
+          row.original.grossSalaryPkr != null ? (
+            <span className="tabular-nums">
+              {formatSalaryPkr(row.original.conveyanceAllowancePkr ?? 0)}
+            </span>
+          ) : (
+            <span className="text-muted-foreground">—</span>
           ),
       },
       {

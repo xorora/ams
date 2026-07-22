@@ -8,6 +8,8 @@ import type { UpsertCompensationInput } from "@/lib/accounting/compensation-serv
 
 export type CompensationFormValues = {
   grossSalaryPkr: string;
+  basicSalaryPkr: string;
+  conveyanceAllowancePkr: string;
   bankName: string;
   bankAccountNumber: string;
   fixedSecurityDeductionPkr: string;
@@ -16,6 +18,8 @@ export type CompensationFormValues = {
 
 export const emptyCompensationForm: CompensationFormValues = {
   grossSalaryPkr: "",
+  basicSalaryPkr: "0",
+  conveyanceAllowancePkr: "0",
   bankName: "",
   bankAccountNumber: "",
   fixedSecurityDeductionPkr: "0",
@@ -24,6 +28,8 @@ export const emptyCompensationForm: CompensationFormValues = {
 
 export function compensationToForm(record?: {
   grossSalaryPkr: number;
+  basicSalaryPkr: number;
+  conveyanceAllowancePkr: number;
   bankName: string | null;
   bankAccountNumber: string | null;
   fixedSecurityDeductionPkr: number;
@@ -35,6 +41,8 @@ export function compensationToForm(record?: {
 
   return {
     grossSalaryPkr: String(record.grossSalaryPkr),
+    basicSalaryPkr: String(record.basicSalaryPkr),
+    conveyanceAllowancePkr: String(record.conveyanceAllowancePkr),
     bankName: record.bankName ?? "",
     bankAccountNumber: record.bankAccountNumber ?? "",
     fixedSecurityDeductionPkr: String(record.fixedSecurityDeductionPkr),
@@ -45,6 +53,8 @@ export function compensationToForm(record?: {
 export function compensationFormToInput(form: CompensationFormValues): UpsertCompensationInput {
   return {
     grossSalaryPkr: Number.parseInt(form.grossSalaryPkr, 10),
+    basicSalaryPkr: Number.parseInt(form.basicSalaryPkr, 10) || 0,
+    conveyanceAllowancePkr: Number.parseInt(form.conveyanceAllowancePkr, 10) || 0,
     bankName: form.bankName.trim() || null,
     bankAccountNumber: form.bankAccountNumber.trim() || null,
     fixedSecurityDeductionPkr: Number.parseInt(form.fixedSecurityDeductionPkr, 10) || 0,
@@ -85,16 +95,37 @@ export function CompensationForm({
         <p className="mt-1 text-[#d7dceb]">Code: {employeeCode}</p>
       </div>
 
-      <FormSection title="Compensation" description="Gross pay, bank details, and fixed monthly amounts.">
+      <FormSection
+        title="Compensation"
+        description="Gross monthly salary, basic, allowance, bank details, and fixed monthly amounts."
+      >
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField className="sm:col-span-2">
-            <Label htmlFor="gross-salary">Gross salary (PKR)</Label>
+            <Label htmlFor="gross-salary">Gross Monthly Salary (PKR)</Label>
             <Input
               id="gross-salary"
               inputMode="numeric"
               required
               value={form.grossSalaryPkr}
               onChange={(event) => updateField("grossSalaryPkr", event.target.value)}
+            />
+          </FormField>
+          <FormField>
+            <Label htmlFor="basic-salary">Basic Salary (PKR)</Label>
+            <Input
+              id="basic-salary"
+              inputMode="numeric"
+              value={form.basicSalaryPkr}
+              onChange={(event) => updateField("basicSalaryPkr", event.target.value)}
+            />
+          </FormField>
+          <FormField>
+            <Label htmlFor="conveyance-allowance">Conveyance/Fuel/Food Allowance (PKR)</Label>
+            <Input
+              id="conveyance-allowance"
+              inputMode="numeric"
+              value={form.conveyanceAllowancePkr}
+              onChange={(event) => updateField("conveyanceAllowancePkr", event.target.value)}
             />
           </FormField>
           <FormField>

@@ -264,6 +264,8 @@ export const employeeCompensation = pgTable(
       .notNull()
       .references(() => employees.id, { onDelete: "cascade" }),
     grossSalaryPkr: integer("gross_salary_pkr").notNull(),
+    basicSalaryPkr: integer("basic_salary_pkr").notNull().default(0),
+    conveyanceAllowancePkr: integer("conveyance_allowance_pkr").notNull().default(0),
     bankName: text("bank_name"),
     bankAccountNumber: text("bank_account_number"),
     fixedSecurityDeductionPkr: integer("fixed_security_deduction_pkr").notNull().default(0),
