@@ -1,5 +1,5 @@
 import { SalarySlipsManager } from "@/components/accounting/salary-slips-manager";
-import { listCompensation } from "@/lib/accounting/compensation-service";
+import { listCompensationProfiles } from "@/lib/accounting/compensation-service";
 import { getCurrentYearMonth } from "@/lib/accounting/format";
 import { listSalarySlips } from "@/lib/accounting/salary-slip-service";
 import {
@@ -26,7 +26,7 @@ export default async function AdminSalarySlipsPage({ searchParams }: PageProps) 
 
   const [slipsResult, employeesResult, companies] = await Promise.all([
     listSalarySlips({ companyId, yearMonth, employeeId }),
-    listCompensation({ companyId }),
+    listCompensationProfiles({ companyId }),
     getCompanies(),
   ]);
 

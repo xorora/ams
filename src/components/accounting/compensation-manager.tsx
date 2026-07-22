@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { CompensationTable } from "@/components/accounting/compensation-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { importXororaCnplCompensationAction } from "@/lib/accounting/actions";
+import { uploadSalarySheetAction } from "@/lib/accounting/actions";
 import {
   formatYearMonthShort,
   listRecentYearMonths,
@@ -26,19 +26,20 @@ type CompensationManagerProps = {
   items: SerializedCompensationListItem[];
   search: string;
   yearMonth: string;
-  showCnplImport?: boolean;
+  hasSheetImport: boolean;
 };
 
 export function CompensationManager({
   items,
   search,
   yearMonth,
-  showCnplImport = false,
+  hasSheetImport,
 }: CompensationManagerProps) {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isPending, startTransition] = useTransition();
   const [searchInput, setSearchInput] = useState(search);
-  const [importing, setImporting] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const monthOptions = listRecentYearMonths(18);
   const monthItems = Object.fromEntries(
     monthOptions.map((month) => [month, formatYearMonthShort(month)]),
@@ -81,19 +82,27 @@ export function CompensationManager({
     });
   }
 
-  async function handleCnplImport() {
-    setImporting(true);
+  async function handleUpload(file: File) {
+    setUploading(true);
+    const formData = new FormData();
+    formData.set("yearMonth", yearMonth);
+    formData.set("file", file);
+
     try {
       await toastAsync(
-        importXororaCnplCompensationAction().then((result) => {
+        uploadSalarySheetAction(formData).then((result) => {
           if (!result.ok) {
             throw new Error(result.error);
           }
           const data = result.data;
-          return `Imported ${data.matched.length} employees (${data.updated} updated, ${data.inserted} inserted).`;
+          const unmatched =
+            data.unmatched.length > 0
+              ? ` Unmatched: ${data.unmatched.join(", ")}.`
+              : "";
+          return `Imported ${data.imported} employees from ${data.sheetName} (${data.slipsCreated} slips created, ${data.slipsUpdated} updated).${unmatched}`;
         }),
         {
-          loading: "Importing CNPL compensation…",
+          loading: `Uploading salary sheet for ${formatYearMonthShort(yearMonth)}…`,
           success: (message) => message,
         },
       );
@@ -101,7 +110,10 @@ export function CompensationManager({
     } catch {
       // toastAsync already surfaced the error
     } finally {
-      setImporting(false);
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   }
 
@@ -140,28 +152,58 @@ export function CompensationManager({
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
               placeholder="Name, code, department…"
+              disabled={!hasSheetImport}
             />
           </div>
         </div>
-        {showCnplImport ? (
+        <div className="flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) {
+                void handleUpload(file);
+              }
+            }}
+          />
           <Button
             type="button"
             variant="outline"
-            disabled={importing || isPending}
-            onClick={() => void handleCnplImport()}
+            disabled={uploading || isPending}
+            onClick={() => fileInputRef.current?.click()}
           >
-            {importing ? "Importing…" : "Import CNPL salary sheet"}
+            {uploading ? "Uploading…" : "Upload salary sheet"}
           </Button>
-        ) : null}
+        </div>
       </div>
 
-      <CompensationTable
-        className="md:min-h-0 md:flex-1"
-        items={items}
-        yearMonth={yearMonth}
-        loading={isPending}
-        resetDeps={[search, yearMonth]}
-      />
+      {!hasSheetImport ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-lg border border-dashed p-10 text-center">
+          <p className="font-medium text-sm">No salary sheet for {formatYearMonthShort(yearMonth)}</p>
+          <p className="max-w-md text-muted-foreground text-sm">
+            Upload a CNPL-format Excel sheet for this month to show compensation rows and generate
+            salary slips.
+          </p>
+          <Button
+            type="button"
+            disabled={uploading || isPending}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            {uploading ? "Uploading…" : "Upload salary sheet"}
+          </Button>
+        </div>
+      ) : (
+        <CompensationTable
+          className="md:min-h-0 md:flex-1"
+          items={items}
+          yearMonth={yearMonth}
+          loading={isPending}
+          resetDeps={[search, yearMonth]}
+        />
+      )}
     </div>
   );
 }

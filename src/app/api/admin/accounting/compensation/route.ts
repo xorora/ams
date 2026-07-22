@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { listCompensation } from "@/lib/accounting/compensation-service";
+import { listCompensation, listCompensationProfiles } from "@/lib/accounting/compensation-service";
 import { serializeCompensationListItem } from "@/lib/accounting/serialize";
 import {
   getAccountingCompanyId,
@@ -19,8 +19,11 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const search = searchParams.get("search") ?? undefined;
+  const yearMonth = searchParams.get("yearMonth") ?? undefined;
 
-  const result = await listCompensation({ companyId, search });
+  const result = yearMonth
+    ? await listCompensation({ companyId, search, yearMonth })
+    : await listCompensationProfiles({ companyId, search });
   return NextResponse.json({
     compensation: result.data.map((item) => serializeCompensationListItem(item)),
   });

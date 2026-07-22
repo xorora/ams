@@ -319,3 +319,72 @@ export const salarySlips = pgTable(
     index("salary_slips_company_year_month_idx").on(table.companyId, table.yearMonth),
   ],
 );
+
+export const salarySheetImports = pgTable(
+  "salary_sheet_imports",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    yearMonth: text("year_month").notNull(),
+    fileName: text("file_name").notNull(),
+    uploadedByUserId: uuid("uploaded_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("salary_sheet_imports_company_year_month_idx").on(
+      table.companyId,
+      table.yearMonth,
+    ),
+  ],
+);
+
+export const salarySheetRows = pgTable(
+  "salary_sheet_rows",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    importId: uuid("import_id")
+      .notNull()
+      .references(() => salarySheetImports.id, { onDelete: "cascade" }),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    yearMonth: text("year_month").notNull(),
+    employeeId: uuid("employee_id")
+      .notNull()
+      .references(() => employees.id, { onDelete: "cascade" }),
+    salarySlipId: uuid("salary_slip_id").references(() => salarySlips.id, {
+      onDelete: "set null",
+    }),
+    employeeCode: text("employee_code").notNull(),
+    employeeName: text("employee_name").notNull(),
+    designation: text("designation"),
+    joiningDate: text("joining_date"),
+    grossSalaryPkr: integer("gross_salary_pkr").notNull().default(0),
+    basicSalaryPkr: integer("basic_salary_pkr").notNull().default(0),
+    conveyanceAllowancePkr: integer("conveyance_allowance_pkr").notNull().default(0),
+    adhocPkr: integer("adhoc_pkr").notNull().default(0),
+    hrAllowancePkr: integer("hr_allowance_pkr").notNull().default(0),
+    medicalAllowancePkr: integer("medical_allowance_pkr").notNull().default(0),
+    workingDays: integer("working_days").notNull().default(0),
+    daysWorked: integer("days_worked").notNull().default(0),
+    leaveDeductionPkr: integer("leave_deduction_pkr").notNull().default(0),
+    earnedSalaryPkr: integer("earned_salary_pkr").notNull().default(0),
+    incomeTaxPkr: integer("income_tax_pkr").notNull().default(0),
+    totalDeductionPkr: integer("total_deduction_pkr").notNull().default(0),
+    netSalaryPkr: integer("net_salary_pkr").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("salary_sheet_rows_company_year_month_employee_idx").on(
+      table.companyId,
+      table.yearMonth,
+      table.employeeId,
+    ),
+    index("salary_sheet_rows_import_id_idx").on(table.importId),
+  ],
+);

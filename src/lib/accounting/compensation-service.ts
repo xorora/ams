@@ -1,18 +1,12 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, ilike, or } from "drizzle-orm";
 import { db } from "@/db";
-import { employeeCompensation, salarySlips } from "@/db/schema";
+import { employeeCompensation, employees, salarySheetRows } from "@/db/schema";
 import { adminFailure, type ServiceFailure, type ServiceSuccess } from "@/lib/admin/types";
-import { listEmployees } from "@/lib/admin/employees-service";
-import {
-  computeSalaryForEmployeeMonth,
-  type SalaryCalculationResult,
-  validateYearMonth,
-} from "./calculations";
 import { getEmployeeInCompany } from "./company-access";
-import {
-  ensureCompensationStructureColumns,
-  maybeImportXororaCnplCompensationOnce,
-} from "./import-xorora-cnpl-compensation";
+import { validateYearMonth } from "./calculations";
+import { ensureCompensationStructureColumns } from "./import-xorora-cnpl-compensation";
+import { ensureSalarySheetTables } from "./ensure-salary-sheet-tables";
+import { hasSalarySheetImport } from "./salary-sheet-import-service";
 
 export type CompensationRecord = typeof employeeCompensation.$inferSelect;
 
@@ -152,159 +146,89 @@ function validateCompensationInput(
   };
 }
 
-function emptyMonthMetrics() {
-  return {
-    workingDays: null as number | null,
-    daysWorked: null as number | null,
-    leaveDeductionPkr: null as number | null,
-    earnedSalaryPkr: null as number | null,
-    incomeTaxPkr: null as number | null,
-    totalDeductionPkr: null as number | null,
-    netSalaryPkr: null as number | null,
-    salarySlipId: null as string | null,
-  };
-}
-
-function mapCalcToMetrics(
-  calc: SalaryCalculationResult,
-  incomeTaxPkr: number,
-  salarySlipId: string | null,
-) {
-  return {
-    workingDays: calc.totalDays,
-    daysWorked: calc.earnedDays,
-    leaveDeductionPkr: calc.autoLeaveDeductionPkr,
-    earnedSalaryPkr: calc.calculatedSalaryPkr,
-    incomeTaxPkr,
-    totalDeductionPkr: calc.totalDeductionPkr,
-    netSalaryPkr: calc.netSalaryPkr,
-    salarySlipId,
-  };
-}
-
 export async function listCompensation(
   filters: ListCompensationFilters,
 ): Promise<ServiceSuccess<CompensationListItem[]>> {
   await ensureCompensationStructureColumns();
-  await maybeImportXororaCnplCompensationOnce(filters.companyId);
+  await ensureSalarySheetTables();
 
   const yearMonth = filters.yearMonth?.trim();
-  if (yearMonth && !validateYearMonth(yearMonth)) {
+  if (!yearMonth || !validateYearMonth(yearMonth)) {
     return { ok: true, data: [] };
   }
 
-  const employeeResult = await listEmployees({
-    companyId: filters.companyId,
-    search: filters.search,
-    includeInactive: false,
-  });
-
-  if (employeeResult.data.length === 0) {
+  const hasImport = await hasSalarySheetImport(filters.companyId, yearMonth);
+  if (!hasImport) {
     return { ok: true, data: [] };
   }
 
-  const employeeIds = employeeResult.data.map((employee) => employee.id);
-  const compensationRows = await db
-    .select()
-    .from(employeeCompensation)
-    .where(inArray(employeeCompensation.employeeId, employeeIds));
+  const search = filters.search?.trim();
+  const conditions = [
+    eq(salarySheetRows.companyId, filters.companyId),
+    eq(salarySheetRows.yearMonth, yearMonth),
+  ];
 
-  const compensationByEmployeeId = new Map(
-    compensationRows.map((row) => [row.employeeId, row]),
-  );
-
-  const slipByEmployeeId = new Map<
-    string,
-    {
-      id: string;
-      incomeTaxPkr: number;
-      additionalDeductionPkr: number;
-      otherPayPkr: number;
-      incrementPkr: number;
-    }
-  >();
-
-  if (yearMonth) {
-    const slipRows = await db
-      .select({
-        id: salarySlips.id,
-        employeeId: salarySlips.employeeId,
-        incomeTaxPkr: salarySlips.incomeTaxPkr,
-        additionalDeductionPkr: salarySlips.additionalDeductionPkr,
-        otherPayPkr: salarySlips.otherPayPkr,
-        incrementPkr: salarySlips.incrementPkr,
-      })
-      .from(salarySlips)
-      .where(
-        and(
-          eq(salarySlips.companyId, filters.companyId),
-          eq(salarySlips.yearMonth, yearMonth),
-          inArray(salarySlips.employeeId, employeeIds),
-        ),
-      );
-
-    for (const slip of slipRows) {
-      slipByEmployeeId.set(slip.employeeId, slip);
-    }
-  }
-
-  const data: CompensationListItem[] = [];
-
-  for (const employee of employeeResult.data) {
-    const compensation = compensationByEmployeeId.get(employee.id);
-    const base: CompensationListItem = {
-      employeeId: employee.id,
-      employeeCode: employee.employeeCode,
-      fullName: employee.fullName,
-      department: employee.department,
-      designation: employee.designation,
-      joiningDate: employee.createdAt.toISOString(),
-      grossSalaryPkr: compensation?.grossSalaryPkr ?? null,
-      basicSalaryPkr: compensation?.basicSalaryPkr ?? null,
-      conveyanceAllowancePkr: compensation?.conveyanceAllowancePkr ?? null,
-      adhocPkr: compensation?.adhocPkr ?? null,
-      hrAllowancePkr: compensation?.hrAllowancePkr ?? null,
-      medicalAllowancePkr: compensation?.medicalAllowancePkr ?? null,
-      bankName: compensation?.bankName ?? null,
-      bankAccountNumber: compensation?.bankAccountNumber ?? null,
-      fixedSecurityDeductionPkr: compensation?.fixedSecurityDeductionPkr ?? null,
-      fixedOtherPayPkr: compensation?.fixedOtherPayPkr ?? null,
-      updatedAt: compensation?.updatedAt ?? null,
-      ...emptyMonthMetrics(),
-    };
-
-    if (!yearMonth || !compensation) {
-      data.push(base);
-      continue;
-    }
-
-    const slip = slipByEmployeeId.get(employee.id);
-    const calc = await computeSalaryForEmployeeMonth(
-      employee.id,
-      yearMonth,
-      {
-        grossSalaryPkr: compensation.grossSalaryPkr,
-        fixedSecurityDeductionPkr: compensation.fixedSecurityDeductionPkr,
-        fixedOtherPayPkr: compensation.fixedOtherPayPkr,
-        bankName: compensation.bankName,
-        bankAccountNumber: compensation.bankAccountNumber,
-      },
-      {
-        incomeTaxPkr: slip?.incomeTaxPkr ?? 0,
-        additionalDeductionPkr: slip?.additionalDeductionPkr ?? 0,
-        otherPayPkr: slip?.otherPayPkr ?? 0,
-        incrementPkr: slip?.incrementPkr ?? 0,
-      },
+  if (search) {
+    const pattern = `%${search}%`;
+    conditions.push(
+      or(
+        ilike(salarySheetRows.employeeName, pattern),
+        ilike(salarySheetRows.employeeCode, pattern),
+        ilike(salarySheetRows.designation, pattern),
+        ilike(employees.department, pattern),
+      )!,
     );
-
-    data.push({
-      ...base,
-      ...mapCalcToMetrics(calc, slip?.incomeTaxPkr ?? 0, slip?.id ?? null),
-    });
   }
+
+  const rows = await db
+    .select({
+      row: salarySheetRows,
+      department: employees.department,
+      bankName: employeeCompensation.bankName,
+      bankAccountNumber: employeeCompensation.bankAccountNumber,
+      fixedSecurityDeductionPkr: employeeCompensation.fixedSecurityDeductionPkr,
+      fixedOtherPayPkr: employeeCompensation.fixedOtherPayPkr,
+      compensationUpdatedAt: employeeCompensation.updatedAt,
+      employeeCreatedAt: employees.createdAt,
+    })
+    .from(salarySheetRows)
+    .innerJoin(employees, eq(salarySheetRows.employeeId, employees.id))
+    .leftJoin(employeeCompensation, eq(employeeCompensation.employeeId, employees.id))
+    .where(and(...conditions))
+    .orderBy(asc(salarySheetRows.employeeName));
+
+  const data: CompensationListItem[] = rows.map(({ row, department, ...rest }) => ({
+    employeeId: row.employeeId,
+    employeeCode: row.employeeCode,
+    fullName: row.employeeName,
+    department: department ?? null,
+    designation: row.designation,
+    joiningDate: row.joiningDate ?? rest.employeeCreatedAt.toISOString(),
+    grossSalaryPkr: row.grossSalaryPkr,
+    basicSalaryPkr: row.basicSalaryPkr,
+    conveyanceAllowancePkr: row.conveyanceAllowancePkr,
+    adhocPkr: row.adhocPkr,
+    hrAllowancePkr: row.hrAllowancePkr,
+    medicalAllowancePkr: row.medicalAllowancePkr,
+    bankName: rest.bankName ?? null,
+    bankAccountNumber: rest.bankAccountNumber ?? null,
+    fixedSecurityDeductionPkr: rest.fixedSecurityDeductionPkr ?? null,
+    fixedOtherPayPkr: rest.fixedOtherPayPkr ?? null,
+    updatedAt: rest.compensationUpdatedAt ?? null,
+    workingDays: row.workingDays,
+    daysWorked: row.daysWorked,
+    leaveDeductionPkr: row.leaveDeductionPkr,
+    earnedSalaryPkr: row.earnedSalaryPkr,
+    incomeTaxPkr: row.incomeTaxPkr,
+    totalDeductionPkr: row.totalDeductionPkr,
+    netSalaryPkr: row.netSalaryPkr,
+    salarySlipId: row.salarySlipId,
+  }));
 
   return { ok: true, data };
 }
+
+export { hasSalarySheetImport };
 
 export async function getCompensation(
   employeeId: string,
@@ -348,11 +272,9 @@ export async function upsertCompensation(
     return validated;
   }
 
-  const data = validated.data;
   const now = new Date();
-
   const [existing] = await db
-    .select({ id: employeeCompensation.id })
+    .select()
     .from(employeeCompensation)
     .where(eq(employeeCompensation.employeeId, employeeId))
     .limit(1);
@@ -361,22 +283,12 @@ export async function upsertCompensation(
     const [updated] = await db
       .update(employeeCompensation)
       .set({
-        grossSalaryPkr: data.grossSalaryPkr,
-        basicSalaryPkr: data.basicSalaryPkr ?? 0,
-        conveyanceAllowancePkr: data.conveyanceAllowancePkr ?? 0,
-        adhocPkr: data.adhocPkr ?? 0,
-        hrAllowancePkr: data.hrAllowancePkr ?? 0,
-        medicalAllowancePkr: data.medicalAllowancePkr ?? 0,
-        bankName: data.bankName,
-        bankAccountNumber: data.bankAccountNumber,
-        fixedSecurityDeductionPkr: data.fixedSecurityDeductionPkr ?? 0,
-        fixedOtherPayPkr: data.fixedOtherPayPkr ?? 0,
+        ...validated.data,
         updatedByUserId,
         updatedAt: now,
       })
-      .where(eq(employeeCompensation.employeeId, employeeId))
+      .where(eq(employeeCompensation.id, existing.id))
       .returning();
-
     return { ok: true, data: updated };
   }
 
@@ -384,20 +296,74 @@ export async function upsertCompensation(
     .insert(employeeCompensation)
     .values({
       employeeId,
-      grossSalaryPkr: data.grossSalaryPkr,
-      basicSalaryPkr: data.basicSalaryPkr ?? 0,
-      conveyanceAllowancePkr: data.conveyanceAllowancePkr ?? 0,
-      adhocPkr: data.adhocPkr ?? 0,
-      hrAllowancePkr: data.hrAllowancePkr ?? 0,
-      medicalAllowancePkr: data.medicalAllowancePkr ?? 0,
-      bankName: data.bankName,
-      bankAccountNumber: data.bankAccountNumber,
-      fixedSecurityDeductionPkr: data.fixedSecurityDeductionPkr ?? 0,
-      fixedOtherPayPkr: data.fixedOtherPayPkr ?? 0,
+      ...validated.data,
       updatedByUserId,
       updatedAt: now,
     })
     .returning();
 
   return { ok: true, data: created };
+}
+
+/** Used by salary-slips page employee picker — list profiles without requiring a sheet import. */
+export async function listCompensationProfiles(filters: {
+  companyId: string;
+  search?: string;
+}): Promise<ServiceSuccess<CompensationListItem[]>> {
+  await ensureCompensationStructureColumns();
+
+  const search = filters.search?.trim();
+  const conditions = [eq(employees.companyId, filters.companyId), eq(employees.isActive, true)];
+
+  if (search) {
+    const pattern = `%${search}%`;
+    conditions.push(
+      or(
+        ilike(employees.fullName, pattern),
+        ilike(employees.employeeCode, pattern),
+        ilike(employees.department, pattern),
+        ilike(employees.designation, pattern),
+      )!,
+    );
+  }
+
+  const rows = await db
+    .select({
+      employee: employees,
+      compensation: employeeCompensation,
+    })
+    .from(employees)
+    .innerJoin(employeeCompensation, eq(employeeCompensation.employeeId, employees.id))
+    .where(and(...conditions))
+    .orderBy(asc(employees.fullName));
+
+  const data: CompensationListItem[] = rows.map(({ employee, compensation }) => ({
+    employeeId: employee.id,
+    employeeCode: employee.employeeCode,
+    fullName: employee.fullName,
+    department: employee.department,
+    designation: employee.designation,
+    joiningDate: employee.createdAt.toISOString(),
+    grossSalaryPkr: compensation.grossSalaryPkr,
+    basicSalaryPkr: compensation.basicSalaryPkr,
+    conveyanceAllowancePkr: compensation.conveyanceAllowancePkr,
+    adhocPkr: compensation.adhocPkr,
+    hrAllowancePkr: compensation.hrAllowancePkr,
+    medicalAllowancePkr: compensation.medicalAllowancePkr,
+    bankName: compensation.bankName,
+    bankAccountNumber: compensation.bankAccountNumber,
+    fixedSecurityDeductionPkr: compensation.fixedSecurityDeductionPkr,
+    fixedOtherPayPkr: compensation.fixedOtherPayPkr,
+    updatedAt: compensation.updatedAt,
+    workingDays: null,
+    daysWorked: null,
+    leaveDeductionPkr: null,
+    earnedSalaryPkr: null,
+    incomeTaxPkr: null,
+    totalDeductionPkr: null,
+    netSalaryPkr: null,
+    salarySlipId: null,
+  }));
+
+  return { ok: true, data };
 }

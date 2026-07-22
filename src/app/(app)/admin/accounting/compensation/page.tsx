@@ -1,8 +1,5 @@
-import { eq } from "drizzle-orm";
 import { CompensationManager } from "@/components/accounting/compensation-manager";
-import { db } from "@/db";
-import { companies } from "@/db/schema";
-import { listCompensation } from "@/lib/accounting/compensation-service";
+import { listCompensation, hasSalarySheetImport } from "@/lib/accounting/compensation-service";
 import { getCurrentYearMonth } from "@/lib/accounting/format";
 import { serializeCompensationListItem } from "@/lib/accounting/serialize";
 import { getCompanies } from "@/lib/admin/selected-company";
@@ -30,14 +27,14 @@ export default async function AdminCompensationPage({ searchParams }: PageProps)
   const search = params.search ?? "";
   const yearMonth = resolveYearMonth(params.yearMonth);
 
-  const [result, companiesList, [company]] = await Promise.all([
+  const [result, companiesList, sheetImported] = await Promise.all([
     listCompensation({
       companyId,
       search: search.trim() || undefined,
       yearMonth,
     }),
     getCompanies(),
-    db.select({ slug: companies.slug }).from(companies).where(eq(companies.id, companyId)).limit(1),
+    hasSalarySheetImport(companyId, yearMonth),
   ]);
 
   const items = result.data.map(serializeCompensationListItem);
@@ -48,8 +45,8 @@ export default async function AdminCompensationPage({ searchParams }: PageProps)
       <div className="shrink-0">
         <h1 className="text-2xl font-semibold">Compensation</h1>
         <p className="mt-1 text-muted-foreground text-sm">
-          Salary sheet for {companyName}. Select a month to view working days, deductions, and net
-          pay. Edit profiles to update gross, basic, ADHOC, allowances, and income tax.
+          Salary sheet for {companyName}. Upload a CNPL-format Excel file for the selected month to
+          display rows and auto-generate salary slips.
         </p>
       </div>
 
@@ -57,7 +54,7 @@ export default async function AdminCompensationPage({ searchParams }: PageProps)
         items={items}
         search={search}
         yearMonth={yearMonth}
-        showCnplImport={company?.slug === "xorora"}
+        hasSheetImport={sheetImported}
       />
     </div>
   );

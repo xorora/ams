@@ -543,6 +543,91 @@ export async function upsertMonthIncomeTax(
   );
 }
 
+export type SalarySlipSheetSnapshotInput = {
+  employeeId: string;
+  yearMonth: string;
+  incomeTaxPkr: number;
+  additionalDeductionPkr: number;
+  totalDays: number;
+  earnedDays: number;
+  deductDays: number;
+  calculatedSalaryPkr: number;
+  autoLeaveDeductionPkr: number;
+  securityDeductionPkr: number;
+  totalOtherPayPkr: number;
+  totalDeductionPkr: number;
+  netSalaryPkr: number;
+  transferDetails: string | null;
+};
+
+/** Create or overwrite a salary slip using Excel sheet snapshots (no attendance recalc). */
+export async function createOrReplaceSalarySlipFromSheet(
+  input: SalarySlipSheetSnapshotInput,
+  companyId: string,
+  userId: string,
+): Promise<ServiceFailure | ServiceSuccess<{ id: string; created: boolean }>> {
+  const employeeId = input.employeeId.trim();
+  const yearMonth = input.yearMonth.trim();
+
+  if (!employeeId) {
+    return adminFailure(400, "INVALID_EMPLOYEE", "Employee is required.");
+  }
+  if (!validateYearMonth(yearMonth)) {
+    return adminFailure(400, "INVALID_YEAR_MONTH", "yearMonth must be in YYYY-MM format.");
+  }
+
+  const employeeResult = await getEmployeeInCompany(employeeId, companyId);
+  if (!employeeResult.ok) {
+    return employeeResult;
+  }
+
+  const now = new Date();
+  const [existing] = await db
+    .select({ id: salarySlips.id })
+    .from(salarySlips)
+    .where(and(eq(salarySlips.employeeId, employeeId), eq(salarySlips.yearMonth, yearMonth)))
+    .limit(1);
+
+  const values = {
+    incomeTaxPkr: input.incomeTaxPkr,
+    additionalDeductionPkr: input.additionalDeductionPkr,
+    deductionDetails: null as string | null,
+    otherPayPkr: 0,
+    incrementPkr: 0,
+    otherPayableDetails: null as string | null,
+    totalDays: input.totalDays,
+    earnedDays: input.earnedDays,
+    deductDays: input.deductDays,
+    calculatedSalaryPkr: input.calculatedSalaryPkr,
+    autoLeaveDeductionPkr: input.autoLeaveDeductionPkr,
+    securityDeductionPkr: input.securityDeductionPkr,
+    totalOtherPayPkr: input.totalOtherPayPkr,
+    totalDeductionPkr: input.totalDeductionPkr,
+    netSalaryPkr: input.netSalaryPkr,
+    transferDetails: input.transferDetails,
+    updatedByUserId: userId,
+    updatedAt: now,
+  };
+
+  if (existing) {
+    await db.update(salarySlips).set(values).where(eq(salarySlips.id, existing.id));
+    return { ok: true, data: { id: existing.id, created: false } };
+  }
+
+  const [created] = await db
+    .insert(salarySlips)
+    .values({
+      employeeId,
+      companyId,
+      yearMonth,
+      ...values,
+      createdByUserId: userId,
+    })
+    .returning({ id: salarySlips.id });
+
+  return { ok: true, data: { id: created.id, created: true } };
+}
+
 export async function listEmployeeSalarySlips(
   employeeId: string,
 ): Promise<ServiceSuccess<SalarySlipListItem[]>> {

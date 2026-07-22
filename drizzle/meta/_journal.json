@@ -176,6 +176,13 @@
       "when": 1784723216750,
       "tag": "0024_vengeful_raider",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1784728000000,
+      "tag": "0025_salary_sheet_imports",
+      "breakpoints": true
     }
   ]
 }
