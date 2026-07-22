@@ -462,7 +462,6 @@ export async function buildSalarySlipPdf(data: SalarySlipPdfData): Promise<Buffe
       metrics: [
         { label: "Leave deduct", value: formatSalaryPkr(data.autoLeaveDeductionPkr) },
         { label: "Income tax", value: formatSalaryPkr(data.incomeTaxPkr) },
-        { label: "Security", value: formatSalaryPkr(data.securityDeductionPkr) },
         { label: "Additional", value: formatSalaryPkr(data.additionalDeductionPkr) },
       ],
       details: data.deductionDetails,

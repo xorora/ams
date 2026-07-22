@@ -130,7 +130,6 @@ export function SalarySlipDocument({ slip, maskBank = true, className }: SalaryS
           <BoxSection title="Deductions">
             <MetricRow label="Leave deduct" value={formatSalaryPkr(slip.autoLeaveDeductionPkr)} />
             <MetricRow label="Income tax" value={formatSalaryPkr(slip.incomeTaxPkr)} />
-            <MetricRow label="Security" value={formatSalaryPkr(slip.securityDeductionPkr)} />
             <MetricRow label="Additional" value={formatSalaryPkr(slip.additionalDeductionPkr)} />
             {slip.deductionDetails ? (
               <p className="mt-2 text-[#5c6478] text-xs">{slip.deductionDetails}</p>
