@@ -1,9 +1,11 @@
 import {
   BarChart3,
   CalendarDays,
+  FileSpreadsheet,
   Fingerprint,
   MapPin,
   Moon,
+  Receipt,
   ShieldCheck,
   Timer,
 } from "lucide-react";
@@ -33,19 +35,33 @@ const features = [
   },
   {
     icon: Timer,
-    title: "Break tracking",
-    description: "60-minute break cap with live remaining-time warnings.",
+    title: "Scheduled meal breaks",
+    description:
+      "Company meal windows with auto start and end, plus a 60-minute break cap and live warnings.",
   },
   {
     icon: CalendarDays,
     title: "Leave management",
-    description: "Annual, casual, sick, and unpaid leave with balances and approvals.",
+    description:
+      "Annual, casual, sick, and unpaid leave with quotas, balances, and approvals.",
   },
   {
     icon: ShieldCheck,
     title: "Late fine relaxations",
     description:
       "After more than three lates in a month, request a waiver — HR reviews and approves.",
+  },
+  {
+    icon: FileSpreadsheet,
+    title: "Monthly compensation sheets",
+    description:
+      "Upload CNPL Excel for each month — gross, basic, ADHOC, HR, medical, and tax in one sheet.",
+  },
+  {
+    icon: Receipt,
+    title: "Branded salary slips",
+    description:
+      "Xorora-branded PDF slips with salary structure, attendance, deductions, and net payable.",
   },
   {
     icon: BarChart3,
@@ -69,7 +85,8 @@ const steps = [
   {
     step: "03",
     title: "Start tracking",
-    description: "Check in from the office, manage breaks, leave, and see your attendance.",
+    description:
+      "Check in from the office, manage breaks and leave, and open your salary slips when payroll is ready.",
   },
 ] as const;
 
@@ -252,7 +269,7 @@ export function LandingPage({ callbackUrl, errorMessage, companies }: LandingPag
                     </span>
                   </h1>
                   <p className="max-w-md text-[0.95rem] leading-relaxed text-[#c8cce0] text-pretty sm:text-base md:text-lg">
-                    Biometric sync and geofenced check-in for day and evening teams — timed in
+                    Biometric sync, geofenced check-in, and month-ready payroll slips — timed in
                     Pakistan Standard Time.
                   </p>
                   <div className="h-1 w-16 rounded-full bg-gradient-to-r from-[#f26b21] to-transparent sm:w-20" />
@@ -354,11 +371,12 @@ export function LandingPage({ callbackUrl, errorMessage, companies }: LandingPag
                   Capabilities
                 </p>
                 <h2 className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl md:text-4xl">
-                  Everything attendance needs in one place
+                  Attendance and payroll in one place
                 </h2>
               </div>
               <p className="max-w-sm text-[#586178] text-sm text-pretty sm:text-base md:pb-1 md:text-right">
-                From the shop floor to HR — punches, leave, relaxations, and reports.
+                From the shop floor to HR — punches, leave, compensation sheets, salary slips, and
+                reports.
               </p>
             </div>
 
