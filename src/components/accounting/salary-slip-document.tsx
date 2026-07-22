@@ -119,16 +119,24 @@ export function SalarySlipDocument({ slip, maskBank = true, className }: SalaryS
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <BoxSection title="Salary structure" className="md:col-span-2 xl:col-span-2">
+            <MetricRow label="Gross monthly" value={formatSalaryPkr(slip.grossSalaryPkr)} />
+            <MetricRow label="Basic salary" value={formatSalaryPkr(slip.basicSalaryPkr)} />
+            <MetricRow label="ADHOC" value={formatSalaryPkr(slip.adhocPkr)} />
+            <MetricRow label="HR" value={formatSalaryPkr(slip.hrAllowancePkr)} />
+            <MetricRow label="Medical" value={formatSalaryPkr(slip.medicalAllowancePkr)} />
+          </BoxSection>
+
           <BoxSection title="Attendance">
-            <MetricRow label="Total days" value={String(slip.totalDays)} />
-            <MetricRow label="Earned days" value={String(slip.earnedDays)} />
+            <MetricRow label="Working days" value={String(slip.totalDays)} />
+            <MetricRow label="Days worked" value={String(slip.earnedDays)} />
             <MetricRow label="Deduct days" value={String(slip.deductDays)} />
-            <MetricRow label="Cal salary" value={formatSalaryPkr(slip.calculatedSalaryPkr)} />
+            <MetricRow label="Earned salary" value={formatSalaryPkr(slip.calculatedSalaryPkr)} />
           </BoxSection>
 
           <BoxSection title="Deductions">
-            <MetricRow label="Leave deduct" value={formatSalaryPkr(slip.autoLeaveDeductionPkr)} />
+            <MetricRow label="Leave deduction" value={formatSalaryPkr(slip.autoLeaveDeductionPkr)} />
             <MetricRow label="Income tax" value={formatSalaryPkr(slip.incomeTaxPkr)} />
             <MetricRow label="Additional" value={formatSalaryPkr(slip.additionalDeductionPkr)} />
             {slip.deductionDetails ? (

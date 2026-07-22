@@ -1,6 +1,12 @@
 import { and, asc, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { companies, employeeCompensation, employees, salarySlips } from "@/db/schema";
+import {
+  companies,
+  employeeCompensation,
+  employees,
+  salarySheetRows,
+  salarySlips,
+} from "@/db/schema";
 import { adminFailure, type ServiceFailure, type ServiceSuccess } from "@/lib/admin/types";
 import { maskTransferDetails } from "./bank-mask";
 import {
@@ -9,6 +15,7 @@ import {
   validateYearMonth,
 } from "./calculations";
 import { assertCompanyScope, getEmployeeInCompany } from "./company-access";
+import { ensureSalarySheetTables } from "./ensure-salary-sheet-tables";
 
 export type SalarySlipRecord = typeof salarySlips.$inferSelect;
 
@@ -45,6 +52,13 @@ export type SalarySlipDetail = SalarySlipListItem & {
   transferDetails: string | null;
   createdByUserId: string;
   updatedByUserId: string | null;
+  /** Compensation-tab salary structure (from month sheet row, else profile). */
+  grossSalaryPkr: number;
+  basicSalaryPkr: number;
+  conveyanceAllowancePkr: number;
+  adhocPkr: number;
+  hrAllowancePkr: number;
+  medicalAllowancePkr: number;
 };
 
 export type SalarySlipWriteInput = {
@@ -122,6 +136,61 @@ function normalizeWriteInput(
   };
 }
 
+async function loadSalaryStructureBreakdown(
+  employeeId: string,
+  yearMonth: string,
+): Promise<{
+  grossSalaryPkr: number;
+  basicSalaryPkr: number;
+  conveyanceAllowancePkr: number;
+  adhocPkr: number;
+  hrAllowancePkr: number;
+  medicalAllowancePkr: number;
+}> {
+  await ensureSalarySheetTables();
+
+  const [sheetRow] = await db
+    .select({
+      grossSalaryPkr: salarySheetRows.grossSalaryPkr,
+      basicSalaryPkr: salarySheetRows.basicSalaryPkr,
+      conveyanceAllowancePkr: salarySheetRows.conveyanceAllowancePkr,
+      adhocPkr: salarySheetRows.adhocPkr,
+      hrAllowancePkr: salarySheetRows.hrAllowancePkr,
+      medicalAllowancePkr: salarySheetRows.medicalAllowancePkr,
+    })
+    .from(salarySheetRows)
+    .where(
+      and(eq(salarySheetRows.employeeId, employeeId), eq(salarySheetRows.yearMonth, yearMonth)),
+    )
+    .limit(1);
+
+  if (sheetRow) {
+    return sheetRow;
+  }
+
+  const [compensation] = await db
+    .select({
+      grossSalaryPkr: employeeCompensation.grossSalaryPkr,
+      basicSalaryPkr: employeeCompensation.basicSalaryPkr,
+      conveyanceAllowancePkr: employeeCompensation.conveyanceAllowancePkr,
+      adhocPkr: employeeCompensation.adhocPkr,
+      hrAllowancePkr: employeeCompensation.hrAllowancePkr,
+      medicalAllowancePkr: employeeCompensation.medicalAllowancePkr,
+    })
+    .from(employeeCompensation)
+    .where(eq(employeeCompensation.employeeId, employeeId))
+    .limit(1);
+
+  return {
+    grossSalaryPkr: compensation?.grossSalaryPkr ?? 0,
+    basicSalaryPkr: compensation?.basicSalaryPkr ?? 0,
+    conveyanceAllowancePkr: compensation?.conveyanceAllowancePkr ?? 0,
+    adhocPkr: compensation?.adhocPkr ?? 0,
+    hrAllowancePkr: compensation?.hrAllowancePkr ?? 0,
+    medicalAllowancePkr: compensation?.medicalAllowancePkr ?? 0,
+  };
+}
+
 async function loadSalarySlipDetail(
   id: string,
 ): Promise<ServiceFailure | ServiceSuccess<SalarySlipDetail>> {
@@ -144,15 +213,21 @@ async function loadSalarySlipDetail(
     return adminFailure(404, "SALARY_SLIP_NOT_FOUND", "Salary slip not found.");
   }
 
+  const structure = await loadSalaryStructureBreakdown(row.slip.employeeId, row.slip.yearMonth);
+
   return {
     ok: true,
-    data: mapSalarySlipDetail(row.slip, {
-      employeeCode: row.employeeCode,
-      employeeName: row.employeeName,
-      department: row.department,
-      designation: row.designation,
-      companyName: row.companyName,
-    }),
+    data: mapSalarySlipDetail(
+      row.slip,
+      {
+        employeeCode: row.employeeCode,
+        employeeName: row.employeeName,
+        department: row.department,
+        designation: row.designation,
+        companyName: row.companyName,
+      },
+      structure,
+    ),
   };
 }
 
@@ -164,6 +239,14 @@ function mapSalarySlipDetail(
     department: string | null;
     designation: string | null;
     companyName: string;
+  },
+  structure: {
+    grossSalaryPkr: number;
+    basicSalaryPkr: number;
+    conveyanceAllowancePkr: number;
+    adhocPkr: number;
+    hrAllowancePkr: number;
+    medicalAllowancePkr: number;
   },
 ): SalarySlipDetail {
   return {
@@ -196,6 +279,12 @@ function mapSalarySlipDetail(
     updatedByUserId: slip.updatedByUserId,
     createdAt: slip.createdAt,
     updatedAt: slip.updatedAt,
+    grossSalaryPkr: structure.grossSalaryPkr,
+    basicSalaryPkr: structure.basicSalaryPkr,
+    conveyanceAllowancePkr: structure.conveyanceAllowancePkr,
+    adhocPkr: structure.adhocPkr,
+    hrAllowancePkr: structure.hrAllowancePkr,
+    medicalAllowancePkr: structure.medicalAllowancePkr,
   };
 }
 

@@ -101,5 +101,11 @@ export function serializeSalarySlipDetail(item: SalarySlipDetail) {
     transferDetails: item.transferDetails,
     createdByUserId: item.createdByUserId,
     updatedByUserId: item.updatedByUserId,
+    grossSalaryPkr: item.grossSalaryPkr,
+    basicSalaryPkr: item.basicSalaryPkr,
+    conveyanceAllowancePkr: item.conveyanceAllowancePkr,
+    adhocPkr: item.adhocPkr,
+    hrAllowancePkr: item.hrAllowancePkr,
+    medicalAllowancePkr: item.medicalAllowancePkr,
   };
 }

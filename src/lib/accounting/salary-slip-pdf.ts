@@ -13,6 +13,11 @@ export type SalarySlipPdfData = Pick<
   | "employeeName"
   | "department"
   | "designation"
+  | "grossSalaryPkr"
+  | "basicSalaryPkr"
+  | "adhocPkr"
+  | "hrAllowancePkr"
+  | "medicalAllowancePkr"
   | "totalDays"
   | "earnedDays"
   | "deductDays"
@@ -447,20 +452,35 @@ export async function buildSalarySlipPdf(data: SalarySlipPdfData): Promise<Buffe
 
     y = drawEmployeeInfo(doc, data, y);
 
+    const structureBox: BoxContent = {
+      title: "Salary structure",
+      metrics: [
+        { label: "Gross monthly", value: formatSalaryPkr(data.grossSalaryPkr) },
+        { label: "Basic salary", value: formatSalaryPkr(data.basicSalaryPkr) },
+        { label: "ADHOC", value: formatSalaryPkr(data.adhocPkr) },
+        { label: "HR", value: formatSalaryPkr(data.hrAllowancePkr) },
+        { label: "Medical", value: formatSalaryPkr(data.medicalAllowancePkr) },
+      ],
+    };
+
+    const structureHeight = measureBoxHeight(doc, CONTENT_WIDTH, structureBox);
+    drawBoxSection(doc, PAGE_MARGIN, y, CONTENT_WIDTH, structureHeight, structureBox);
+    y += structureHeight + 12;
+
     const attendanceBox: BoxContent = {
       title: "Attendance",
       metrics: [
-        { label: "Total days", value: String(data.totalDays) },
-        { label: "Earned days", value: String(data.earnedDays) },
+        { label: "Working days", value: String(data.totalDays) },
+        { label: "Days worked", value: String(data.earnedDays) },
         { label: "Deduct days", value: String(data.deductDays) },
-        { label: "Cal salary", value: formatSalaryPkr(data.calculatedSalaryPkr) },
+        { label: "Earned salary", value: formatSalaryPkr(data.calculatedSalaryPkr) },
       ],
     };
 
     const deductionsBox: BoxContent = {
       title: "Deductions",
       metrics: [
-        { label: "Leave deduct", value: formatSalaryPkr(data.autoLeaveDeductionPkr) },
+        { label: "Leave deduction", value: formatSalaryPkr(data.autoLeaveDeductionPkr) },
         { label: "Income tax", value: formatSalaryPkr(data.incomeTaxPkr) },
         { label: "Additional", value: formatSalaryPkr(data.additionalDeductionPkr) },
       ],
