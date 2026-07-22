@@ -26,9 +26,14 @@ const sampleData: SalarySlipPdfData = {
   transferDetails: "HBL - 1234567890123456",
 };
 
-const outputPath = resolve(process.cwd(), "docs/sample-salary-slip.pdf");
+async function main() {
+  const outputPath = resolve(process.cwd(), "docs/sample-salary-slip.pdf");
+  const buffer = await buildSalarySlipPdf(sampleData);
+  writeFileSync(outputPath, buffer);
+  console.log(`Sample salary slip written to ${outputPath} (${buffer.length} bytes)`);
+}
 
-const buffer = await buildSalarySlipPdf(sampleData);
-writeFileSync(outputPath, buffer);
-
-console.log(`Sample salary slip written to ${outputPath}`);
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
