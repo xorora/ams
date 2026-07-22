@@ -473,19 +473,23 @@ export async function buildSalarySlipPdf(data: SalarySlipPdfData): Promise<Buffe
         { label: "Working days", value: String(data.totalDays) },
         { label: "Days worked", value: String(data.earnedDays) },
         { label: "Deduct days", value: String(data.deductDays) },
+        { label: "Leave deduction", value: formatSalaryPkr(data.autoLeaveDeductionPkr) },
         { label: "Earned salary", value: formatSalaryPkr(data.calculatedSalaryPkr) },
       ],
     };
 
+    const incomeTaxPkr = data.incomeTaxPkr;
+    const additionalDeductionPkr = data.additionalDeductionPkr;
+    const deductionsTotalPkr = incomeTaxPkr + additionalDeductionPkr;
+
     const deductionsBox: BoxContent = {
       title: "Deductions",
       metrics: [
-        { label: "Leave deduction", value: formatSalaryPkr(data.autoLeaveDeductionPkr) },
-        { label: "Income tax", value: formatSalaryPkr(data.incomeTaxPkr) },
-        { label: "Additional", value: formatSalaryPkr(data.additionalDeductionPkr) },
+        { label: "Income tax", value: formatSalaryPkr(incomeTaxPkr) },
+        { label: "Additional", value: formatSalaryPkr(additionalDeductionPkr) },
       ],
       details: data.deductionDetails,
-      footer: { label: "Total", value: formatSalaryPkr(data.totalDeductionPkr) },
+      footer: { label: "Total", value: formatSalaryPkr(deductionsTotalPkr) },
     };
 
     const otherPayableBox: BoxContent = {

@@ -72,6 +72,7 @@ export function SalarySlipDocument({ slip, maskBank = true, className }: SalaryS
   const transferDisplay = maskBank
     ? maskTransferDetails(slip.transferDetails)
     : slip.transferDetails;
+  const deductionsTotalPkr = slip.incomeTaxPkr + slip.additionalDeductionPkr;
 
   return (
     <div
@@ -150,18 +151,18 @@ export function SalarySlipDocument({ slip, maskBank = true, className }: SalaryS
             <MetricRow label="Working days" value={String(slip.totalDays)} />
             <MetricRow label="Days worked" value={String(slip.earnedDays)} />
             <MetricRow label="Deduct days" value={String(slip.deductDays)} />
+            <MetricRow label="Leave deduction" value={formatSalaryPkr(slip.autoLeaveDeductionPkr)} />
             <MetricRow label="Earned salary" value={formatSalaryPkr(slip.calculatedSalaryPkr)} />
           </BoxSection>
 
           <BoxSection title="Deductions">
-            <MetricRow label="Leave deduction" value={formatSalaryPkr(slip.autoLeaveDeductionPkr)} />
             <MetricRow label="Income tax" value={formatSalaryPkr(slip.incomeTaxPkr)} />
             <MetricRow label="Additional" value={formatSalaryPkr(slip.additionalDeductionPkr)} />
             {slip.deductionDetails ? (
               <p className="mt-3 text-[#5c6478] text-xs leading-relaxed">{slip.deductionDetails}</p>
             ) : null}
             <div className="mt-auto border-t border-[#464c9f]/35 pt-3.5 font-semibold text-[#1a1f36]">
-              Total: {formatSalaryPkr(slip.totalDeductionPkr)}
+              Total: {formatSalaryPkr(deductionsTotalPkr)}
             </div>
           </BoxSection>
 

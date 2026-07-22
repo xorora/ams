@@ -385,14 +385,13 @@ export async function importSalarySheetFromExcel(input: {
       .where(eq(employeeCompensation.employeeId, employee.id))
       .limit(1);
 
-    const securityDeductionPkr = compensation?.fixedSecurityDeductionPkr ?? 0;
+    const securityDeductionPkr = 0;
     const totalOtherPayPkr = compensation?.fixedOtherPayPkr ?? 0;
     const leaveDeductionPkr = row.leaveDeductionPkr;
     const incomeTaxPkr = row.incomeTaxPkr;
-    const additionalDeductionPkr = Math.max(
-      0,
-      row.totalDeductionPkr - leaveDeductionPkr - incomeTaxPkr - securityDeductionPkr,
-    );
+    // CNPL "Total" is tax/other deductions — leave is already reflected in earned salary.
+    const additionalDeductionPkr = Math.max(0, row.totalDeductionPkr - incomeTaxPkr);
+    const totalDeductionPkr = incomeTaxPkr + additionalDeductionPkr;
     const deductDays = Math.max(0, row.workingDays - row.daysWorked);
 
     const slipResult = await createOrReplaceSalarySlipFromSheet(
@@ -408,7 +407,7 @@ export async function importSalarySheetFromExcel(input: {
         autoLeaveDeductionPkr: leaveDeductionPkr,
         securityDeductionPkr,
         totalOtherPayPkr,
-        totalDeductionPkr: row.totalDeductionPkr,
+        totalDeductionPkr,
         netSalaryPkr: row.netSalaryPkr,
         transferDetails: formatTransferDetails(
           compensation?.bankName,

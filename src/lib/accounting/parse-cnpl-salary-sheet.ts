@@ -303,9 +303,10 @@ function parseDataRow(row: ExcelJS.Row, map: HeaderMap): ParsedCnplSalaryRow | n
   }
 
   const incomeTaxPkr = toNonNegativeInt(readCell(row, map.incomeTax));
+  // CNPL "Total" is tax/other — leave is already baked into earned salary.
   let totalDeductionPkr = toNonNegativeInt(readCell(row, map.totalDeduction));
   if (totalDeductionPkr === 0) {
-    totalDeductionPkr = leaveDeductionPkr + incomeTaxPkr;
+    totalDeductionPkr = incomeTaxPkr;
   }
   let netSalaryPkr = toNonNegativeInt(readCell(row, map.netSalary));
   if (netSalaryPkr === 0 && earnedSalaryPkr > 0) {
