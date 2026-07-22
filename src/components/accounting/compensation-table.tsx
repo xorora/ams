@@ -87,24 +87,18 @@ export function CompensationTable({
         cell: ({ row }) => <AmountCell value={row.original.adhocPkr} />,
       },
       {
-        id: "allowances",
-        header: "Allowances",
-        columns: [
-          {
-            id: "hrAllowancePkr",
-            accessorFn: (row: SerializedCompensationListItem) => row.hrAllowancePkr ?? 0,
-            header: "HR",
-            meta: { align: "right" },
-            cell: ({ row }) => <AmountCell value={row.original.hrAllowancePkr} />,
-          },
-          {
-            id: "medicalAllowancePkr",
-            accessorFn: (row: SerializedCompensationListItem) => row.medicalAllowancePkr ?? 0,
-            header: "Medical",
-            meta: { align: "right" },
-            cell: ({ row }) => <AmountCell value={row.original.medicalAllowancePkr} />,
-          },
-        ],
+        id: "hrAllowancePkr",
+        accessorFn: (row) => row.hrAllowancePkr ?? 0,
+        header: "HR",
+        meta: { align: "right" },
+        cell: ({ row }) => <AmountCell value={row.original.hrAllowancePkr} />,
+      },
+      {
+        id: "medicalAllowancePkr",
+        accessorFn: (row) => row.medicalAllowancePkr ?? 0,
+        header: "Medical",
+        meta: { align: "right" },
+        cell: ({ row }) => <AmountCell value={row.original.medicalAllowancePkr} />,
       },
       {
         id: "workingDays",
