@@ -101,6 +101,18 @@ export async function ensureCompensationStructureColumns(): Promise<void> {
     ALTER TABLE employee_compensation
     ADD COLUMN IF NOT EXISTS conveyance_allowance_pkr integer DEFAULT 0 NOT NULL
   `);
+  await db.execute(sql`
+    ALTER TABLE employee_compensation
+    ADD COLUMN IF NOT EXISTS adhoc_pkr integer DEFAULT 0 NOT NULL
+  `);
+  await db.execute(sql`
+    ALTER TABLE employee_compensation
+    ADD COLUMN IF NOT EXISTS hr_allowance_pkr integer DEFAULT 0 NOT NULL
+  `);
+  await db.execute(sql`
+    ALTER TABLE employee_compensation
+    ADD COLUMN IF NOT EXISTS medical_allowance_pkr integer DEFAULT 0 NOT NULL
+  `);
   structureEnsured = true;
 }
 

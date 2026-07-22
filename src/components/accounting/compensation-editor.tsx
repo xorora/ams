@@ -18,6 +18,8 @@ type CompensationEditorProps = {
   employeeName: string;
   employeeCode: string;
   compensation: SerializedCompensation | null;
+  yearMonth?: string;
+  incomeTaxPkr?: number;
 };
 
 export function CompensationEditor({
@@ -25,6 +27,8 @@ export function CompensationEditor({
   employeeName,
   employeeCode,
   compensation,
+  yearMonth,
+  incomeTaxPkr = 0,
 }: CompensationEditorProps) {
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -32,16 +36,20 @@ export function CompensationEditor({
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setForm(compensationToForm(compensation ?? undefined));
-  }, [compensation]);
+    setForm(compensationToForm(compensation ?? undefined, incomeTaxPkr));
+  }, [compensation, incomeTaxPkr]);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setSaving(true);
 
     try {
+      const incomeTax = Number.parseInt(form.incomeTaxPkr, 10) || 0;
       await toastAsync(
-        upsertCompensationAction(employeeId, compensationFormToInput(form)).then((result) => {
+        upsertCompensationAction(employeeId, compensationFormToInput(form), {
+          yearMonth,
+          incomeTaxPkr: yearMonth ? incomeTax : undefined,
+        }).then((result) => {
           if (!result.ok) {
             throw new Error(result.error);
           }
@@ -51,7 +59,11 @@ export function CompensationEditor({
           success: "Compensation profile saved.",
         },
       );
-      startTransition(() => router.refresh());
+      startTransition(() => {
+        const query = yearMonth ? `?yearMonth=${encodeURIComponent(yearMonth)}` : "";
+        router.push(`/admin/accounting/compensation${query}`);
+        router.refresh();
+      });
     } catch {
       // toastAsync already surfaced the error toast
     } finally {
@@ -67,7 +79,11 @@ export function CompensationEditor({
       onFormChange={setForm}
       saving={saving}
       onSubmit={handleSubmit}
-      onCancel={() => router.push("/admin/accounting/compensation")}
+      yearMonth={yearMonth}
+      onCancel={() => {
+        const query = yearMonth ? `?yearMonth=${encodeURIComponent(yearMonth)}` : "";
+        router.push(`/admin/accounting/compensation${query}`);
+      }}
     />
   );
 }

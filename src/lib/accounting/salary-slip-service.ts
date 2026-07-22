@@ -497,6 +497,52 @@ export async function updateSalarySlip(
   return loadSalarySlipDetail(id);
 }
 
+/** Create or update the month slip with a new income tax amount (other fields preserved). */
+export async function upsertMonthIncomeTax(
+  employeeId: string,
+  companyId: string,
+  yearMonth: string,
+  incomeTaxPkr: number,
+  userId: string,
+  role: "admin" | "accounting_admin" = "admin",
+): Promise<ServiceFailure | ServiceSuccess<SalarySlipDetail>> {
+  if (!validateYearMonth(yearMonth)) {
+    return adminFailure(400, "INVALID_YEAR_MONTH", "yearMonth must be in YYYY-MM format.");
+  }
+
+  if (!Number.isInteger(incomeTaxPkr) || incomeTaxPkr < 0) {
+    return adminFailure(400, "INVALID_AMOUNT", "Income tax must be a non-negative integer.");
+  }
+
+  const [existing] = await db
+    .select({ id: salarySlips.id })
+    .from(salarySlips)
+    .where(and(eq(salarySlips.employeeId, employeeId), eq(salarySlips.yearMonth, yearMonth)))
+    .limit(1);
+
+  if (existing) {
+    return updateSalarySlip(
+      existing.id,
+      { incomeTaxPkr },
+      { role, companyId },
+      userId,
+    );
+  }
+
+  return createSalarySlip(
+    {
+      employeeId,
+      yearMonth,
+      incomeTaxPkr,
+      additionalDeductionPkr: 0,
+      otherPayPkr: 0,
+      incrementPkr: 0,
+    },
+    companyId,
+    userId,
+  );
+}
+
 export async function listEmployeeSalarySlips(
   employeeId: string,
 ): Promise<ServiceSuccess<SalarySlipListItem[]>> {

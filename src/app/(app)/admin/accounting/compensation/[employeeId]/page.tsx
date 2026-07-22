@@ -1,7 +1,11 @@
+import { and, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { CompensationEditor } from "@/components/accounting/compensation-editor";
+import { db } from "@/db";
+import { salarySlips } from "@/db/schema";
 import { getEmployeeInCompany } from "@/lib/accounting/company-access";
 import { getCompensation } from "@/lib/accounting/compensation-service";
+import { getCurrentYearMonth } from "@/lib/accounting/format";
 import { serializeCompensation } from "@/lib/accounting/serialize";
 import {
   requireAccountingCompanyId,
@@ -10,12 +14,23 @@ import {
 
 type PageProps = {
   params: Promise<{ employeeId: string }>;
+  searchParams: Promise<{ yearMonth?: string }>;
 };
 
-export default async function AdminCompensationDetailPage({ params }: PageProps) {
+function resolveYearMonth(raw: string | undefined): string {
+  const value = raw?.trim() ?? "";
+  if (value && /^\d{4}-(0[1-9]|1[0-2])$/.test(value)) {
+    return value;
+  }
+  return getCurrentYearMonth();
+}
+
+export default async function AdminCompensationDetailPage({ params, searchParams }: PageProps) {
   const session = await requireAccountingOrAdminSession();
   const companyId = await requireAccountingCompanyId(session);
   const { employeeId } = await params;
+  const query = await searchParams;
+  const yearMonth = resolveYearMonth(query.yearMonth);
 
   const employeeResult = await getEmployeeInCompany(employeeId, companyId);
   if (!employeeResult.ok) {
@@ -23,7 +38,14 @@ export default async function AdminCompensationDetailPage({ params }: PageProps)
   }
 
   const employee = employeeResult.data;
-  const compensationResult = await getCompensation(employeeId, companyId);
+  const [compensationResult, [slip]] = await Promise.all([
+    getCompensation(employeeId, companyId),
+    db
+      .select({ incomeTaxPkr: salarySlips.incomeTaxPkr })
+      .from(salarySlips)
+      .where(and(eq(salarySlips.employeeId, employeeId), eq(salarySlips.yearMonth, yearMonth)))
+      .limit(1),
+  ]);
   const compensation = compensationResult.ok
     ? serializeCompensation(compensationResult.data)
     : null;
@@ -33,7 +55,7 @@ export default async function AdminCompensationDetailPage({ params }: PageProps)
       <div className="shrink-0">
         <h1 className="text-2xl font-semibold">Compensation profile</h1>
         <p className="mt-1 text-muted-foreground text-sm">
-          Configure salary and bank details used when generating monthly slips.
+          Configure salary structure and monthly income tax used on the compensation sheet.
         </p>
       </div>
 
@@ -43,6 +65,8 @@ export default async function AdminCompensationDetailPage({ params }: PageProps)
           employeeName={employee.fullName}
           employeeCode={employee.employeeCode}
           compensation={compensation}
+          yearMonth={yearMonth}
+          incomeTaxPkr={slip?.incomeTaxPkr ?? 0}
         />
       </div>
     </div>

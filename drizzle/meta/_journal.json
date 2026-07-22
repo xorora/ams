@@ -169,6 +169,13 @@
       "when": 1784719227551,
       "tag": "0023_bent_wolverine",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1784723216750,
+      "tag": "0024_vengeful_raider",
+      "breakpoints": true
     }
   ]
 }

@@ -5,48 +5,64 @@ import { FormField, FormSection } from "@/components/ui/form-section";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { UpsertCompensationInput } from "@/lib/accounting/compensation-service";
+import { formatYearMonthShort } from "@/lib/accounting/format";
 
 export type CompensationFormValues = {
   grossSalaryPkr: string;
   basicSalaryPkr: string;
   conveyanceAllowancePkr: string;
+  adhocPkr: string;
+  hrAllowancePkr: string;
+  medicalAllowancePkr: string;
   bankName: string;
   bankAccountNumber: string;
   fixedSecurityDeductionPkr: string;
   fixedOtherPayPkr: string;
+  incomeTaxPkr: string;
 };
 
 export const emptyCompensationForm: CompensationFormValues = {
   grossSalaryPkr: "",
   basicSalaryPkr: "0",
   conveyanceAllowancePkr: "0",
+  adhocPkr: "0",
+  hrAllowancePkr: "0",
+  medicalAllowancePkr: "0",
   bankName: "",
   bankAccountNumber: "",
   fixedSecurityDeductionPkr: "0",
   fixedOtherPayPkr: "0",
+  incomeTaxPkr: "0",
 };
 
 export function compensationToForm(record?: {
   grossSalaryPkr: number;
   basicSalaryPkr: number;
   conveyanceAllowancePkr: number;
+  adhocPkr?: number;
+  hrAllowancePkr?: number;
+  medicalAllowancePkr?: number;
   bankName: string | null;
   bankAccountNumber: string | null;
   fixedSecurityDeductionPkr: number;
   fixedOtherPayPkr: number;
-}): CompensationFormValues {
+}, incomeTaxPkr = 0): CompensationFormValues {
   if (!record) {
-    return emptyCompensationForm;
+    return { ...emptyCompensationForm, incomeTaxPkr: String(incomeTaxPkr) };
   }
 
   return {
     grossSalaryPkr: String(record.grossSalaryPkr),
     basicSalaryPkr: String(record.basicSalaryPkr),
     conveyanceAllowancePkr: String(record.conveyanceAllowancePkr),
+    adhocPkr: String(record.adhocPkr ?? 0),
+    hrAllowancePkr: String(record.hrAllowancePkr ?? 0),
+    medicalAllowancePkr: String(record.medicalAllowancePkr ?? 0),
     bankName: record.bankName ?? "",
     bankAccountNumber: record.bankAccountNumber ?? "",
     fixedSecurityDeductionPkr: String(record.fixedSecurityDeductionPkr),
     fixedOtherPayPkr: String(record.fixedOtherPayPkr),
+    incomeTaxPkr: String(incomeTaxPkr),
   };
 }
 
@@ -55,6 +71,9 @@ export function compensationFormToInput(form: CompensationFormValues): UpsertCom
     grossSalaryPkr: Number.parseInt(form.grossSalaryPkr, 10),
     basicSalaryPkr: Number.parseInt(form.basicSalaryPkr, 10) || 0,
     conveyanceAllowancePkr: Number.parseInt(form.conveyanceAllowancePkr, 10) || 0,
+    adhocPkr: Number.parseInt(form.adhocPkr, 10) || 0,
+    hrAllowancePkr: Number.parseInt(form.hrAllowancePkr, 10) || 0,
+    medicalAllowancePkr: Number.parseInt(form.medicalAllowancePkr, 10) || 0,
     bankName: form.bankName.trim() || null,
     bankAccountNumber: form.bankAccountNumber.trim() || null,
     fixedSecurityDeductionPkr: Number.parseInt(form.fixedSecurityDeductionPkr, 10) || 0,
@@ -70,6 +89,7 @@ type CompensationFormProps = {
   saving?: boolean;
   onSubmit: (event: React.FormEvent) => void;
   onCancel?: () => void;
+  yearMonth?: string;
 };
 
 export function CompensationForm({
@@ -80,6 +100,7 @@ export function CompensationForm({
   saving = false,
   onSubmit,
   onCancel,
+  yearMonth,
 }: CompensationFormProps) {
   function updateField<K extends keyof CompensationFormValues>(
     key: K,
@@ -93,11 +114,14 @@ export function CompensationForm({
       <div className="rounded-xl border border-white/12 bg-[#050d22]/70 p-4 text-sm">
         <p className="font-semibold text-white">{employeeName}</p>
         <p className="mt-1 text-[#d7dceb]">Code: {employeeCode}</p>
+        {yearMonth ? (
+          <p className="mt-1 text-[#9aa3b8]">Month: {formatYearMonthShort(yearMonth)}</p>
+        ) : null}
       </div>
 
       <FormSection
         title="Compensation"
-        description="Gross monthly salary, basic, allowance, bank details, and fixed monthly amounts."
+        description="Gross, basic, ADHOC, and allowances used on the salary sheet."
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField className="sm:col-span-2">
@@ -120,14 +144,43 @@ export function CompensationForm({
             />
           </FormField>
           <FormField>
-            <Label htmlFor="conveyance-allowance">Conveyance/Fuel/Food Allowance (PKR)</Label>
+            <Label htmlFor="adhoc">ADHOC (PKR)</Label>
             <Input
-              id="conveyance-allowance"
+              id="adhoc"
               inputMode="numeric"
-              value={form.conveyanceAllowancePkr}
-              onChange={(event) => updateField("conveyanceAllowancePkr", event.target.value)}
+              value={form.adhocPkr}
+              onChange={(event) => updateField("adhocPkr", event.target.value)}
             />
           </FormField>
+          <FormField>
+            <Label htmlFor="hr-allowance">HR Allowance (PKR)</Label>
+            <Input
+              id="hr-allowance"
+              inputMode="numeric"
+              value={form.hrAllowancePkr}
+              onChange={(event) => updateField("hrAllowancePkr", event.target.value)}
+            />
+          </FormField>
+          <FormField>
+            <Label htmlFor="medical-allowance">Medical Allowance (PKR)</Label>
+            <Input
+              id="medical-allowance"
+              inputMode="numeric"
+              value={form.medicalAllowancePkr}
+              onChange={(event) => updateField("medicalAllowancePkr", event.target.value)}
+            />
+          </FormField>
+          {yearMonth ? (
+            <FormField className="sm:col-span-2">
+              <Label htmlFor="income-tax">Monthly Income Tax (PKR)</Label>
+              <Input
+                id="income-tax"
+                inputMode="numeric"
+                value={form.incomeTaxPkr}
+                onChange={(event) => updateField("incomeTaxPkr", event.target.value)}
+              />
+            </FormField>
+          ) : null}
           <FormField>
             <Label htmlFor="bank-name">Bank name</Label>
             <Input

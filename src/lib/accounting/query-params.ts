@@ -5,6 +5,7 @@ export type SalarySlipListQuery = {
 
 export type CompensationListQuery = {
   search?: string;
+  yearMonth?: string;
 };
 
 export function salarySlipListQuery(filters: SalarySlipListQuery): string {
@@ -23,6 +24,9 @@ export function compensationListQuery(filters: CompensationListQuery): string {
   const params = new URLSearchParams();
   if (filters.search) {
     params.set("search", filters.search);
+  }
+  if (filters.yearMonth) {
+    params.set("yearMonth", filters.yearMonth);
   }
   const query = params.toString();
   return query ? `?${query}` : "";

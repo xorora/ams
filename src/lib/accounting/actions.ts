@@ -34,6 +34,7 @@ import {
   createSalarySlip,
   type UpdateSalarySlipInput,
   updateSalarySlip,
+  upsertMonthIncomeTax,
 } from "./salary-slip-service";
 
 function revalidateAccountingPaths() {
@@ -65,6 +66,7 @@ async function requireAccountingCompanyScope() {
 export async function upsertCompensationAction(
   employeeId: string,
   input: UpsertCompensationInput,
+  options?: { yearMonth?: string; incomeTaxPkr?: number },
 ): Promise<ActionResult> {
   const scope = await requireAccountingCompanyScope();
   if (scope.error) {
@@ -79,6 +81,22 @@ export async function upsertCompensationAction(
   );
   if (!result.ok) {
     return actionFailure(result);
+  }
+
+  if (options?.yearMonth && options.incomeTaxPkr !== undefined) {
+    const role =
+      scope.session.user.role === "accounting_admin" ? "accounting_admin" : "admin";
+    const taxResult = await upsertMonthIncomeTax(
+      employeeId,
+      scope.companyId,
+      options.yearMonth,
+      options.incomeTaxPkr,
+      scope.session.user.id,
+      role,
+    );
+    if (!taxResult.ok) {
+      return actionFailure(taxResult);
+    }
   }
 
   revalidateAccountingPaths();
