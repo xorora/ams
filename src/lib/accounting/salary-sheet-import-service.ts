@@ -74,14 +74,7 @@ function matchEmployee(
   byCode: Map<string, EmployeeMatchRow>,
   byName: Map<string, EmployeeMatchRow>,
 ): EmployeeMatchRow | undefined {
-  const codeKey = row.excelCode.trim().toLowerCase();
-  if (codeKey) {
-    const byExactCode = byCode.get(codeKey);
-    if (byExactCode) {
-      return byExactCode;
-    }
-  }
-
+  // Prefer name match: CNPL "Code" is usually a sheet serial (1,2,3…), not AMS employeeCode.
   const nameKey = normalizeCompensationName(row.name);
   const direct = byName.get(nameKey);
   if (direct) {
@@ -93,6 +86,15 @@ function matchEmployee(
     const matched = byName.get(alias);
     if (matched) {
       return matched;
+    }
+  }
+
+  const codeKey = row.excelCode.trim().toLowerCase();
+  // Only treat non-pure-serial codes as AMS employee codes (e.g. XOR-007).
+  if (codeKey && !/^\d+$/.test(codeKey)) {
+    const byExactCode = byCode.get(codeKey);
+    if (byExactCode) {
+      return byExactCode;
     }
   }
 
@@ -217,15 +219,21 @@ export async function importSalarySheetFromExcel(input: {
   }
 
   const unmatched: string[] = [];
-  const matched: Array<{ employee: EmployeeMatchRow; row: ParsedCnplSalaryRow }> = [];
+  const matchedByEmployeeId = new Map<
+    string,
+    { employee: EmployeeMatchRow; row: ParsedCnplSalaryRow }
+  >();
   for (const row of parsed.rows) {
     const employee = matchEmployee(row, byCode, byName);
     if (!employee) {
       unmatched.push(row.name);
       continue;
     }
-    matched.push({ employee, row });
+    // Last Excel row wins if multiple sheet lines resolve to the same employee.
+    matchedByEmployeeId.set(employee.id, { employee, row });
   }
+
+  const matched = [...matchedByEmployeeId.values()];
 
   if (matched.length === 0) {
     return adminFailure(
@@ -237,6 +245,15 @@ export async function importSalarySheetFromExcel(input: {
 
   const now = new Date();
 
+  // Clear month data explicitly (do not rely only on import FK cascade).
+  await db
+    .delete(salarySheetRows)
+    .where(
+      and(
+        eq(salarySheetRows.companyId, input.companyId),
+        eq(salarySheetRows.yearMonth, yearMonth),
+      ),
+    );
   await db
     .delete(salarySheetImports)
     .where(
