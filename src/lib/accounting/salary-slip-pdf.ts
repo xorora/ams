@@ -35,15 +35,15 @@ export type SalarySlipPdfData = Pick<
   | "transferDetails"
 >;
 
-const PAGE_MARGIN = 48;
+const PAGE_MARGIN = 52;
 const PAGE_WIDTH = 595.28;
 const PAGE_HEIGHT = 841.89;
 const CONTENT_WIDTH = PAGE_WIDTH - PAGE_MARGIN * 2;
-const COL_GAP = 10;
+const COL_GAP = 14;
 const COL_WIDTH = (CONTENT_WIDTH - COL_GAP * 2) / 3;
-const BOX_TITLE_HEIGHT = 24;
-const BOX_PADDING = 10;
-const METRIC_ROW_HEIGHT = 18;
+const BOX_TITLE_HEIGHT = 26;
+const BOX_PADDING = 12;
+const METRIC_ROW_HEIGHT = 20;
 
 const NAVY = "#010c28";
 const INDIGO = "#464c9f";
@@ -250,7 +250,7 @@ function drawHeader(
   data: SalarySlipPdfData,
   logo: Buffer | null,
 ): number {
-  const headerHeight = 78;
+  const headerHeight = 86;
 
   doc.save();
   doc.rect(0, 0, PAGE_WIDTH, headerHeight).fill(NAVY);
@@ -311,7 +311,7 @@ function drawHeader(
     .fill();
   doc.restore();
 
-  return headerHeight + 18;
+  return headerHeight + 22;
 }
 
 function drawXororaStamp(
@@ -465,7 +465,7 @@ export async function buildSalarySlipPdf(data: SalarySlipPdfData): Promise<Buffe
 
     const structureHeight = measureBoxHeight(doc, CONTENT_WIDTH, structureBox);
     drawBoxSection(doc, PAGE_MARGIN, y, CONTENT_WIDTH, structureHeight, structureBox);
-    y += structureHeight + 12;
+    y += structureHeight + 16;
 
     const attendanceBox: BoxContent = {
       title: "Attendance",
@@ -511,7 +511,7 @@ export async function buildSalarySlipPdf(data: SalarySlipPdfData): Promise<Buffe
     drawBoxSection(doc, col2X, y, COL_WIDTH, boxHeight, deductionsBox);
     drawBoxSection(doc, col3X, y, COL_WIDTH, boxHeight, otherPayableBox);
 
-    y += boxHeight + 20;
+    y += boxHeight + 24;
 
     const netBoxHeight = transferDisplay ? 72 : 56;
     doc.save();
