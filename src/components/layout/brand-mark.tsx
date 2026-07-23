@@ -8,12 +8,7 @@ type BrandMarkProps = {
   subtitle?: string;
 };
 
-/**
- * Sidebar / chrome brand lockup.
- * Expanded: full white XORORA wordmark (watermark lines intact) + Punch.
- * Collapsed: colored X mark only, sized for the icon rail — no invert filters
- * (those flatten the mark and erase the watermark).
- */
+/** Same lockup as the landing header: inverted Xorora wordmark + Punch; X mark when collapsed. */
 export function BrandMark({
   className,
   textClassName,
@@ -24,17 +19,17 @@ export function BrandMark({
     <div
       className={cn(
         "flex min-w-0 items-center gap-2",
-        "group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0",
+        "group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:justify-center",
         className,
       )}
     >
       <Image
-        src="/xorora-logo-white.png"
+        src="/xorora-full.png"
         alt="Xorora"
-        width={180}
-        height={60}
+        width={320}
+        height={62}
         sizes="140px"
-        className="h-5 w-auto max-w-[9rem] shrink-0 object-contain object-left group-data-[collapsible=icon]:hidden"
+        className="h-5 w-auto max-w-[7.5rem] shrink-0 object-contain object-left brightness-0 invert group-data-[collapsible=icon]:hidden"
         priority
       />
       <Image
@@ -42,8 +37,8 @@ export function BrandMark({
         alt="Xorora"
         width={354}
         height={268}
-        sizes="28px"
-        className="hidden size-7 shrink-0 object-contain group-data-[collapsible=icon]:block"
+        sizes="24px"
+        className="hidden size-6 shrink-0 object-contain brightness-0 invert group-data-[collapsible=icon]:block"
       />
       <div className="min-w-0 group-data-[collapsible=icon]:hidden">
         <p
