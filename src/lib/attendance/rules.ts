@@ -140,11 +140,16 @@ export function computeElapsedShiftSeconds(
   checkOutAt: Date | null | undefined,
   totalBreakSeconds: number,
   now: Date = new Date(),
+  /** When set and check-out is missing, elapsed time stops growing past this instant. */
+  openShiftElapsedCapAt?: Date | null,
 ): number | null {
   if (!checkInAt) {
     return null;
   }
-  const end = checkOutAt ?? now;
+  let end = checkOutAt ?? now;
+  if (!checkOutAt && openShiftElapsedCapAt && end.getTime() > openShiftElapsedCapAt.getTime()) {
+    end = openShiftElapsedCapAt;
+  }
   const grossSeconds = Math.max(0, Math.floor((end.getTime() - checkInAt.getTime()) / 1000));
   return Math.max(0, grossSeconds - totalBreakSeconds);
 }

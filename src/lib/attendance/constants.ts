@@ -18,6 +18,12 @@ export const CHECK_IN_GRACE_MINUTES = 15;
 /** Grace period after expected check-out before a shift is finalized as present without check-out. */
 export const CHECK_OUT_GRACE_MINUTES = 15;
 
+/**
+ * After expected check-out, open-shift elapsed time stops growing after this many minutes.
+ * Late check-out remains allowed and still records the real check-out time.
+ */
+export const MISSED_CHECKOUT_ELAPSED_CAP_MINUTES = 60;
+
 /** Last on-time check-in minute: expected check-in + grace (15:15 PKT inclusive). */
 export const LATE_CHECK_IN_HOUR = EXPECTED_CHECK_IN_HOUR;
 export const LATE_CHECK_IN_MINUTE = CHECK_IN_GRACE_MINUTES;

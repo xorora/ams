@@ -46,12 +46,17 @@ export function EmployeeStatusCard({ status }: EmployeeStatusCardProps) {
   const [liveBreakSeconds, setLiveBreakSeconds] = useState(() =>
     getLiveBreakSeconds(status, new Date()),
   );
+  const [timerStopped, setTimerStopped] = useState(false);
 
   useEffect(() => {
     const tick = () => {
       const now = new Date();
       setElapsedShiftSeconds(getLiveElapsedShiftSeconds(status, now));
       setLiveBreakSeconds(getLiveBreakSeconds(status, now));
+      const capAt = status.openShiftElapsedCapAt;
+      setTimerStopped(
+        Boolean(capAt && !status.attendanceDay?.checkOutAt && now.getTime() > new Date(capAt).getTime()),
+      );
     };
     tick();
     const id = window.setInterval(tick, 1000);
@@ -105,6 +110,9 @@ export function EmployeeStatusCard({ status }: EmployeeStatusCardProps) {
             <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-white">
               {elapsedShiftSeconds != null ? formatShiftDuration(elapsedShiftSeconds) : "—"}
             </p>
+            {timerStopped ? (
+              <p className="mt-0.5 text-[10px] font-medium text-amber-200">timer stopped</p>
+            ) : null}
           </div>
           <div className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-2">
             <p className="text-[10px] font-medium text-[#c8cce0]">In</p>

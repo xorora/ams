@@ -5,6 +5,7 @@ import {
   getClosedShiftDateReason,
   getExpectedCheckOutAt,
   getMaxBreakSeconds,
+  getMissedCheckoutElapsedCapAt,
   getShiftDateForCompany,
   getShiftScheduleLabels,
   isClosedShiftDate,
@@ -12,7 +13,7 @@ import {
   isLateCheckInForCompany,
   isPastMissedCheckOutDeadlineForCompany,
 } from "./company-shift";
-import { BUSINESS_TIMEZONE } from "./constants";
+import { BUSINESS_TIMEZONE, MISSED_CHECKOUT_ELAPSED_CAP_MINUTES } from "./constants";
 import { buildMonthlyLateWarnings, type MonthlyLateSummary } from "./late-fines";
 import {
   type BreakSessionInput,
@@ -58,6 +59,8 @@ export type TodayStatusPayload = {
   breakRemainingSeconds: number;
   maxBreakSeconds: number;
   elapsedShiftSeconds: number | null;
+  /** ISO instant; open-shift elapsed timer freezes here until a real check-out is recorded. */
+  openShiftElapsedCapAt: string | null;
   statusAt: string;
   activeBreakStartedAt: string | null;
   wouldBeEarlyLeave: boolean;
@@ -126,11 +129,16 @@ export function buildTodayStatus(
   const maxBreakSeconds = getMaxBreakSeconds(breakShiftDate, shiftConfig);
   const maxBreakMinutes = Math.round(maxBreakSeconds / 60);
   const breakRemainingSeconds = Math.max(0, maxBreakSeconds - totalBreakSeconds);
+  const openShiftElapsedCapAt =
+    day?.checkInAt && !day.checkOutAt
+      ? getMissedCheckoutElapsedCapAt(day.shiftDate, shiftConfig)
+      : null;
   const elapsedShiftSeconds = computeElapsedShiftSeconds(
     day?.checkInAt,
     day?.checkOutAt,
     totalBreakSeconds,
     now,
+    openShiftElapsedCapAt,
   );
 
   const wouldBeEarlyLeave =
@@ -161,6 +169,15 @@ export function buildTodayStatus(
   }
 
   if (
+    hasOpenShift &&
+    day &&
+    openShiftElapsedCapAt &&
+    now.getTime() > openShiftElapsedCapAt.getTime()
+  ) {
+    warnings.push(
+      `Shift timer stopped ${MISSED_CHECKOUT_ELAPSED_CAP_MINUTES} minutes after ${shiftScheduleLabels.expectedCheckOutTime}. Check out now to record your check-out time in attendance.`,
+    );
+  } else if (
     hasOpenShift &&
     day &&
     isPastMissedCheckOutDeadlineForCompany(now, day.shiftDate, shiftConfig)
@@ -223,6 +240,7 @@ export function buildTodayStatus(
     breakRemainingSeconds,
     maxBreakSeconds,
     elapsedShiftSeconds,
+    openShiftElapsedCapAt: openShiftElapsedCapAt?.toISOString() ?? null,
     statusAt: now.toISOString(),
     activeBreakStartedAt: activeBreak ? activeBreak.startedAt.toISOString() : null,
     wouldBeEarlyLeave,

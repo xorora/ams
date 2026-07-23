@@ -12,6 +12,7 @@ export function getLiveBreakSeconds(status: SerializedTodayStatus, now: Date = n
   const statusAtMs = toMs(status.statusAt);
   const activeStartMs = toMs(status.activeBreakStartedAt);
   const nowMs = now.getTime();
+  const capMs = toMs(status.openShiftElapsedCapAt);
 
   if (
     status.state === "on_break" &&
@@ -19,8 +20,10 @@ export function getLiveBreakSeconds(status: SerializedTodayStatus, now: Date = n
     activeStartMs != null &&
     !status.attendanceDay?.checkOutAt
   ) {
-    const activeAtStatus = Math.max(0, Math.floor((statusAtMs - activeStartMs) / 1000));
-    const activeNow = Math.max(0, Math.floor((nowMs - activeStartMs) / 1000));
+    const effectiveNowMs = capMs != null ? Math.min(nowMs, capMs) : nowMs;
+    const effectiveStatusAtMs = capMs != null ? Math.min(statusAtMs, capMs) : statusAtMs;
+    const activeAtStatus = Math.max(0, Math.floor((effectiveStatusAtMs - activeStartMs) / 1000));
+    const activeNow = Math.max(0, Math.floor((effectiveNowMs - activeStartMs) / 1000));
     return status.totalBreakSeconds + (activeNow - activeAtStatus);
   }
 
@@ -38,7 +41,11 @@ export function getLiveElapsedShiftSeconds(
   }
 
   const checkOutMs = toMs(status.attendanceDay?.checkOutAt);
-  const endMs = checkOutMs ?? now.getTime();
+  const capMs = toMs(status.openShiftElapsedCapAt);
+  let endMs = checkOutMs ?? now.getTime();
+  if (checkOutMs == null && capMs != null && endMs > capMs) {
+    endMs = capMs;
+  }
   const grossSeconds = Math.max(0, Math.floor((endMs - checkInMs) / 1000));
   const breakSeconds = checkOutMs != null ? status.totalBreakSeconds : getLiveBreakSeconds(status, now);
 

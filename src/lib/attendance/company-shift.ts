@@ -8,6 +8,7 @@ import {
   EXPECTED_CHECK_OUT_HOUR,
   EXPECTED_CHECK_OUT_MINUTE,
   MAX_BREAK_SECONDS,
+  MISSED_CHECKOUT_ELAPSED_CAP_MINUTES,
   SHIFT_DATE_NOON_BOUNDARY_HOUR,
 } from "./constants";
 
@@ -455,6 +456,18 @@ export function getExpectedCheckOutAt(shiftDate: string, config: CompanyShiftCon
 export function getLateCheckOutDeadline(shiftDate: string, config: CompanyShiftConfig): Date {
   const expected = getExpectedCheckOutAt(shiftDate, config);
   return new Date(expected.getTime() + config.checkOutGraceMinutes * 60_000);
+}
+
+/**
+ * Instant after which an open shift's elapsed timer stops growing.
+ * Check-out after this still records the real punch-out time.
+ */
+export function getMissedCheckoutElapsedCapAt(
+  shiftDate: string,
+  config: CompanyShiftConfig,
+): Date {
+  const expected = getExpectedCheckOutAt(shiftDate, config);
+  return new Date(expected.getTime() + MISSED_CHECKOUT_ELAPSED_CAP_MINUTES * 60_000);
 }
 
 export function isLateCheckInForCompany(

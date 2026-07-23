@@ -311,8 +311,9 @@ export function EmployeeDashboard({
                 {status.shiftSchedule.lateCheckOutDeadline}
               </span>{" "}
               ({status.shiftSchedule.checkOutGraceMinutes} min grace after{" "}
-              {status.shiftSchedule.expectedCheckOutTime}). Missing check-out after grace marks the
-              shift absent.
+              {status.shiftSchedule.expectedCheckOutTime}). If you forget to check out, the shift
+              timer stops one hour after {status.shiftSchedule.expectedCheckOutTime}; checking out
+              later still records your real check-out time in attendance.
               {status.shiftSchedule.scheduledBreakTime ? (
                 <>
                   {" "}
