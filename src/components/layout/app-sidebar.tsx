@@ -33,7 +33,7 @@ export function AppSidebar({
 
   return (
     <Sidebar collapsible="icon" className="border-white/10">
-      <SidebarHeader className="h-12 flex-row items-center border-b border-white/10 px-2 py-0 pr-12 md:pr-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:pr-0">
+      <SidebarHeader className="h-12 flex-row items-center border-b border-white/10 px-3 py-0 pr-12 md:pr-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:pr-2">
         <BrandMark />
       </SidebarHeader>
 
