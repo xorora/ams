@@ -33,9 +33,9 @@ export function SidebarNav({
 
   return (
     <>
-      <SidebarGroup className="px-2 py-2 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:items-center">
+      <SidebarGroup className="px-2 py-2">
         <SidebarGroupContent>
-          <SidebarMenu className="gap-1.5 group-data-[collapsible=icon]:items-center">
+          <SidebarMenu className="gap-1.5">
             {employeeItems.map((item) => (
               <NavMenuItem key={item.href} item={item} pathname={pathname} />
             ))}
@@ -43,12 +43,12 @@ export function SidebarNav({
         </SidebarGroupContent>
       </SidebarGroup>
       {adminItems.length > 0 && (
-        <SidebarGroup className="px-2 py-2 group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:items-center">
+        <SidebarGroup className="px-2 py-2">
           <SidebarGroupLabel className="mb-1 px-2 font-mono text-[10px] tracking-[0.16em] text-[#7d859e] uppercase">
             Admin
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="gap-1.5 group-data-[collapsible=icon]:items-center">
+            <SidebarMenu className="gap-1.5">
               {adminItems.map((item) => (
                 <NavMenuItem
                   key={item.href}
@@ -85,14 +85,16 @@ function NavMenuItem({
   const { isMobile, setOpenMobile } = useSidebar();
 
   return (
-    <SidebarMenuItem className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:w-full group-data-[collapsible=icon]:justify-center">
+    <SidebarMenuItem>
       <SidebarMenuButton
         isActive={active}
         tooltip={item.label}
         size="lg"
         className={cn(
-          "h-11 rounded-xl px-2.5 transition-[width,height,padding,gap,background-color,color,border-radius] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] [&_svg]:size-[1.125rem]",
-          "group-data-[collapsible=icon]:size-10! group-data-[collapsible=icon]:rounded-xl! group-data-[collapsible=icon]:p-0! group-data-[collapsible=icon]:gap-0!",
+          // Keep full-width row layout while the rail width animates — icons must not
+          // shrink to a square ahead of the sidebar, or collapse looks two-step.
+          "h-11 rounded-xl px-2.5 [&_svg]:size-[1.125rem]",
+          "group-data-[collapsible=icon]:h-11! group-data-[collapsible=icon]:w-full! group-data-[collapsible=icon]:rounded-xl! group-data-[collapsible=icon]:px-2!",
           active
             ? "bg-[#14204a] font-medium text-white shadow-[inset_0_0_0_1px_rgba(242,107,33,0.35)] hover:bg-[#1a2958] hover:text-white"
             : "text-[#c8cce0] hover:bg-white/[0.06] hover:text-white",
@@ -110,8 +112,7 @@ function NavMenuItem({
       >
         <span
           className={cn(
-            "flex size-8 shrink-0 items-center justify-center rounded-lg transition-[width,height,background-color,color,border-radius] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)]",
-            "group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:rounded-xl",
+            "flex size-8 shrink-0 items-center justify-center rounded-lg",
             active
               ? "bg-[#f26b21]/18 text-[#f26b21]"
               : "bg-white/[0.05] text-[#a8aec4] group-hover/menu-button:bg-white/[0.08] group-hover/menu-button:text-[#eceef5]",
@@ -119,16 +120,14 @@ function NavMenuItem({
         >
           <Icon strokeWidth={1.75} aria-hidden />
         </span>
-        <span className="min-w-0 flex-1 truncate transition-[opacity,width] duration-150 ease-out group-data-[collapsible=icon]:pointer-events-none group-data-[collapsible=icon]:w-0 group-data-[collapsible=icon]:flex-none group-data-[collapsible=icon]:opacity-0">
-          {item.label}
-        </span>
+        <span className="min-w-0 flex-1 truncate whitespace-nowrap">{item.label}</span>
       </SidebarMenuButton>
       {/*
         Absolute on the menu item (not inside the overflow-hidden button) so the red dot
         is not clipped. Renders nothing when the streamed indicator resolves to null.
       */}
       {indicator != null ? (
-        <span className="pointer-events-none absolute top-1.5 right-1.5 flex items-center justify-center group-data-[collapsible=icon]:top-0.5 group-data-[collapsible=icon]:right-1">
+        <span className="pointer-events-none absolute top-1.5 right-1.5 flex items-center justify-center group-data-[collapsible=icon]:right-1">
           {indicator}
         </span>
       ) : null}

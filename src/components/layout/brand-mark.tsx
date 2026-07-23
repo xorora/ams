@@ -15,32 +15,18 @@ export function BrandMark({
   subtitle = "Attendance",
 }: BrandMarkProps) {
   return (
-    <div
-      className={cn(
-        "relative flex min-w-0 items-center gap-2 transition-[gap] duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0",
-        className,
-      )}
-    >
-      {/* Full wordmark: shown when the sidebar is expanded (and everywhere off-sidebar). */}
-      <Image
-        src="/xorora-full.png"
-        alt="Xorora"
-        width={160}
-        height={31}
-        sizes="160px"
-        className="h-4 w-auto shrink-0 object-contain brightness-0 invert transition-opacity duration-150 ease-out group-data-[collapsible=icon]:pointer-events-none group-data-[collapsible=icon]:absolute group-data-[collapsible=icon]:opacity-0"
-        priority
-      />
-      {/* X mark only: shown when the sidebar is collapsed to icons — lazy, not LCP. */}
+    <div className={cn("flex min-w-0 items-center gap-2 overflow-hidden", className)}>
+      {/* Compact mark stays fixed; title clips as the rail width animates. */}
       <Image
         src="/xorora-mark.png"
         alt="Xorora"
         width={24}
         height={18}
         sizes="24px"
-        className="hidden size-7 shrink-0 object-contain brightness-0 invert transition-opacity duration-150 ease-out group-data-[collapsible=icon]:block"
+        className="size-7 shrink-0 object-contain brightness-0 invert"
+        priority
       />
-      <div className="min-w-0 overflow-hidden transition-[opacity,width] duration-150 ease-out group-data-[collapsible=icon]:pointer-events-none group-data-[collapsible=icon]:w-0 group-data-[collapsible=icon]:opacity-0">
+      <div className="min-w-0 overflow-hidden whitespace-nowrap">
         <p
           className={cn(
             "truncate font-semibold leading-none tracking-tight text-white",
