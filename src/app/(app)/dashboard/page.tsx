@@ -10,7 +10,7 @@ import { NewEmployeeCodeToast } from "@/components/auth/new-employee-code-toast"
 import { db } from "@/db";
 import { companies } from "@/db/schema";
 import { getEmployee } from "@/lib/admin/employees-service";
-import { isCurrentlyOnProbation } from "@/lib/admin/probation";
+import { isCurrentlyOnProbation, isProbationCompleted } from "@/lib/admin/probation";
 import { currentWeekReportDateRange } from "@/lib/admin/reports-date-range";
 import {
   type SerializedEmployeeReport,
@@ -79,6 +79,7 @@ async function loadEmployeeProfile(
     shiftHours,
     isActive: employee.isActive,
     onProbation: isCurrentlyOnProbation(employee),
+    probationCompleted: isProbationCompleted(employee),
   };
 }
 

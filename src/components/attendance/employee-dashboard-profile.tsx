@@ -12,6 +12,7 @@ export type DashboardEmployeeProfile = {
   shiftHours: string | null;
   isActive: boolean;
   onProbation: boolean;
+  probationCompleted: boolean;
 };
 
 type EmployeeDashboardProfileProps = {
@@ -70,6 +71,11 @@ export function EmployeeDashboardProfile({ profile, className }: EmployeeDashboa
               <span className="inline-flex items-center gap-1 rounded-full border border-[#f26b21]/40 bg-[#f26b21]/10 px-2 py-0.5 text-[11px] font-medium text-[#ffb27a]">
                 <Shield className="size-3" strokeWidth={1.75} aria-hidden />
                 Probation
+              </span>
+            ) : null}
+            {profile.probationCompleted ? (
+              <span className="inline-flex items-center rounded-full border border-[#d4a017]/50 bg-gradient-to-r from-[#c9a227]/25 to-[#f0d060]/20 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-[#f5e6a3] shadow-[0_0_12px_-4px_rgba(212,160,23,0.55)]">
+                Permanent
               </span>
             ) : null}
           </div>
