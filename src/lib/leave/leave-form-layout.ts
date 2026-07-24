@@ -1,18 +1,18 @@
 import type { LeaveType } from "./types";
 
-/** Leave types shown on the paper form (Earned/Casual/Sick map to system types). */
+/** Leave types shown on the paper form (map to system annual/casual/sick). */
 export const PAPER_LEAVE_TYPE_ROWS: readonly (readonly string[])[] = [
-  ["Earned", "Casual", "Sick Leave"],
+  ["Annual Leave", "Casual", "Sick Leave"],
 ] as const;
 
 export const PAPER_LEAVE_TYPE_TO_SYSTEM: Record<string, LeaveType> = {
-  Earned: "annual",
+  "Annual Leave": "annual",
   Casual: "casual",
   "Sick Leave": "sick",
 };
 
 export const SYSTEM_LEAVE_TO_PAPER: Partial<Record<LeaveType, string>> = {
-  annual: "Earned",
+  annual: "Annual Leave",
   casual: "Casual",
   sick: "Sick Leave",
 };
@@ -22,7 +22,7 @@ export const PAPER_HR_LEAVE_ROWS: readonly {
   leaveType: LeaveType;
 }[] = [
   { label: "SICK LEAVES", leaveType: "sick" },
-  { label: "EARNED LEAVES", leaveType: "annual" },
+  { label: "ANNUAL LEAVES", leaveType: "annual" },
   { label: "CASUAL LEAVES", leaveType: "casual" },
 ] as const;
 
