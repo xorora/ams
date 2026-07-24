@@ -135,8 +135,8 @@ export function ClearanceFormSheet({
             </div>
 
             <p className="text-sm text-[#d7dceb]">
-              Office Manager, General Manager, and Executive Director signature lines are left blank
-              on the PDF for signing after printing.
+              Preview or download the Xorora-branded clearance PDF. Office Manager, General Manager,
+              and Executive Director lines stay blank for wet signatures after printing.
             </p>
           </div>
         ) : null}
