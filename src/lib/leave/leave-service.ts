@@ -7,11 +7,14 @@ import { formatProbationEndDate, isCurrentlyOnProbation } from "@/lib/admin/prob
 import { adminFailure, type ServiceFailure, type ServiceSuccess } from "@/lib/admin/types";
 import { BUSINESS_TIMEZONE } from "@/lib/attendance/constants";
 import {
+  getShiftMidpointAt,
   isClosedShiftDate,
+  isPastShiftMidpointForCompany,
   type CompanyShiftConfig,
 } from "@/lib/attendance/company-shift";
 import { loadEmployeeShiftContext } from "@/lib/attendance/employee-shift";
-import { ENTITLED_LEAVE_TYPES, LEAVE_ENTITLEMENTS } from "./constants";
+import { PKT_DATETIME_LONG_12H_FORMAT } from "@/lib/admin/display";
+import { ENTITLED_LEAVE_TYPES, LEAVE_ENTITLEMENTS, SHORT_LEAVE_DAYS } from "./constants";
 import type { LeaveApplicationPdfData } from "./leave-pdf";
 import type {
   EmployeeLeaveBalanceSummary,
@@ -38,6 +41,7 @@ export type LeaveListItem = {
   startDate: string;
   endDate: string;
   daysCount: number;
+  isShortLeave: boolean;
   reason: string;
   medicalCertificateNote: string | null;
   status: LeaveRequestStatus;
@@ -54,7 +58,17 @@ export type SubmitLeaveInput = {
   endDate: string;
   reason: string;
   medicalCertificateNote?: string | null;
+  isShortLeave?: boolean;
 };
+
+function parseDaysCount(value: string | number): number {
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function formatDaysCountForDb(value: number): string {
+  return value.toFixed(1);
+}
 
 export type ListLeaveFilters = {
   employeeId?: string;
@@ -135,7 +149,8 @@ function mapLeaveRow(
     leaveType: row.leaveType,
     startDate: row.startDate,
     endDate: row.endDate,
-    daysCount: row.daysCount,
+    daysCount: parseDaysCount(row.daysCount),
+    isShortLeave: row.isShortLeave,
     reason: row.reason,
     medicalCertificateNote: row.medicalCertificateNote,
     status: row.status,
@@ -227,7 +242,8 @@ export async function getLeaveRequestForPdf(
       department: employee.department,
       startDate: row.startDate,
       endDate: row.endDate,
-      daysCount: row.daysCount,
+      daysCount: parseDaysCount(row.daysCount),
+      isShortLeave: row.isShortLeave,
       leaveType: row.leaveType,
       reason: row.reason,
       medicalCertificateNote: row.medicalCertificateNote,
@@ -444,7 +460,11 @@ export async function listCompanyLeaveBalances(
   const requestsByEmployee = new Map<string, LeaveRequestForBalance[]>();
   for (const row of requestRows) {
     const existing = requestsByEmployee.get(row.employeeId) ?? [];
-    existing.push(row);
+    existing.push({
+      leaveType: row.leaveType,
+      status: row.status,
+      daysCount: parseDaysCount(row.daysCount),
+    });
     requestsByEmployee.set(row.employeeId, existing);
   }
 
@@ -462,13 +482,31 @@ export async function listCompanyLeaveBalances(
 async function validateLeaveSubmission(
   employeeId: string,
   input: SubmitLeaveInput,
-): Promise<ServiceFailure | ServiceSuccess<{ daysCount: number }>> {
+): Promise<ServiceFailure | ServiceSuccess<{ daysCount: number; isShortLeave: boolean }>> {
   const employeeResult = await getEmployeeForLeave(employeeId);
   if (!employeeResult.ok) {
     return employeeResult;
   }
 
+  const isShortLeave = Boolean(input.isShortLeave);
   const onProbation = isCurrentlyOnProbation(employeeResult.data);
+
+  if (isShortLeave) {
+    if (onProbation) {
+      return adminFailure(
+        403,
+        "SHORT_LEAVE_NOT_ALLOWED",
+        "Short leave is not available during probation.",
+      );
+    }
+    if (!(ENTITLED_LEAVE_TYPES as readonly string[]).includes(input.leaveType)) {
+      return adminFailure(
+        400,
+        "SHORT_LEAVE_TYPE_INVALID",
+        "Short leave must use annual, casual, or sick leave.",
+      );
+    }
+  }
 
   if (onProbation && input.leaveType !== "unpaid") {
     return adminFailure(
@@ -508,22 +546,61 @@ async function validateLeaveSubmission(
     }
   }
 
-  const { config: shiftConfig, companySlug } = await getEmployeeShiftContext(employeeId);
-  const daysCount = countLeaveDays(
-    input.leaveType,
-    input.startDate,
-    input.endDate,
-    shiftConfig,
+  const now = new Date();
+  const {
+    config: shiftConfig,
     companySlug,
-  );
-  if (daysCount === 0) {
-    return adminFailure(
-      400,
-      "NO_LEAVE_DAYS",
-      input.leaveType === "annual" || input.leaveType === "unpaid"
-        ? "The selected range contains no working days."
-        : "The selected date range is invalid.",
+    shiftDate: todayShiftDate,
+  } = await loadEmployeeShiftContext(employeeId, now);
+
+  let daysCount: number;
+
+  if (isShortLeave) {
+    if (input.startDate !== input.endDate) {
+      return adminFailure(
+        400,
+        "SHORT_LEAVE_SINGLE_DAY",
+        "Short leave must be for a single day (start and end date must match).",
+      );
+    }
+    if (input.startDate !== todayShiftDate) {
+      return adminFailure(
+        400,
+        "SHORT_LEAVE_TODAY_ONLY",
+        `Short leave can only be applied for today's shift (${todayShiftDate}).`,
+      );
+    }
+    if (!isPastShiftMidpointForCompany(now, todayShiftDate, shiftConfig)) {
+      const midpoint = getShiftMidpointAt(todayShiftDate, shiftConfig);
+      const midpointLabel = formatInTimeZone(
+        midpoint,
+        BUSINESS_TIMEZONE,
+        `${PKT_DATETIME_LONG_12H_FORMAT} 'PKT'`,
+      );
+      return adminFailure(
+        400,
+        "SHORT_LEAVE_BEFORE_MIDPOINT",
+        `Short leave is available after half of your shift (from ${midpointLabel}).`,
+      );
+    }
+    daysCount = SHORT_LEAVE_DAYS;
+  } else {
+    daysCount = countLeaveDays(
+      input.leaveType,
+      input.startDate,
+      input.endDate,
+      shiftConfig,
+      companySlug,
     );
+    if (daysCount === 0) {
+      return adminFailure(
+        400,
+        "NO_LEAVE_DAYS",
+        input.leaveType === "annual" || input.leaveType === "unpaid"
+          ? "The selected range contains no working days."
+          : "The selected date range is invalid.",
+      );
+    }
   }
 
   if (input.leaveType !== "unpaid") {
@@ -558,13 +635,18 @@ async function validateLeaveSubmission(
     );
   }
 
-  return { ok: true, data: { daysCount } };
+  return { ok: true, data: { daysCount, isShortLeave } };
 }
 
 async function syncApprovedLeaveToAttendance(
   request: LeaveListItem,
   editedByUserId: string | null,
 ): Promise<void> {
+  // Short leave only deducts balance; the day stays Present.
+  if (request.isShortLeave) {
+    return;
+  }
+
   const { config: shiftConfig, companySlug } = await getEmployeeShiftContext(request.employeeId);
   const shiftDates = getLeaveDatesForAttendance(
     request.leaveType,
@@ -638,7 +720,8 @@ export async function submitLeaveRequest(
       leaveType: input.leaveType,
       startDate: input.startDate,
       endDate: input.endDate,
-      daysCount: validation.data.daysCount,
+      daysCount: formatDaysCountForDb(validation.data.daysCount),
+      isShortLeave: validation.data.isShortLeave,
       reason: input.reason.trim(),
       medicalCertificateNote: input.medicalCertificateNote?.trim() || null,
       status: initialStatus,
@@ -795,6 +878,9 @@ export async function rejectLeaveRequest(
 }
 
 async function clearLeaveFromAttendance(request: LeaveListItem): Promise<number> {
+  if (request.isShortLeave) {
+    return 0;
+  }
   const { config: shiftConfig, companySlug } = await getEmployeeShiftContext(request.employeeId);
   const shiftDates = getLeaveDatesForAttendance(
     request.leaveType,

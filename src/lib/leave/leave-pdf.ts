@@ -18,6 +18,7 @@ export type LeaveApplicationPdfData = {
   startDate: string;
   endDate: string;
   daysCount: number;
+  isShortLeave?: boolean;
   leaveType: LeaveType;
   reason: string;
   medicalCertificateNote?: string | null;
@@ -191,9 +192,13 @@ function drawHrTable(doc: PDFKit.PDFDocument, y: number, balances: LeaveBalance[
     x = PAGE_MARGIN;
     const cells = [
       row.label,
-      balance ? String(balance.entitled) : "—",
-      balance ? String(balance.used) : "—",
-      balance ? String(balance.remaining) : "—",
+      balance ? (Number.isInteger(balance.entitled) ? String(balance.entitled) : balance.entitled.toFixed(1)) : "—",
+      balance ? (Number.isInteger(balance.used) ? String(balance.used) : balance.used.toFixed(1)) : "—",
+      balance
+        ? Number.isInteger(balance.remaining)
+          ? String(balance.remaining)
+          : balance.remaining.toFixed(1)
+        : "—",
     ];
 
     for (let i = 0; i < cells.length; i++) {
@@ -361,7 +366,12 @@ export async function buildLeaveApplicationPdf(data: LeaveApplicationPdfData): P
     doc
       .font("Helvetica")
       .fontSize(9)
-      .text(String(data.daysCount), PAGE_MARGIN + 372, y, { lineBreak: false });
+      .text(
+        Number.isInteger(data.daysCount) ? String(data.daysCount) : data.daysCount.toFixed(1),
+        PAGE_MARGIN + 372,
+        y,
+        { lineBreak: false },
+      );
     doc
       .strokeColor("#111111")
       .lineWidth(0.5)
@@ -386,7 +396,11 @@ export async function buildLeaveApplicationPdf(data: LeaveApplicationPdfData): P
     for (const row of PAPER_LEAVE_TYPE_ROWS) {
       let x = PAGE_MARGIN;
       for (const label of row) {
-        x = drawCheckbox(doc, x, y, label, label === selectedPaperType);
+        const checked =
+          label === "Short Leave"
+            ? Boolean(data.isShortLeave)
+            : label === selectedPaperType;
+        x = drawCheckbox(doc, x, y, label, checked);
       }
       y += CHECKBOX_ROW_GAP;
     }

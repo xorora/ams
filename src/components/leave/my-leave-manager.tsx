@@ -34,6 +34,7 @@ type MyLeaveManagerProps = {
   canApply?: boolean;
   probationUnpaidOnly?: boolean;
   unpaidSummary?: UnpaidLeaveSummary;
+  todayShiftDate?: string;
   className?: string;
 };
 
@@ -48,22 +49,25 @@ export function MyLeaveManager({
   canApply = true,
   probationUnpaidOnly = false,
   unpaidSummary = { used: 0, pending: 0, total: 0 },
+  todayShiftDate,
   className,
 }: MyLeaveManagerProps) {
   const [formOpen, setFormOpen] = useState(false);
-  const [form, setForm] = useState<LeaveFormValues>(emptyLeaveForm);
+  const [form, setForm] = useState<LeaveFormValues>(() =>
+    emptyLeaveForm("annual", todayShiftDate),
+  );
   const [saving, setSaving] = useState(false);
   const [actionPending, setActionPending] = useState(false);
   const [viewRequest, setViewRequest] = useState<SerializedLeaveRequest | null>(null);
 
   function openApply() {
-    setForm(emptyLeaveForm(probationUnpaidOnly ? "unpaid" : "annual"));
+    setForm(emptyLeaveForm(probationUnpaidOnly ? "unpaid" : "annual", todayShiftDate));
     setFormOpen(true);
   }
 
   function closeForm() {
     setFormOpen(false);
-    setForm(emptyLeaveForm());
+    setForm(emptyLeaveForm(probationUnpaidOnly ? "unpaid" : "annual", todayShiftDate));
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -75,9 +79,10 @@ export function MyLeaveManager({
         submitLeaveRequestAction({
           leaveType: probationUnpaidOnly ? "unpaid" : form.leaveType,
           startDate: form.startDate,
-          endDate: form.endDate,
+          endDate: form.isShortLeave ? form.startDate : form.endDate,
           reason: form.reason,
           medicalCertificateNote: form.medicalCertificateNote || null,
+          isShortLeave: probationUnpaidOnly ? false : form.isShortLeave,
         }).then((result) => {
           if (!result.ok) {
             throw new Error(result.error);
@@ -188,11 +193,13 @@ export function MyLeaveManager({
           onSubmit={handleSubmit}
           onCancel={closeForm}
           companyName={companyName}
+          companySlug={companySlug}
           employeeName={employeeName}
           designation={designation}
           department={department}
           balances={balances}
           probationUnpaidOnly={probationUnpaidOnly}
+          todayShiftDate={todayShiftDate}
         />
       ) : null}
     </div>

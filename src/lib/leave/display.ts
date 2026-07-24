@@ -5,6 +5,14 @@ export function leaveTypeLabel(type: LeaveType): string {
   return LEAVE_TYPE_LABELS[type];
 }
 
+/** Format day counts for UI (keeps one decimal when fractional). */
+export function formatLeaveDays(value: number): string {
+  if (!Number.isFinite(value)) {
+    return "0";
+  }
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
 export function leaveStatusBadgeVariant(
   status: LeaveRequestStatus,
 ): "default" | "secondary" | "destructive" | "outline" {

@@ -18,14 +18,17 @@ export type { LeaveFormValues };
 
 export function emptyLeaveForm(
   leaveType: LeaveFormValues["leaveType"] = "annual",
+  todayShiftDate?: string,
 ): LeaveFormValues {
-  const today = formatInTimeZone(new Date(), BUSINESS_TIMEZONE, "yyyy-MM-dd");
+  const today =
+    todayShiftDate ?? formatInTimeZone(new Date(), BUSINESS_TIMEZONE, "yyyy-MM-dd");
   return {
     leaveType,
     startDate: today,
     endDate: today,
     reason: "",
     medicalCertificateNote: "",
+    isShortLeave: false,
   };
 }
 
@@ -44,6 +47,7 @@ type LeaveSheetProps = {
   department?: string | null;
   balances: LeaveBalance[];
   probationUnpaidOnly?: boolean;
+  todayShiftDate?: string;
 };
 
 export function LeaveSheet({
@@ -61,6 +65,7 @@ export function LeaveSheet({
   department,
   balances,
   probationUnpaidOnly = false,
+  todayShiftDate,
 }: LeaveSheetProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -93,6 +98,7 @@ export function LeaveSheet({
             form={form}
             onFormChange={onFormChange}
             probationUnpaidOnly={probationUnpaidOnly}
+            todayShiftDate={todayShiftDate}
           />
         </form>
 

@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { type ColumnDef, DataTable } from "@/components/ui/table";
-import { leaveStatusBadgeVariant, leaveStatusLabel, leaveTypeLabel } from "@/lib/leave/display";
+import { formatLeaveDays, leaveStatusBadgeVariant, leaveStatusLabel, leaveTypeLabel } from "@/lib/leave/display";
 import type { SerializedLeaveRequest } from "@/lib/leave/serialize";
 
 type LeaveTableProps = {
@@ -83,7 +83,14 @@ export function LeaveTable({
       {
         accessorKey: "daysCount",
         header: "Days",
-        cell: ({ row }) => <span className="tabular-nums">{row.original.daysCount}</span>,
+        cell: ({ row }) => (
+          <span className="tabular-nums">
+            {formatLeaveDays(row.original.daysCount)}
+            {row.original.isShortLeave ? (
+              <span className="ml-1 text-[10px] font-medium text-[#9aa3b8]">short</span>
+            ) : null}
+          </span>
+        ),
       },
       {
         accessorKey: "status",

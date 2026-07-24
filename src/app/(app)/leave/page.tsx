@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { companies } from "@/db/schema";
 import { getEmployee } from "@/lib/admin/employees-service";
 import { getProbationStatusLabel, isCurrentlyOnProbation } from "@/lib/admin/probation";
+import { loadEmployeeShiftContext } from "@/lib/attendance/employee-shift";
 import { requireEmployeeSession } from "@/lib/auth/require-session";
 import { canEmployeeAccessLeave } from "@/lib/leave/access";
 import {
@@ -25,9 +26,10 @@ export default async function LeavePage() {
 
   const canApply = await canEmployeeAccessLeave(session.user);
 
-  const [employeeResult, requestsResult] = await Promise.all([
+  const [employeeResult, requestsResult, shiftContext] = await Promise.all([
     getEmployee(employeeId),
     listLeaveRequests({ employeeId }),
+    loadEmployeeShiftContext(employeeId),
   ]);
 
   const employee = employeeResult.ok ? employeeResult.data : null;
@@ -90,6 +92,7 @@ export default async function LeavePage() {
         canApply={canApply}
         probationUnpaidOnly={probationUnpaidOnly}
         unpaidSummary={unpaidSummary}
+        todayShiftDate={shiftContext.shiftDate}
         className="md:min-h-0 md:flex-1"
       />
     </div>

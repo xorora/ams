@@ -1,7 +1,7 @@
 "use client";
 
 import { LEAVE_ENTITLEMENTS } from "@/lib/leave/constants";
-import { leaveTypeLabel } from "@/lib/leave/display";
+import { formatLeaveDays, leaveTypeLabel } from "@/lib/leave/display";
 import type { LeaveBalance } from "@/lib/leave/types";
 
 type LeaveBalanceCardsProps = {
@@ -27,9 +27,11 @@ export function LeaveBalanceCards({ balances }: LeaveBalanceCardsProps) {
             <p className="font-mono text-[10px] font-semibold tracking-[0.16em] text-[#c8cce0] uppercase">
               {leaveTypeLabel(balance.leaveType)}
             </p>
-            <p className="mt-2 text-3xl font-semibold tabular-nums text-white">{balance.remaining}</p>
+            <p className="mt-2 text-3xl font-semibold tabular-nums text-white">
+              {formatLeaveDays(balance.remaining)}
+            </p>
             <p className="mt-1 text-sm font-medium text-[#d7dceb]">
-              of {balance.entitled} {unitLabel} left
+              of {formatLeaveDays(balance.entitled)} {unitLabel} left
             </p>
             <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
               <div
@@ -38,8 +40,8 @@ export function LeaveBalanceCards({ balances }: LeaveBalanceCardsProps) {
               />
             </div>
             <p className="mt-2 text-xs font-medium text-[#c8cce0]">
-              Used {balance.used}
-              {balance.pending > 0 ? ` · ${balance.pending} pending` : ""}
+              Used {formatLeaveDays(balance.used)}
+              {balance.pending > 0 ? ` · ${formatLeaveDays(balance.pending)} pending` : ""}
             </p>
           </div>
         );
