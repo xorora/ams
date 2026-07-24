@@ -47,6 +47,3 @@ export const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
   sick: "Sick Leave",
   unpaid: "Emergency Unpaid Leave",
 };
-
-/** Days deducted for a short / half-day leave request. */
-export const SHORT_LEAVE_DAYS = 0.5;

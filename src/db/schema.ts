@@ -143,7 +143,6 @@ export const leaveRequests = pgTable(
     startDate: date("start_date").notNull(),
     endDate: date("end_date").notNull(),
     daysCount: numeric("days_count", { precision: 4, scale: 1 }).notNull(),
-    isShortLeave: boolean("is_short_leave").notNull().default(false),
     reason: text("reason").notNull(),
     medicalCertificateNote: text("medical_certificate_note"),
     status: leaveRequestStatusEnum("status").notNull().default("pending"),

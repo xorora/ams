@@ -82,7 +82,6 @@ export function LeaveDetailSheet({
               startDate={request.startDate}
               endDate={request.endDate}
               daysCount={request.daysCount}
-              isShortLeave={request.isShortLeave}
               reason={request.reason}
               medicalCertificateNote={request.medicalCertificateNote}
             />

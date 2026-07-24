@@ -453,29 +453,6 @@ export function getExpectedCheckOutAt(shiftDate: string, config: CompanyShiftCon
   });
 }
 
-export function getExpectedCheckInAt(shiftDate: string, config: CompanyShiftConfig): Date {
-  return zonedTimeOnShiftDate(shiftDate, {
-    hour: config.expectedCheckInHour,
-    minute: config.expectedCheckInMinute,
-    second: 0,
-  });
-}
-
-/** Midpoint between expected check-in and expected check-out for a shift date. */
-export function getShiftMidpointAt(shiftDate: string, config: CompanyShiftConfig): Date {
-  const checkIn = getExpectedCheckInAt(shiftDate, config);
-  const checkOut = getExpectedCheckOutAt(shiftDate, config);
-  return new Date(checkIn.getTime() + (checkOut.getTime() - checkIn.getTime()) / 2);
-}
-
-export function isPastShiftMidpointForCompany(
-  at: Date,
-  shiftDate: string,
-  config: CompanyShiftConfig,
-): boolean {
-  return at.getTime() >= getShiftMidpointAt(shiftDate, config).getTime();
-}
-
 export function getLateCheckOutDeadline(shiftDate: string, config: CompanyShiftConfig): Date {
   const expected = getExpectedCheckOutAt(shiftDate, config);
   return new Date(expected.getTime() + config.checkOutGraceMinutes * 60_000);

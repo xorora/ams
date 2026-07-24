@@ -84,12 +84,7 @@ export function LeaveTable({
         accessorKey: "daysCount",
         header: "Days",
         cell: ({ row }) => (
-          <span className="tabular-nums">
-            {formatLeaveDays(row.original.daysCount)}
-            {row.original.isShortLeave ? (
-              <span className="ml-1 text-[10px] font-medium text-[#9aa3b8]">short</span>
-            ) : null}
-          </span>
+          <span className="tabular-nums">{formatLeaveDays(row.original.daysCount)}</span>
         ),
       },
       {

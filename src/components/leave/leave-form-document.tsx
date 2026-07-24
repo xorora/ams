@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { BUSINESS_TIMEZONE } from "@/lib/attendance/constants";
-import { LEAVE_ENTITLEMENTS, SHORT_LEAVE_DAYS } from "@/lib/leave/constants";
+import { LEAVE_ENTITLEMENTS } from "@/lib/leave/constants";
 import { formatLeaveDays, leaveTypeLabel } from "@/lib/leave/display";
 import {
   formatLeaveFormDate,
@@ -27,7 +27,6 @@ export type LeaveFormValues = {
   endDate: string;
   reason: string;
   medicalCertificateNote: string;
-  isShortLeave: boolean;
 };
 
 function PaperLine({ children, className }: { children?: React.ReactNode; className?: string }) {
@@ -159,11 +158,9 @@ export type LeaveFormDocumentProps = {
   startDate?: string;
   endDate?: string;
   daysCount?: number;
-  isShortLeave?: boolean;
   reason?: string;
   medicalCertificateNote?: string | null;
   probationUnpaidOnly?: boolean;
-  todayShiftDate?: string;
   className?: string;
 };
 
@@ -184,11 +181,9 @@ export function LeaveFormDocument({
   startDate,
   endDate,
   daysCount,
-  isShortLeave: viewIsShortLeave = false,
   reason,
   medicalCertificateNote,
   probationUnpaidOnly = false,
-  todayShiftDate,
   className,
 }: LeaveFormDocumentProps) {
   const isApply = mode === "apply";
@@ -196,14 +191,9 @@ export function LeaveFormDocument({
   const activeStart = isApply ? form?.startDate : startDate;
   const activeEnd = isApply ? form?.endDate : endDate;
   const activeReason = isApply ? form?.reason : reason;
-  const isShortLeave = isApply ? Boolean(form?.isShortLeave) : viewIsShortLeave;
-  const shortLeaveDate =
-    todayShiftDate ?? formatInTimeZone(new Date(), BUSINESS_TIMEZONE, "yyyy-MM-dd");
   const activeDays =
     isApply && form
-      ? form.isShortLeave
-        ? SHORT_LEAVE_DAYS
-        : computeDays(form.leaveType, form.startDate, form.endDate, companySlug)
+      ? computeDays(form.leaveType, form.startDate, form.endDate, companySlug)
       : (daysCount ?? 0);
   const selectedPaperType = activeLeaveType ? SYSTEM_LEAVE_TO_PAPER[activeLeaveType] : null;
   const activeBalance =
@@ -259,7 +249,7 @@ export function LeaveFormDocument({
         <div className="grid grid-cols-1 gap-y-4 sm:grid-cols-[92px_1fr_36px_1fr_88px_72px] sm:items-end sm:gap-x-3">
           <div className="grid grid-cols-[5.75rem_1fr] items-end gap-x-3 sm:contents">
             <span className="font-semibold text-white">Applied From:</span>
-            {isApply && form && onFormChange && !form.isShortLeave ? (
+            {isApply && form && onFormChange ? (
               <DatePicker
                 value={form.startDate}
                 onChange={(value) =>
@@ -277,7 +267,7 @@ export function LeaveFormDocument({
           </div>
           <div className="grid grid-cols-[5.75rem_1fr] items-end gap-x-3 sm:contents">
             <span className="font-semibold text-white">To:</span>
-            {isApply && form && onFormChange && !form.isShortLeave ? (
+            {isApply && form && onFormChange ? (
               <DatePicker
                 value={form.endDate}
                 onChange={(value) => onFormChange((current) => ({ ...current, endDate: value }))}
@@ -292,13 +282,6 @@ export function LeaveFormDocument({
             <PaperLine>{activeDays > 0 ? formatLeaveDays(activeDays) : "\u00A0"}</PaperLine>
           </div>
         </div>
-
-        {isShortLeave ? (
-          <p className="rounded-lg border border-[#f26b21]/35 bg-[#f26b21]/10 px-3 py-2 text-sm text-[#ffc9a3]">
-            Short leave deducts 0.5 day from the selected leave pool. Available only after half of
-            today&apos;s shift. Attendance stays Present.
-          </p>
-        ) : null}
 
         {exceedsBalance ? (
           <p className="rounded-lg border border-destructive/40 bg-destructive/15 px-3 py-2 text-destructive text-sm">
@@ -320,35 +303,7 @@ export function LeaveFormDocument({
               {PAPER_LEAVE_TYPE_ROWS.map((row) => (
                 <div key={row.join("-")} className="flex flex-wrap gap-x-6 gap-y-3">
                   {row.map((label) => {
-                    if (label === "Short Leave") {
-                      return (
-                        <PaperCheckbox
-                          key={label}
-                          label={label}
-                          inputType="checkbox"
-                          checked={isShortLeave}
-                          disabled={!isApply || !form || !onFormChange}
-                          onToggle={
-                            isApply && form && onFormChange
-                              ? () =>
-                                  onFormChange((current) => {
-                                    const next = !current.isShortLeave;
-                                    return {
-                                      ...current,
-                                      isShortLeave: next,
-                                      startDate: next ? shortLeaveDate : current.startDate,
-                                      endDate: next ? shortLeaveDate : current.endDate,
-                                      leaveType:
-                                        current.leaveType === "unpaid" ? "annual" : current.leaveType,
-                                    };
-                                  })
-                              : undefined
-                          }
-                        />
-                      );
-                    }
-
-                    if (label === "Half Day") {
+                    if (label === "Short Leave" || label === "Half Day") {
                       return (
                         <PaperCheckbox
                           key={label}
@@ -373,8 +328,6 @@ export function LeaveFormDocument({
                                 onFormChange((current) => ({
                                   ...current,
                                   leaveType: systemType,
-                                  isShortLeave:
-                                    systemType === "unpaid" ? false : current.isShortLeave,
                                 }))
                             : undefined
                         }
