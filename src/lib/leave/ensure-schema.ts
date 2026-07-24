@@ -37,11 +37,13 @@ export async function ensureShortLeaveSchema(): Promise<void> {
 
 export async function withShortLeaveSchema<T>(operation: () => Promise<T>): Promise<T> {
   try {
+    await ensureShortLeaveSchema();
     return await operation();
   } catch (error) {
     if (!isMissingShortLeaveSchema(error)) {
       throw error;
     }
+    ensurePromise = null;
     await ensureShortLeaveSchema();
     return operation();
   }
