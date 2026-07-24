@@ -383,13 +383,6 @@ export function LeaveFormDocument({
           <span className="font-semibold text-white">Supervisor comments</span>
           <PaperLine>{"\u00A0"}</PaperLine>
         </div>
-
-        <div className="grid grid-cols-1 gap-10 pt-6 sm:max-w-xs">
-          <div>
-            <PaperLine className="min-h-10">{"\u00A0"}</PaperLine>
-            <p className="mt-2 text-center text-xs text-[#d7dceb]">Employee Signature</p>
-          </div>
-        </div>
       </div>
 
       <div className="leave-form-rule mt-10 border-t pt-6">
@@ -442,14 +435,14 @@ export function LeaveFormDocument({
           <PaperCheckbox checked={activeLeaveType === "unpaid"} label="Unpaid" disabled />
         </div>
 
-        <div className="mt-8 space-y-10">
+        <div className="mt-8">
           {PAPER_SIGNATURE_ROWS.map((row) => (
             <div
               key={row.join("-")}
               className={cn(
-                "grid gap-8",
+                "grid gap-6 sm:gap-8",
                 row.length === 2 && "grid-cols-2",
-                row.length === 3 && "grid-cols-3",
+                row.length === 3 && "grid-cols-1 sm:grid-cols-3",
               )}
             >
               {row.map((label) => (

@@ -413,10 +413,6 @@ export async function buildLeaveApplicationPdf(data: LeaveApplicationPdfData): P
       });
     }
 
-    const sigWidth = CONTENT_WIDTH / 2 - 12;
-    drawSignatureLine(doc, "Employee Signature", PAGE_MARGIN, y + 10, sigWidth);
-    y += 52;
-
     doc
       .strokeColor("#111111")
       .lineWidth(0.75)
