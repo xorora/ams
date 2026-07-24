@@ -384,14 +384,10 @@ export function LeaveFormDocument({
           <PaperLine>{"\u00A0"}</PaperLine>
         </div>
 
-        <div className="grid grid-cols-2 gap-10 pt-6">
+        <div className="grid grid-cols-1 gap-10 pt-6 sm:max-w-xs">
           <div>
             <PaperLine className="min-h-10">{"\u00A0"}</PaperLine>
             <p className="mt-2 text-center text-xs text-[#d7dceb]">Employee Signature</p>
-          </div>
-          <div>
-            <PaperLine className="min-h-10">{"\u00A0"}</PaperLine>
-            <p className="mt-2 text-center text-xs text-[#d7dceb]">HOD Signature</p>
           </div>
         </div>
       </div>

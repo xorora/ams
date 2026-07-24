@@ -27,8 +27,7 @@ export const PAPER_HR_LEAVE_ROWS: readonly {
 ] as const;
 
 export const PAPER_SIGNATURE_ROWS: readonly (readonly string[])[] = [
-  ["HR Manager", "MS / Principal"],
-  ["CEO / Director", "General Manager", "Executive Director"],
+  ["HR Manager", "CEO / Director"],
 ] as const;
 
 export function formatLeavePrintDate(date: Date = new Date()): string {

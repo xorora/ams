@@ -415,7 +415,6 @@ export async function buildLeaveApplicationPdf(data: LeaveApplicationPdfData): P
 
     const sigWidth = CONTENT_WIDTH / 2 - 12;
     drawSignatureLine(doc, "Employee Signature", PAGE_MARGIN, y + 10, sigWidth);
-    drawSignatureLine(doc, "HOD Signature", PAGE_MARGIN + sigWidth + 24, y + 10, sigWidth);
     y += 52;
 
     doc
