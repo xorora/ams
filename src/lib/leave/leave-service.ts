@@ -15,6 +15,7 @@ import {
 import { loadEmployeeShiftContext } from "@/lib/attendance/employee-shift";
 import { PKT_DATETIME_LONG_12H_FORMAT } from "@/lib/admin/display";
 import { ENTITLED_LEAVE_TYPES, LEAVE_ENTITLEMENTS, SHORT_LEAVE_DAYS } from "./constants";
+import { withShortLeaveSchema } from "./ensure-schema";
 import type { LeaveApplicationPdfData } from "./leave-pdf";
 import type {
   EmployeeLeaveBalanceSummary,
@@ -177,21 +178,23 @@ async function getEmployeeForLeave(
 }
 
 async function loadLeaveItem(id: string): Promise<ServiceFailure | ServiceSuccess<LeaveListItem>> {
-  const [row] = await db.select().from(leaveRequests).where(eq(leaveRequests.id, id)).limit(1);
-  if (!row) {
-    return adminFailure(404, "LEAVE_NOT_FOUND", "Leave request not found.");
-  }
+  return withShortLeaveSchema(async () => {
+    const [row] = await db.select().from(leaveRequests).where(eq(leaveRequests.id, id)).limit(1);
+    if (!row) {
+      return adminFailure(404, "LEAVE_NOT_FOUND", "Leave request not found.");
+    }
 
-  const [employee] = await db
-    .select()
-    .from(employees)
-    .where(eq(employees.id, row.employeeId))
-    .limit(1);
-  if (!employee) {
-    return adminFailure(404, "EMPLOYEE_NOT_FOUND", "Employee not found.");
-  }
+    const [employee] = await db
+      .select()
+      .from(employees)
+      .where(eq(employees.id, row.employeeId))
+      .limit(1);
+    if (!employee) {
+      return adminFailure(404, "EMPLOYEE_NOT_FOUND", "Employee not found.");
+    }
 
-  return { ok: true, data: mapLeaveRow(row, employee) };
+    return { ok: true, data: mapLeaveRow(row, employee) };
+  });
 }
 
 export async function getLeaveRequestForPdf(
@@ -280,36 +283,40 @@ function buildListConditions(filters: ListLeaveFilters): SQL[] {
 export async function listLeaveRequests(
   filters: ListLeaveFilters = {},
 ): Promise<ServiceSuccess<LeaveListItem[]>> {
-  const conditions = buildListConditions(filters);
-  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+  return withShortLeaveSchema(async () => {
+    const conditions = buildListConditions(filters);
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-  const rows = await db
-    .select({ request: leaveRequests, employee: employees })
-    .from(leaveRequests)
-    .innerJoin(employees, eq(leaveRequests.employeeId, employees.id))
-    .where(whereClause)
-    .orderBy(desc(leaveRequests.createdAt));
+    const rows = await db
+      .select({ request: leaveRequests, employee: employees })
+      .from(leaveRequests)
+      .innerJoin(employees, eq(leaveRequests.employeeId, employees.id))
+      .where(whereClause)
+      .orderBy(desc(leaveRequests.createdAt));
 
-  return {
-    ok: true,
-    data: rows.map(({ request, employee }) => mapLeaveRow(request, employee)),
-  };
+    return {
+      ok: true,
+      data: rows.map(({ request, employee }) => mapLeaveRow(request, employee)),
+    };
+  });
 }
 
 /** Pending leave requests needing admin review (company-scoped when provided). */
 export async function countPendingLeaveRequests(companyId?: string | null): Promise<number> {
-  const conditions = [eq(leaveRequests.status, "pending")];
-  if (companyId) {
-    conditions.push(eq(employees.companyId, companyId));
-  }
+  return withShortLeaveSchema(async () => {
+    const conditions = [eq(leaveRequests.status, "pending")];
+    if (companyId) {
+      conditions.push(eq(employees.companyId, companyId));
+    }
 
-  const [row] = await db
-    .select({ value: count() })
-    .from(leaveRequests)
-    .innerJoin(employees, eq(leaveRequests.employeeId, employees.id))
-    .where(and(...conditions));
+    const [row] = await db
+      .select({ value: count() })
+      .from(leaveRequests)
+      .innerJoin(employees, eq(leaveRequests.employeeId, employees.id))
+      .where(and(...conditions));
 
-  return row?.value ?? 0;
+    return row?.value ?? 0;
+  });
 }
 
 /** Cross-request cache for sidebar badge (invalidated via updateTag on leave actions). */
@@ -423,60 +430,62 @@ export async function listCompanyLeaveBalances(
   year = getCurrentYear(),
   options?: { includeInactive?: boolean },
 ): Promise<ServiceSuccess<EmployeeLeaveBalanceSummary[]>> {
-  const yearStart = `${year}-01-01`;
-  const yearEnd = `${year}-12-31`;
-  const employeeFilter = options?.includeInactive
-    ? eq(employees.companyId, companyId)
-    : and(eq(employees.companyId, companyId), eq(employees.isActive, true));
+  return withShortLeaveSchema(async () => {
+    const yearStart = `${year}-01-01`;
+    const yearEnd = `${year}-12-31`;
+    const employeeFilter = options?.includeInactive
+      ? eq(employees.companyId, companyId)
+      : and(eq(employees.companyId, companyId), eq(employees.isActive, true));
 
-  const [employeeRows, requestRows] = await Promise.all([
-    db
-      .select({
-        id: employees.id,
-        employeeCode: employees.employeeCode,
-        fullName: employees.fullName,
-      })
-      .from(employees)
-      .where(employeeFilter)
-      .orderBy(employees.fullName),
-    db
-      .select({
-        employeeId: leaveRequests.employeeId,
-        leaveType: leaveRequests.leaveType,
-        status: leaveRequests.status,
-        daysCount: leaveRequests.daysCount,
-      })
-      .from(leaveRequests)
-      .innerJoin(employees, eq(leaveRequests.employeeId, employees.id))
-      .where(
-        and(
-          eq(employees.companyId, companyId),
-          gte(leaveRequests.startDate, yearStart),
-          lte(leaveRequests.startDate, yearEnd),
+    const [employeeRows, requestRows] = await Promise.all([
+      db
+        .select({
+          id: employees.id,
+          employeeCode: employees.employeeCode,
+          fullName: employees.fullName,
+        })
+        .from(employees)
+        .where(employeeFilter)
+        .orderBy(employees.fullName),
+      db
+        .select({
+          employeeId: leaveRequests.employeeId,
+          leaveType: leaveRequests.leaveType,
+          status: leaveRequests.status,
+          daysCount: leaveRequests.daysCount,
+        })
+        .from(leaveRequests)
+        .innerJoin(employees, eq(leaveRequests.employeeId, employees.id))
+        .where(
+          and(
+            eq(employees.companyId, companyId),
+            gte(leaveRequests.startDate, yearStart),
+            lte(leaveRequests.startDate, yearEnd),
+          ),
         ),
-      ),
-  ]);
+    ]);
 
-  const requestsByEmployee = new Map<string, LeaveRequestForBalance[]>();
-  for (const row of requestRows) {
-    const existing = requestsByEmployee.get(row.employeeId) ?? [];
-    existing.push({
-      leaveType: row.leaveType,
-      status: row.status,
-      daysCount: parseDaysCount(row.daysCount),
-    });
-    requestsByEmployee.set(row.employeeId, existing);
-  }
+    const requestsByEmployee = new Map<string, LeaveRequestForBalance[]>();
+    for (const row of requestRows) {
+      const existing = requestsByEmployee.get(row.employeeId) ?? [];
+      existing.push({
+        leaveType: row.leaveType,
+        status: row.status,
+        daysCount: parseDaysCount(row.daysCount),
+      });
+      requestsByEmployee.set(row.employeeId, existing);
+    }
 
-  return {
-    ok: true,
-    data: employeeRows.map((employee) => ({
-      employeeId: employee.id,
-      employeeCode: employee.employeeCode,
-      employeeName: employee.fullName,
-      balances: computeLeaveBalances(requestsByEmployee.get(employee.id) ?? []),
-    })),
-  };
+    return {
+      ok: true,
+      data: employeeRows.map((employee) => ({
+        employeeId: employee.id,
+        employeeCode: employee.employeeCode,
+        employeeName: employee.fullName,
+        balances: computeLeaveBalances(requestsByEmployee.get(employee.id) ?? []),
+      })),
+    };
+  });
 }
 
 async function validateLeaveSubmission(
@@ -699,45 +708,47 @@ export async function submitLeaveRequest(
   employeeId: string,
   input: SubmitLeaveInput,
 ): Promise<ServiceFailure | ServiceSuccess<LeaveListItem>> {
-  const validation = await validateLeaveSubmission(employeeId, input);
-  if (!validation.ok) {
-    return validation;
-  }
+  return withShortLeaveSchema(async () => {
+    const validation = await validateLeaveSubmission(employeeId, input);
+    if (!validation.ok) {
+      return validation;
+    }
 
-  const employeeResult = await getEmployeeForLeave(employeeId);
-  if (!employeeResult.ok) {
-    return employeeResult;
-  }
+    const employeeResult = await getEmployeeForLeave(employeeId);
+    if (!employeeResult.ok) {
+      return employeeResult;
+    }
 
-  const config = LEAVE_ENTITLEMENTS[input.leaveType];
-  const initialStatus: LeaveRequestStatus = config.requiresApproval ? "pending" : "approved";
-  const now = new Date();
+    const config = LEAVE_ENTITLEMENTS[input.leaveType];
+    const initialStatus: LeaveRequestStatus = config.requiresApproval ? "pending" : "approved";
+    const now = new Date();
 
-  const [created] = await db
-    .insert(leaveRequests)
-    .values({
-      employeeId,
-      leaveType: input.leaveType,
-      startDate: input.startDate,
-      endDate: input.endDate,
-      daysCount: formatDaysCountForDb(validation.data.daysCount),
-      isShortLeave: validation.data.isShortLeave,
-      reason: input.reason.trim(),
-      medicalCertificateNote: input.medicalCertificateNote?.trim() || null,
-      status: initialStatus,
-      reviewedAt: initialStatus === "approved" ? now : null,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .returning();
+    const [created] = await db
+      .insert(leaveRequests)
+      .values({
+        employeeId,
+        leaveType: input.leaveType,
+        startDate: input.startDate,
+        endDate: input.endDate,
+        daysCount: formatDaysCountForDb(validation.data.daysCount),
+        isShortLeave: validation.data.isShortLeave,
+        reason: input.reason.trim(),
+        medicalCertificateNote: input.medicalCertificateNote?.trim() || null,
+        status: initialStatus,
+        reviewedAt: initialStatus === "approved" ? now : null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning();
 
-  const item = mapLeaveRow(created, employeeResult.data);
+    const item = mapLeaveRow(created, employeeResult.data);
 
-  if (initialStatus === "approved") {
-    await syncApprovedLeaveToAttendance(item, employeeResult.data.userId);
-  }
+    if (initialStatus === "approved") {
+      await syncApprovedLeaveToAttendance(item, employeeResult.data.userId);
+    }
 
-  return { ok: true, data: item };
+    return { ok: true, data: item };
+  });
 }
 
 export async function cancelLeaveRequest(
