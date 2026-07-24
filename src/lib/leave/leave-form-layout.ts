@@ -1,9 +1,8 @@
 import type { LeaveType } from "./types";
 
-/** Leave types shown on the paper form (design only — only Earned/Casual/Sick map to system types). */
+/** Leave types shown on the paper form (Earned/Casual/Sick map to system types). */
 export const PAPER_LEAVE_TYPE_ROWS: readonly (readonly string[])[] = [
-  ["Earned", "Casual", "Sick Leave", "Out Door", "Short Leave", "Half Day"],
-  ["Late Arrival", "Early Left", "Maternity", "Paternity", "Compensatory"],
+  ["Earned", "Casual", "Sick Leave"],
 ] as const;
 
 export const PAPER_LEAVE_TYPE_TO_SYSTEM: Record<string, LeaveType> = {

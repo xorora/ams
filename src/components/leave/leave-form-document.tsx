@@ -303,17 +303,6 @@ export function LeaveFormDocument({
               {PAPER_LEAVE_TYPE_ROWS.map((row) => (
                 <div key={row.join("-")} className="flex flex-wrap gap-x-6 gap-y-3">
                   {row.map((label) => {
-                    if (label === "Short Leave" || label === "Half Day") {
-                      return (
-                        <PaperCheckbox
-                          key={label}
-                          label={label}
-                          checked={false}
-                          disabled
-                        />
-                      );
-                    }
-
                     const systemType = PAPER_LEAVE_TYPE_TO_SYSTEM[label];
                     const checked = selectedPaperType === label;
                     return (

@@ -395,7 +395,7 @@ export async function buildLeaveApplicationPdf(data: LeaveApplicationPdfData): P
     for (const row of PAPER_LEAVE_TYPE_ROWS) {
       let x = PAGE_MARGIN;
       for (const label of row) {
-        const checked = label === "Short Leave" ? false : label === selectedPaperType;
+        const checked = label === selectedPaperType;
         x = drawCheckbox(doc, x, y, label, checked);
       }
       y += CHECKBOX_ROW_GAP;
